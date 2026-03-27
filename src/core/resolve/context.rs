@@ -5,10 +5,7 @@ use std::{
 
 use crate::core::{
     config::HniConfig,
-    detect::{
-        DetectOptions, detect_in_project_state, detect_install_metadata_in_dir,
-        detect_lockfile_in_dir,
-    },
+    detect::{DetectOptions, detect_in_project_state, detect_lockfile_in_dir},
     error::HniResult,
     package::NearestPackage,
     pkg_json::{PackageJson, package_json_path, read_package_json},
@@ -21,6 +18,7 @@ pub struct ResolveContext {
     pub config: HniConfig,
     verify_package_manager_availability: bool,
     project_state: OnceLock<ProjectState>,
+    detection: OnceLock<DetectionResult>,
 }
 
 impl ResolveContext {
@@ -38,6 +36,7 @@ impl ResolveContext {
             config,
             verify_package_manager_availability,
             project_state: OnceLock::new(),
+            detection: OnceLock::new(),
         }
     }
 
@@ -55,7 +54,13 @@ impl ResolveContext {
     }
 
     pub fn detect(&self) -> HniResult<DetectionResult> {
-        Ok(self.project_state()?.detect(&self.config))
+        if let Some(detection) = self.detection.get() {
+            return Ok(detection.clone());
+        }
+
+        let detection = self.project_state()?.detect(&self.config);
+        let _ = self.detection.set(detection.clone());
+        Ok(detection)
     }
 
     pub fn cwd(&self) -> &Path {
@@ -80,7 +85,6 @@ pub(crate) struct AncestorState {
     dir: PathBuf,
     manifest: Option<PackageJson>,
     lockfile_pm: Option<PackageManager>,
-    install_metadata_pm: Option<PackageManager>,
 }
 
 impl ProjectState {
@@ -95,7 +99,6 @@ impl ProjectState {
             let manifest = read_package_json(&dir)?;
             let package_json_path = package_json_path(&dir);
             let lockfile_pm = detect_lockfile_in_dir(&dir);
-            let install_metadata_pm = detect_install_metadata_in_dir(&dir);
 
             if nearest_package.is_none()
                 && let Some(manifest) = manifest.clone()
@@ -125,7 +128,6 @@ impl ProjectState {
                 dir,
                 manifest,
                 lockfile_pm,
-                install_metadata_pm,
             });
         }
 
@@ -186,9 +188,5 @@ impl AncestorState {
 
     pub(crate) fn lockfile_pm(&self) -> Option<PackageManager> {
         self.lockfile_pm
-    }
-
-    pub(crate) fn install_metadata_pm(&self) -> Option<PackageManager> {
-        self.install_metadata_pm
     }
 }

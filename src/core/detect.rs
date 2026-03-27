@@ -138,7 +138,7 @@ pub(crate) fn detect_in_project_state(
                         ancestor.manifest().and_then(detect_dev_engines_field)
                     }
                     DetectStrategy::InstallMetadata => {
-                        ancestor.install_metadata_pm().map(|pm| DetectionResult {
+                        detect_install_metadata_in_dir(ancestor.dir()).map(|pm| DetectionResult {
                             agent: Some(pm),
                             has_lock,
                             version_hint: None,
