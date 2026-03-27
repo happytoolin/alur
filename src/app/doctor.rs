@@ -1,11 +1,12 @@
 use std::{ffi::OsStr, path::Path};
 
 use crate::{
-    core::{resolve::ResolveContext, types::DetectionSource},
-    platform::{
-        node::{real_node_supports_run, resolve_real_node_path},
-        paths_equal,
+    core::{
+        config::{DefaultAgent, RunAgent},
+        resolve::ResolveContext,
+        types::DetectionSource,
     },
+    platform::node::{real_node_supports_run, resolve_real_node_path},
 };
 
 pub fn print_doctor(ctx: &ResolveContext) {
@@ -13,7 +14,7 @@ pub fn print_doctor(ctx: &ResolveContext) {
     let config = &ctx.config;
     let current_hni = std::env::current_exe()
         .ok()
-        .map(|path| dunce::canonicalize(&path).unwrap_or(path));
+        .map(|path| path.canonicalize().unwrap_or(path));
     let path_node = which::which("node").ok();
     let resolved_real_node = resolve_real_node_path().ok();
 
@@ -52,16 +53,14 @@ pub fn print_doctor(ctx: &ResolveContext) {
             .map_or_else(|| "none".to_string(), |p| p.display().to_string())
     );
     println!(
-        "defaultPackageManager: {}",
-        config
-            .default_package_manager
-            .map_or("none", |pm| pm.display_name())
+        "defaultAgent: {}",
+        format_default_agent(config.default_agent)
     );
-    println!(
-        "globalPackageManager: {}",
-        config.global_package_manager.display_name()
-    );
-    println!("fastMode: {}", config.fast_mode);
+    println!("globalAgent: {}", config.global_agent.display_name());
+    println!("runAgent: {}", format_run_agent(config.run_agent));
+    println!("nativeMode: {}", config.native_mode);
+    println!("useSfw: {}", config.use_sfw);
+    println!("autoInstall(env): {}", config.auto_install);
     println!();
 
     match ctx.detect() {
@@ -125,11 +124,34 @@ fn shim_precedence_active(current_hni: Option<&Path>, path_node: Option<&Path>) 
     )
 }
 
+fn paths_equal(a: &Path, b: &Path) -> bool {
+    match (a.canonicalize(), b.canonicalize()) {
+        (Ok(a), Ok(b)) => a == b,
+        _ => a == b,
+    }
+}
+
+fn format_default_agent(value: DefaultAgent) -> &'static str {
+    match value {
+        DefaultAgent::Prompt => "prompt",
+        DefaultAgent::Agent(pm) => pm.display_name(),
+    }
+}
+
+fn format_run_agent(value: RunAgent) -> &'static str {
+    match value {
+        RunAgent::PackageManager => "package-manager",
+        RunAgent::Node => "node (legacy compatibility)",
+    }
+}
+
 fn detection_source_label(value: DetectionSource) -> &'static str {
     match value {
         DetectionSource::PackageManagerField => "packageManager field",
         DetectionSource::Lockfile => "lockfile",
-        DetectionSource::Config => "config defaultPackageManager",
+        DetectionSource::Config => "config defaultAgent",
+        DetectionSource::DevEnginesField => "devEngines.packageManager field",
+        DetectionSource::InstallMetadata => "install metadata",
         DetectionSource::Fallback => "fallback (npm in PATH)",
         DetectionSource::None => "none",
     }

@@ -295,8 +295,10 @@ Environment overrides:
 `hni` detects the package manager from:
 
 1. `packageManager` in `package.json`
-2. lockfiles such as `pnpm-lock.yaml`, `yarn.lock`, `package-lock.json`, `bun.lockb`, or `deno.lock`
-3. config defaults if detection is unavailable
+2. lockfiles such as `pnpm-lock.yaml`, `pnpm-workspace.yaml`, `yarn.lock`, `package-lock.json`, `bun.lockb`, or `deno.lock`
+3. `devEngines.packageManager` in `package.json`
+4. install metadata such as `.pnp.cjs`, `node_modules/.pnpm`, or `node_modules/.package-lock.json`
+5. config defaults if detection is unavailable
 
 Then it maps the command family to the right native command:
 
