@@ -114,7 +114,7 @@ fn native_regression_cases_match_or_fallback_to_the_package_manager() {
                 Classification::Equivalence => {
                     let stdout = String::from_utf8_lossy(&run.debug_output.stdout);
                     assert!(
-                        stdout.starts_with("hni native:"),
+                        stdout.starts_with("hni fast:"),
                         "equivalence case '{}' did not resolve natively: {stdout}",
                         case.name,
                     );
@@ -125,7 +125,7 @@ fn native_regression_cases_match_or_fallback_to_the_package_manager() {
                         .expect("fallback cases should capture explain output");
                     let stdout = String::from_utf8_lossy(&explain.stdout);
                     assert!(
-                        stdout.contains("native_status: fallback"),
+                        stdout.contains("fast_status: fallback"),
                         "fallback case '{}' did not report fallback: {stdout}",
                         case.name
                     );
@@ -168,7 +168,7 @@ fn native_regression_cases() -> Vec<NativeRegressionCase> {
             setup: setup_env_expansion_fixture_npm,
             subject: "dev",
             forwarded_args: &[],
-            fallback_reason_fragment: Some("unsupported native environment expansion"),
+            fallback_reason_fragment: Some("unsupported fast environment expansion"),
             assert_state: assert_env_expansion_fixture,
         },
         NativeRegressionCase {
@@ -343,7 +343,7 @@ fn hni_args(case: NativeRegressionCase, cwd: &Path) -> Vec<String> {
         },
         "-C".to_string(),
         cwd.to_string_lossy().to_string(),
-        "--native".to_string(),
+        "--fast".to_string(),
         case.subject.to_string(),
     ];
     args.extend(case.forwarded_args.iter().map(|arg| arg.to_string()));
@@ -358,7 +358,7 @@ fn hni_explain_args(case: NativeRegressionCase, cwd: &Path) -> Vec<String> {
         },
         "-C".to_string(),
         cwd.to_string_lossy().to_string(),
-        "--native".to_string(),
+        "--fast".to_string(),
         "--explain".to_string(),
         case.subject.to_string(),
     ];
@@ -374,7 +374,7 @@ fn hni_debug_args(case: NativeRegressionCase, cwd: &Path) -> Vec<String> {
         },
         "-C".to_string(),
         cwd.to_string_lossy().to_string(),
-        "--native".to_string(),
+        "--fast".to_string(),
         "--debug-resolved".to_string(),
         case.subject.to_string(),
     ];

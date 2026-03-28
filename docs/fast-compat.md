@@ -1,13 +1,13 @@
-# Native Compatibility
+# Fast-Mode Compatibility
 
-`hni` native mode is an optimization for common local script and local bin execution.
+`hni` fast mode is an optimization for common local script and local bin execution.
 
 It is not intended to perfectly reimplement every package manager's runtime behavior.
-When a project layout or shell environment is likely to be package-manager-specific, `hni` should fall back to delegated execution instead of guessing.
+When a project layout or shell environment is likely to be package-manager-specific, `hni` should fall back to package-manager mode instead of guessing.
 
 ## Summary
 
-| Package manager | `nr` native | `nlx` native | Notes |
+| Package manager | `nr` fast | `nlx` fast | Notes |
 | --- | --- | --- | --- |
 | npm | Yes | Yes | Common local `scripts` and `node_modules/.bin` flows are supported. |
 | pnpm | Yes | Yes | Includes local `.bin` lookup and pnpm hoisted `.bin` paths when present. |
@@ -15,22 +15,22 @@ When a project layout or shell environment is likely to be package-manager-speci
 | yarn berry (node-modules linker) | Yes | Yes | Supported when the project exposes real filesystem bins. |
 | yarn berry (PnP) | No | No | Falls back because PnP does not provide normal `node_modules/.bin` semantics. |
 | bun | Yes | Yes | Supported for local script and local bin execution. |
-| deno | Yes, task/local cases only | Yes, local bins only | Native fast path supports nearest `deno.json{,c}` tasks, mixed `package.json` fallback, and local-bin exec. Workspaces and remote `npm:` exec still delegate. |
+| deno | Yes, task/local cases only | Yes, local bins only | The fast path supports nearest `deno.json{,c}` tasks, mixed `package.json` fallback, and local-bin exec. Workspaces and remote `npm:` exec fall back to package-manager mode. |
 
 ## Command Support
 
-| Command | Native support | Notes |
+| Command | Fast-mode support | Notes |
 | --- | --- | --- |
-| `nr` | Yes, when eligible | Supports package.json lifecycle hooks where applicable, plus native Deno task execution in Deno projects. |
-| `node run` | Yes, same as `nr` | Inherits the same native checks and fallbacks. |
-| `nlx` | Yes, local bins only | Uses native execution only when a local executable can be resolved confidently. |
+| `nr` | Yes, when eligible | Supports package.json lifecycle hooks where applicable, plus fast Deno task execution in Deno projects. |
+| `node run` | Yes, same as `nr` | Inherits the same fast-mode checks and fallbacks. |
+| `nlx` | Yes, local bins only | Uses fast execution only when a local executable can be resolved confidently. |
 | `node exec` / `node x` / `node dlx` | Yes, local bins only | Inherits the same local-bin behavior as `nlx`. |
-| `ni`, `nci`, `nu`, `nun`, `na` | No | These remain delegated to the detected package manager. |
-| `np`, `ns` | Already native | These are not controlled by `nativeMode`. |
+| `ni`, `nci`, `nru`, `nun`, `na` | No | These remain in package-manager mode. |
+| `np`, `ns` | Already direct | These are not controlled by `fastMode`. |
 
-## Native Resolution Rules
+## Fast-Mode Resolution Rules
 
-For native `nr`:
+For fast `nr`:
 
 | Behavior | Status |
 | --- | --- |
@@ -49,7 +49,7 @@ For native `nr`:
 | Deno workspace/member recursion | Not supported, falls back |
 | unsupported or cyclic Deno task graphs | Falls back |
 
-For native `nlx`:
+For fast `nlx`:
 
 | Resolution source | Status |
 | --- | --- |
@@ -61,20 +61,20 @@ For native `nlx`:
 
 ## Windows
 
-Windows native support is intentionally conservative.
+Windows fast-mode support is intentionally conservative.
 
 | Case | Status |
 | --- | --- |
-| ordinary native `nr` script execution | Supported |
+| ordinary fast `nr` script execution | Supported |
 | direct executable local bins | Supported |
 | `.cmd` / `.bat` local bins | Supported via `cmd /C` |
 | `.ps1` local bins | Supported via PowerShell |
 | `.js` / `.cjs` / `.mjs` local bins | Supported via the resolved real Node binary |
-| package-manager-specific shim behavior beyond these cases | Falls back or should be run with `--no-native` |
+| package-manager-specific shim behavior beyond these cases | Falls back or should be run with `--pm` |
 
-## When To Skip Native Mode
+## When To Skip Fast Mode
 
-Prefer `--no-native` for:
+Prefer `--pm` for:
 
 - Yarn Berry Plug'n'Play projects
 - Deno workspace projects
@@ -85,11 +85,11 @@ Prefer `--no-native` for:
 Examples:
 
 ```bash
-nr --no-native build
-nlx --no-native create-vite@latest
-node run --no-native dev
+nr --pm build
+nlx --pm create-vite@latest
+node run --pm dev
 ```
 
 ## Design Principle
 
-If native execution is not clearly correct, `hni` should delegate instead of approximating package-manager behavior.
+If fast execution is not clearly correct, `hni` should use package-manager mode instead of approximating package-manager behavior.

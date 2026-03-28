@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url'
 
 const DEFAULT_RUNS = 500
 const DEFAULT_WARMUPS = 50
-const TRACKS = ['compare', 'native', 'runtime', 'direct', 'fixtures']
+const TRACKS = ['compare', 'fast', 'runtime', 'direct', 'fixtures']
 const SUMMARY_ONLY_TRACKS = new Set(['fixtures'])
 
 const PMS = [
@@ -336,7 +336,7 @@ function compareCases() {
   ]
 }
 
-function nativeCases(fixturePaths) {
+function fastCases(fixturePaths) {
   const cases = []
 
   for (const pm of PMS) {
@@ -347,8 +347,8 @@ function nativeCases(fixturePaths) {
           group: 'nr',
           case: `nr noop (${pm.label})`,
           commands: [
-            { name: 'delegated', bin: 'nr', args: ['-C', fixturePaths[pm.fixtureKey], 'noop'], env: { HNI_FAST_MODE: 'false' } },
-            { name: 'native', bin: 'nr', args: ['-C', fixturePaths[pm.fixtureKey], 'noop'], env: { HNI_FAST_MODE: 'true' } },
+            { name: 'pm', bin: 'nr', args: ['-C', fixturePaths[pm.fixtureKey], 'noop'], env: { HNI_FAST: 'false' } },
+            { name: 'fast', bin: 'nr', args: ['-C', fixturePaths[pm.fixtureKey], 'noop'], env: { HNI_FAST: 'true' } },
           ],
           requiredBins: pm.requiredBins,
         },
@@ -357,8 +357,8 @@ function nativeCases(fixturePaths) {
           group: 'nr',
           case: `nr hooks (${pm.label})`,
           commands: [
-            { name: 'delegated', bin: 'nr', args: ['-C', fixturePaths[pm.fixtureKey], 'hooks'], env: { HNI_FAST_MODE: 'false' } },
-            { name: 'native', bin: 'nr', args: ['-C', fixturePaths[pm.fixtureKey], 'hooks'], env: { HNI_FAST_MODE: 'true' } },
+            { name: 'pm', bin: 'nr', args: ['-C', fixturePaths[pm.fixtureKey], 'hooks'], env: { HNI_FAST: 'false' } },
+            { name: 'fast', bin: 'nr', args: ['-C', fixturePaths[pm.fixtureKey], 'hooks'], env: { HNI_FAST: 'true' } },
           ],
           requiredBins: pm.requiredBins,
         },
@@ -367,8 +367,8 @@ function nativeCases(fixturePaths) {
           group: 'node-run',
           case: `node run noop (${pm.label})`,
           commands: [
-            { name: 'delegated', bin: 'node', args: ['-C', fixturePaths[pm.fixtureKey], 'run', 'noop'], env: { HNI_FAST_MODE: 'false' } },
-            { name: 'native', bin: 'node', args: ['-C', fixturePaths[pm.fixtureKey], 'run', 'noop'], env: { HNI_FAST_MODE: 'true' } },
+            { name: 'pm', bin: 'node', args: ['-C', fixturePaths[pm.fixtureKey], 'run', 'noop'], env: { HNI_FAST: 'false' } },
+            { name: 'fast', bin: 'node', args: ['-C', fixturePaths[pm.fixtureKey], 'run', 'noop'], env: { HNI_FAST: 'true' } },
           ],
           requiredBins: pm.requiredBins,
         },
@@ -382,8 +382,8 @@ function nativeCases(fixturePaths) {
         group: 'nr',
         case: `nr noop (${pm.label})`,
         commands: [
-          { name: 'delegated', bin: 'nr', args: ['-C', fixturePaths[pm.fixtureKey], 'noop'], env: { HNI_FAST_MODE: 'false' } },
-          { name: 'native', bin: 'nr', args: ['-C', fixturePaths[pm.fixtureKey], 'noop'], env: { HNI_FAST_MODE: 'true' } },
+          { name: 'pm', bin: 'nr', args: ['-C', fixturePaths[pm.fixtureKey], 'noop'], env: { HNI_FAST: 'false' } },
+          { name: 'fast', bin: 'nr', args: ['-C', fixturePaths[pm.fixtureKey], 'noop'], env: { HNI_FAST: 'true' } },
         ],
         requiredBins: pm.requiredBins,
       },
@@ -392,8 +392,8 @@ function nativeCases(fixturePaths) {
         group: 'nr',
         case: `nr hooks (${pm.label})`,
         commands: [
-          { name: 'delegated', bin: 'nr', args: ['-C', fixturePaths[pm.fixtureKey], 'hooks'], env: { HNI_FAST_MODE: 'false' } },
-          { name: 'native', bin: 'nr', args: ['-C', fixturePaths[pm.fixtureKey], 'hooks'], env: { HNI_FAST_MODE: 'true' } },
+          { name: 'pm', bin: 'nr', args: ['-C', fixturePaths[pm.fixtureKey], 'hooks'], env: { HNI_FAST: 'false' } },
+          { name: 'fast', bin: 'nr', args: ['-C', fixturePaths[pm.fixtureKey], 'hooks'], env: { HNI_FAST: 'true' } },
         ],
         requiredBins: pm.requiredBins,
       },
@@ -402,8 +402,8 @@ function nativeCases(fixturePaths) {
         group: 'node-run',
         case: `node run noop (${pm.label})`,
         commands: [
-          { name: 'delegated', bin: 'node', args: ['-C', fixturePaths[pm.fixtureKey], 'run', 'noop'], env: { HNI_FAST_MODE: 'false' } },
-          { name: 'native', bin: 'node', args: ['-C', fixturePaths[pm.fixtureKey], 'run', 'noop'], env: { HNI_FAST_MODE: 'true' } },
+          { name: 'pm', bin: 'node', args: ['-C', fixturePaths[pm.fixtureKey], 'run', 'noop'], env: { HNI_FAST: 'false' } },
+          { name: 'fast', bin: 'node', args: ['-C', fixturePaths[pm.fixtureKey], 'run', 'noop'], env: { HNI_FAST: 'true' } },
         ],
         requiredBins: pm.requiredBins,
       },
@@ -415,8 +415,8 @@ function nativeCases(fixturePaths) {
     group: 'nlx',
     case: 'nlx hello --flag (npm local bin)',
     commands: [
-      { name: 'delegated', bin: 'nlx', args: ['-C', fixturePaths.npm, 'hello', '--flag'], env: { HNI_FAST_MODE: 'false' } },
-      { name: 'native', bin: 'nlx', args: ['-C', fixturePaths.npm, 'hello', '--flag'], env: { HNI_FAST_MODE: 'true' } },
+      { name: 'pm', bin: 'nlx', args: ['-C', fixturePaths.npm, 'hello', '--flag'], env: { HNI_FAST: 'false' } },
+      { name: 'fast', bin: 'nlx', args: ['-C', fixturePaths.npm, 'hello', '--flag'], env: { HNI_FAST: 'true' } },
     ],
     requiredBins: ['npm'],
   })
@@ -436,7 +436,7 @@ function runtimeCases(fixturePaths) {
           kind: 'exec',
           bin: 'nr',
           args: ['-C', fixturePaths.pnpm, 'noop'],
-          env: { HNI_FAST_MODE: 'true' },
+          env: { HNI_FAST: 'true' },
         },
         {
           name: 'bun',
@@ -461,7 +461,7 @@ function runtimeCases(fixturePaths) {
           kind: 'exec',
           bin: 'nr',
           args: ['-C', fixturePaths.pnpm, 'hooks'],
-          env: { HNI_FAST_MODE: 'true' },
+          env: { HNI_FAST: 'true' },
         },
         {
           name: 'bun',
@@ -494,7 +494,7 @@ function directCases(fixturePaths) {
             kind: 'exec',
             bin: 'nr',
             args: ['-C', fixture, 'noop'],
-            env: { HNI_FAST_MODE: 'true' },
+            env: { HNI_FAST: 'true' },
           },
         ],
         requiredBins: pm.requiredBins,
@@ -510,7 +510,7 @@ function directCases(fixturePaths) {
             kind: 'exec',
             bin: 'nr',
             args: ['-C', fixture, 'hooks'],
-            env: { HNI_FAST_MODE: 'true' },
+            env: { HNI_FAST: 'true' },
           },
         ],
         requiredBins: pm.requiredBins,
@@ -530,7 +530,7 @@ function directCases(fixturePaths) {
             kind: 'exec',
             bin: 'nlx',
             args: ['-C', fixture, 'hello', '--flag'],
-            env: { HNI_FAST_MODE: 'true' },
+            env: { HNI_FAST: 'true' },
           },
         ],
         requiredBins: pm.requiredBins,
@@ -1178,16 +1178,16 @@ function fixtureDirectCommand(pmId, fixturePath) {
 
 function fixtureDirectEnv(pmId) {
   if (pmId === 'npm') {
-    return { npm_config_force: 'true' }
+    return { npm_config_yes: 'true' }
   }
 
   return {}
 }
 
-function fixtureHniEnv(pmId, nativeEnabled) {
+function fixtureHniEnv(pmId, fastEnabled) {
   return {
-    HNI_NATIVE: nativeEnabled ? 'true' : 'false',
-    ...(pmId === 'npm' ? { npm_config_force: 'true' } : {}),
+    HNI_FAST: fastEnabled ? 'true' : 'false',
+    ...(pmId === 'npm' ? { npm_config_yes: 'true' } : {}),
   }
 }
 
@@ -1227,13 +1227,13 @@ function fixtureCases(fixturesRoot) {
             env: fixtureDirectEnv(pmId),
           },
           {
-            name: 'delegated',
+            name: 'pm',
             bin: 'nr',
             args: ['-C', fixturePath, 'dev'],
             env: fixtureHniEnv(pmId, false),
           },
           {
-            name: 'native',
+            name: 'fast',
             bin: 'nr',
             args: ['-C', fixturePath, 'dev'],
             env: fixtureHniEnv(pmId, true),
@@ -1258,7 +1258,7 @@ function prepareAliasDir(tempRoot, ourBin) {
 
 function resolveTrackCases(track, fixturePaths, fixtureBenchmarkRoot) {
   if (track === 'compare') return compareCases()
-  if (track === 'native') return nativeCases(fixturePaths)
+  if (track === 'fast') return fastCases(fixturePaths)
   if (track === 'runtime') return runtimeCases(fixturePaths)
   if (track === 'direct') return directCases(fixturePaths)
   if (track === 'fixtures') return fixtureCases(fixtureBenchmarkRoot)

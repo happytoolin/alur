@@ -22,8 +22,8 @@ pub fn top_level_help() -> Command {
             .about("use the right package manager")
             .long_about(
                 "hni is a multicall package-manager router.\n\
-                 It powers commands like ni, nr, nlx, nu, nun, nci, na, np, ns, and node.\n\
-                 Fast/native execution is the default for eligible nr and nlx commands.",
+                 It powers commands like ni, nr, nlx, nru, nun, nci, na, np, ns, and node.\n\
+                 Fast mode is the default for eligible nr and nlx commands.",
             )
             .subcommand(Command::new("init").about("print shell init code"))
             .subcommand(Command::new("doctor").about("print environment and detection diagnostics"))
@@ -34,10 +34,10 @@ pub fn top_level_help() -> Command {
                  ni vite\n\
                  ni --explain react -D\n\
                  nr dev\n\
-                 nr --no-native dev\n\
+                 nr --pm dev\n\
                  nr dev -- --port=3000\n\
                  nlx create-vite@latest\n\
-                 nu --interactive\n\
+                 nru --interactive\n\
                  nun --multi-select\n\
                  np \"echo one\" \"echo two\"\n\
                  ns \"npm run build\" \"npm run test\"\n\
@@ -105,24 +105,17 @@ fn with_global_flags(cmd: Command) -> Command {
                 .action(ArgAction::SetTrue),
         )
         .arg(
-            Arg::new("native")
-                .long("native")
-                .help("prefer the fast/native execution ladder for eligible run/exec commands")
-                .conflicts_with("no-native")
-                .action(ArgAction::SetTrue),
-        )
-        .arg(
             Arg::new("fast")
                 .long("fast")
-                .help("alias for --native")
-                .conflicts_with("no-native")
+                .help("prefer fast mode for eligible run/exec commands")
+                .conflicts_with("pm")
                 .action(ArgAction::SetTrue),
         )
         .arg(
-            Arg::new("no-native")
-                .long("no-native")
-                .help("disable native execution for this invocation")
-                .conflicts_with("native")
+            Arg::new("pm")
+                .long("pm")
+                .help("force package-manager mode for this invocation")
+                .conflicts_with("fast")
                 .action(ArgAction::SetTrue),
         )
         .arg(

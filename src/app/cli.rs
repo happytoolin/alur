@@ -18,7 +18,7 @@ pub struct ParsedInvocation {
     pub cwd: PathBuf,
     pub debug: bool,
     pub explain: bool,
-    pub native_override: Option<bool>,
+    pub fast_override: Option<bool>,
     pub command: ParsedCommand,
     pub deprecated_debug_alias_used: bool,
 }
@@ -53,7 +53,7 @@ struct SharedFlags {
     cwd: Vec<PathBuf>,
     debug: bool,
     explain: bool,
-    native_override: Option<bool>,
+    fast_override: Option<bool>,
     help: bool,
     version: bool,
 }
@@ -111,7 +111,7 @@ fn parse_hni(
             cwd: resolve_cwd(&shared_flags.cwd)?,
             debug: shared_flags.debug,
             explain: shared_flags.explain,
-            native_override: shared_flags.native_override,
+            fast_override: shared_flags.fast_override,
             command,
             deprecated_debug_alias_used,
         });
@@ -160,7 +160,7 @@ fn parse_hni(
         cwd: resolve_cwd(&shared_flags.cwd)?,
         debug: shared_flags.debug,
         explain: shared_flags.explain,
-        native_override: shared_flags.native_override,
+        fast_override: shared_flags.fast_override,
         command,
         deprecated_debug_alias_used,
     })
@@ -201,7 +201,7 @@ fn parse_alias(
         cwd: resolve_cwd(&shared_flags.cwd)?,
         debug: shared_flags.debug,
         explain: shared_flags.explain,
-        native_override: shared_flags.native_override,
+        fast_override: shared_flags.fast_override,
         command,
         deprecated_debug_alias_used,
     })
@@ -391,7 +391,7 @@ fn extract_shared_flags(args: &[String]) -> Result<(SharedFlags, Vec<String>)> {
         cwd: Vec::new(),
         debug: false,
         explain: false,
-        native_override: None,
+        fast_override: None,
         help: false,
         version: false,
     };
@@ -423,12 +423,12 @@ fn extract_shared_flags(args: &[String]) -> Result<(SharedFlags, Vec<String>)> {
                 flags.explain = true;
                 idx += 1;
             }
-            "--native" | "--fast" => {
-                set_native_override(&mut flags, true)?;
+            "--fast" => {
+                set_fast_override(&mut flags, true)?;
                 idx += 1;
             }
-            "--no-native" => {
-                set_native_override(&mut flags, false)?;
+            "--pm" => {
+                set_fast_override(&mut flags, false)?;
                 idx += 1;
             }
             "-h" | "--help" => {
@@ -466,13 +466,13 @@ fn extract_shared_flags(args: &[String]) -> Result<(SharedFlags, Vec<String>)> {
     Ok((flags, rest))
 }
 
-fn set_native_override(flags: &mut SharedFlags, value: bool) -> Result<()> {
-    match flags.native_override {
+fn set_fast_override(flags: &mut SharedFlags, value: bool) -> Result<()> {
+    match flags.fast_override {
         Some(existing) if existing != value => {
-            Err(anyhow!("parse error: --native conflicts with --no-native"))
+            Err(anyhow!("parse error: --fast conflicts with --pm"))
         }
         _ => {
-            flags.native_override = Some(value);
+            flags.fast_override = Some(value);
             Ok(())
         }
     }
@@ -496,11 +496,11 @@ mod tests {
     }
 
     #[test]
-    fn extracts_fast_alias_as_native_override() {
+    fn extracts_fast_alias_as_fast_override() {
         let (flags, rest) =
             extract_shared_flags(&["--fast".to_string(), "dev".to_string()]).unwrap();
 
-        assert_eq!(flags.native_override, Some(true));
+        assert_eq!(flags.fast_override, Some(true));
         assert_eq!(rest, vec!["dev"]);
     }
 
@@ -543,9 +543,8 @@ mod tests {
     }
 
     #[test]
-    fn conflicting_native_flags_are_rejected() {
-        let err =
-            extract_shared_flags(&["--native".to_string(), "--no-native".to_string()]).unwrap_err();
+    fn conflicting_fast_and_pm_flags_are_rejected() {
+        let err = extract_shared_flags(&["--fast".to_string(), "--pm".to_string()]).unwrap_err();
         assert!(err.to_string().contains("conflicts"));
     }
 
@@ -562,7 +561,7 @@ mod tests {
             cwd: vec![],
             debug: false,
             explain: false,
-            native_override: None,
+            fast_override: None,
             help: true,
             version: false,
         };
@@ -589,7 +588,7 @@ mod tests {
             cwd: vec![],
             debug: false,
             explain: false,
-            native_override: None,
+            fast_override: None,
             help: true,
             version: false,
         };

@@ -35,14 +35,14 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: cargo clippy --all-targets --all-features -- -D warnings
 
-      - name: Test (delegated mode)
+      - name: Test (pm mode)
         env:
-          HNI_NATIVE: "false"
+          HNI_FAST: "false"
         run: cargo test --all-targets --all-features
 
-      - name: Test (native mode)
+      - name: Test (fast mode)
         env:
-          HNI_NATIVE: "true"
+          HNI_FAST: "true"
         run: cargo test --all-targets --all-features
 
   parity:

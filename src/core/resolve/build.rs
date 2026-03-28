@@ -130,8 +130,8 @@ pub fn resolve_nr(mut args: Vec<String>, ctx: &ResolveContext) -> Result<Resolve
                     ctx,
                     has_if_present,
                 )? {
-                    resolved.native_requested = true;
-                    resolved.native_fallback_reason = Some(reason);
+                    resolved.fast_requested = true;
+                    resolved.fast_fallback_reason = Some(reason);
                     return Ok(resolved);
                 }
 
@@ -150,8 +150,8 @@ pub fn resolve_nr(mut args: Vec<String>, ctx: &ResolveContext) -> Result<Resolve
                     insert_if_present(&mut resolved);
                 }
 
-                resolved.native_requested = true;
-                resolved.native_fallback_reason = Some(reason);
+                resolved.fast_requested = true;
+                resolved.fast_fallback_reason = Some(reason);
                 return Ok(resolved);
             }
         }
@@ -196,7 +196,7 @@ pub fn resolve_node_run(mut args: Vec<String>, ctx: &ResolveContext) -> Result<R
         if let Some(mut resolved) =
             build_node_run_exec_if_safe(detected_hint, &normalized_args, ctx, has_if_present)?
         {
-            resolved.native_requested = true;
+            resolved.fast_requested = true;
             return Ok(resolved);
         }
 
@@ -218,8 +218,8 @@ pub fn resolve_node_run(mut args: Vec<String>, ctx: &ResolveContext) -> Result<R
                     insert_if_present(&mut resolved);
                 }
 
-                resolved.native_requested = true;
-                resolved.native_fallback_reason = Some(reason);
+                resolved.fast_requested = true;
+                resolved.fast_fallback_reason = Some(reason);
                 return Ok(resolved);
             }
         }
@@ -260,8 +260,8 @@ pub fn resolve_nlx(args: Vec<String>, ctx: &ResolveContext) -> Result<ResolvedEx
                     false,
                     detected.has_lock,
                 );
-                resolved.native_requested = true;
-                resolved.native_fallback_reason = Some(reason);
+                resolved.fast_requested = true;
+                resolved.fast_fallback_reason = Some(reason);
                 return Ok(resolved);
             }
         }
@@ -279,7 +279,7 @@ pub fn resolve_nlx(args: Vec<String>, ctx: &ResolveContext) -> Result<ResolvedEx
     ))
 }
 
-pub fn resolve_nu(mut args: Vec<String>, ctx: &ResolveContext) -> Result<ResolvedExecution> {
+pub fn resolve_nru(mut args: Vec<String>, ctx: &ResolveContext) -> Result<ResolvedExecution> {
     let detected = detect_for_action(ctx, false)?;
     let interactive = args
         .iter()
@@ -377,7 +377,7 @@ pub fn resolve_node_routed(
         Intent::Add => resolve_detected_intent(intent, args, ctx),
         Intent::Execute => resolve_nlx(args, ctx),
         Intent::Run => resolve_node_run(args, ctx),
-        Intent::Upgrade => resolve_nu(args, ctx),
+        Intent::Upgrade => resolve_nru(args, ctx),
         Intent::Uninstall => resolve_nun(args, ctx),
         Intent::CleanInstall => resolve_nci(args, ctx),
         Intent::AgentAlias => resolve_na(args, ctx),

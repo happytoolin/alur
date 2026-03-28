@@ -7,68 +7,68 @@ use support::run_hni;
 struct ModeCase {
     category: &'static str,
     name: &'static str,
-    delegated_nr: &'static str,
+    pm_nr: &'static str,
     fast_nr: &'static str,
-    delegated_nlx: &'static str,
+    pm_nlx: &'static str,
     fast_nlx: &'static str,
     local_bin: bool,
 }
 
 #[test]
-fn fixture_projects_cover_delegated_and_fast_resolution_modes() {
+fn fixture_projects_cover_pm_and_fast_resolution_modes() {
     support::with_env_lock(|| {
         let cases = [
             ModeCase {
                 category: "packager",
                 name: "npm",
-                delegated_nr: "npm run dev",
-                fast_nr: "hni native:run-script dev",
-                delegated_nlx: "npx hello --flag",
-                fast_nlx: "hni native:run-local-bin hello --flag",
+                pm_nr: "npm run dev",
+                fast_nr: "hni fast:run-script dev",
+                pm_nlx: "npx hello --flag",
+                fast_nlx: "hni fast:run-local-bin hello --flag",
                 local_bin: true,
             },
             ModeCase {
                 category: "dev-engines",
                 name: "pnpm-version-range",
-                delegated_nr: "pnpm run dev",
-                fast_nr: "hni native:run-script dev",
-                delegated_nlx: "pnpm dlx hello --flag",
-                fast_nlx: "hni native:run-local-bin hello --flag",
+                pm_nr: "pnpm run dev",
+                fast_nr: "hni fast:run-script dev",
+                pm_nlx: "pnpm dlx hello --flag",
+                fast_nlx: "hni fast:run-local-bin hello --flag",
                 local_bin: true,
             },
             ModeCase {
                 category: "lockfile",
                 name: "yarn@berry",
-                delegated_nr: "yarn run dev",
-                fast_nr: "hni native:run-script dev",
-                delegated_nlx: "npx hello --flag",
-                fast_nlx: "hni native:run-local-bin hello --flag",
+                pm_nr: "yarn run dev",
+                fast_nr: "hni fast:run-script dev",
+                pm_nlx: "npx hello --flag",
+                fast_nlx: "hni fast:run-local-bin hello --flag",
                 local_bin: true,
             },
             ModeCase {
                 category: "install-metadata",
                 name: "yarn@berry",
-                delegated_nr: "yarn run dev",
-                fast_nr: "hni native:run-script dev",
-                delegated_nlx: "yarn dlx hello --flag",
-                fast_nlx: "hni native:run-local-bin hello --flag",
+                pm_nr: "yarn run dev",
+                fast_nr: "hni fast:run-script dev",
+                pm_nlx: "yarn dlx hello --flag",
+                fast_nlx: "hni fast:run-local-bin hello --flag",
                 local_bin: true,
             },
             ModeCase {
                 category: "install-metadata",
                 name: "yarn@berry_pnp-v3",
-                delegated_nr: "yarn run dev",
+                pm_nr: "yarn run dev",
                 fast_nr: "yarn run dev",
-                delegated_nlx: "yarn dlx hello --flag",
+                pm_nlx: "yarn dlx hello --flag",
                 fast_nlx: "yarn dlx hello --flag",
                 local_bin: false,
             },
             ModeCase {
                 category: "packager",
                 name: "deno",
-                delegated_nr: "deno task dev",
-                fast_nr: "hni native:run-deno-task dev",
-                delegated_nlx: "deno run npm:hello --flag",
+                pm_nr: "deno task dev",
+                fast_nr: "hni fast:run-deno-task dev",
+                pm_nlx: "deno run npm:hello --flag",
                 fast_nlx: "deno run npm:hello --flag",
                 local_bin: false,
             },
@@ -88,8 +88,8 @@ fn fixture_projects_cover_delegated_and_fast_resolution_modes() {
                     "--debug-resolved",
                     "dev",
                 ],
-                &[("HNI_SKIP_PM_CHECK", "1"), ("HNI_NATIVE", "false")],
-                case.delegated_nr,
+                &[("HNI_SKIP_PM_CHECK", "1"), ("HNI_FAST", "false")],
+                case.pm_nr,
             );
             assert_debug_resolved(
                 dir.path(),
@@ -100,7 +100,7 @@ fn fixture_projects_cover_delegated_and_fast_resolution_modes() {
                     "--debug-resolved",
                     "dev",
                 ],
-                &[("HNI_SKIP_PM_CHECK", "1"), ("HNI_NATIVE", "true")],
+                &[("HNI_SKIP_PM_CHECK", "1"), ("HNI_FAST", "true")],
                 case.fast_nr,
             );
             assert_debug_resolved(
@@ -113,8 +113,8 @@ fn fixture_projects_cover_delegated_and_fast_resolution_modes() {
                     "hello",
                     "--flag",
                 ],
-                &[("HNI_SKIP_PM_CHECK", "1"), ("HNI_NATIVE", "false")],
-                case.delegated_nlx,
+                &[("HNI_SKIP_PM_CHECK", "1"), ("HNI_FAST", "false")],
+                case.pm_nlx,
             );
             assert_debug_resolved(
                 dir.path(),
@@ -126,7 +126,7 @@ fn fixture_projects_cover_delegated_and_fast_resolution_modes() {
                     "hello",
                     "--flag",
                 ],
-                &[("HNI_SKIP_PM_CHECK", "1"), ("HNI_NATIVE", "true")],
+                &[("HNI_SKIP_PM_CHECK", "1"), ("HNI_FAST", "true")],
                 case.fast_nlx,
             );
         }

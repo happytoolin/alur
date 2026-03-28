@@ -32,6 +32,7 @@ fn multicall_aliases_resolve_expected_commands() {
         create_alias(&exe, &bin_dir, "ni");
         create_alias(&exe, &bin_dir, "nr");
         create_alias(&exe, &bin_dir, "nlx");
+        create_alias(&exe, &bin_dir, "nru");
         create_alias(&exe, &bin_dir, "nun");
         create_alias(&exe, &bin_dir, "nci");
         create_alias(&exe, &bin_dir, "np");
@@ -52,7 +53,7 @@ fn multicall_aliases_resolve_expected_commands() {
             vec![
                 "-C",
                 npm_proj.to_str().unwrap(),
-                "--no-native",
+                "--pm",
                 "dev",
                 "--port=3000",
                 "?",
@@ -67,7 +68,7 @@ fn multicall_aliases_resolve_expected_commands() {
             vec![
                 "-C",
                 npm_proj.to_str().unwrap(),
-                "--no-native",
+                "--pm",
                 "--if-present",
                 "missing-script",
                 "?",
@@ -98,14 +99,7 @@ fn multicall_aliases_resolve_expected_commands() {
         let node_out = run_alias(
             &bin_dir,
             "node",
-            vec![
-                "-C",
-                npm_proj.to_str().unwrap(),
-                "--no-native",
-                "run",
-                "dev",
-                "?",
-            ],
+            vec!["-C", npm_proj.to_str().unwrap(), "--pm", "run", "dev", "?"],
             &[],
         );
         assert_eq!(node_out.trim(), "npm run dev");
@@ -116,7 +110,7 @@ fn multicall_aliases_resolve_expected_commands() {
             vec![
                 "-C",
                 npm_proj.to_str().unwrap(),
-                "--no-native",
+                "--pm",
                 "--debug-resolved",
                 "vitest",
                 "--",
@@ -129,6 +123,14 @@ fn multicall_aliases_resolve_expected_commands() {
             "unexpected nlx debug output: {}",
             nlx_out.trim()
         );
+
+        let nru_out = run_alias(
+            &bin_dir,
+            "nru",
+            vec!["-C", npm_proj.to_str().unwrap(), "vite", "?"],
+            &[],
+        );
+        assert_eq!(nru_out.trim(), "npm update vite");
 
         let nci_out = run_alias(
             &bin_dir,

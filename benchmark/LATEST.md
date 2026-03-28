@@ -19,13 +19,13 @@ Artifacts: [compare-2026-03-28T11-04-28-182Z.md](results/compare-2026-03-28T11-0
 | nr build ? (pnpm) | 178.25 ms | 7.20 ms | 24.74x |
 | nlx vitest ? (npm) | 164.59 ms | 7.16 ms | 22.98x |
 
-## Native
+## Fast
 
-Relative to `delegated`, `native` averaged `3.65x`.
+Relative to `pm`, `fast` averaged `3.65x`.
 
-Artifacts: [native-2026-03-28T11-04-37-421Z.md](results/native-2026-03-28T11-04-37-421Z.md) · [native-2026-03-28T11-04-37-421Z.json](results/native-2026-03-28T11-04-37-421Z.json)
+Artifacts: [fast-2026-03-28T11-04-37-421Z.md](results/fast-2026-03-28T11-04-37-421Z.md) · [fast-2026-03-28T11-04-37-421Z.json](results/fast-2026-03-28T11-04-37-421Z.json)
 
-| Case | delegated | native | Relative |
+| Case | pm | fast | Relative |
 | --- | ---: | ---: | ---: |
 | nr noop (npm) | 276.05 ms | 29.50 ms | 9.36x |
 | nr hooks (npm) | 597.14 ms | 81.85 ms | 7.30x |
@@ -80,9 +80,8 @@ Artifacts: [direct-2026-03-28T11-04-45-526Z.md](results/direct-2026-03-28T11-04-
 
 ## Fixtures
 
-Relative to `direct`, `delegated` averaged `0.93x`. Relative to `direct`, `native` averaged `4.40x`.
+Relative to `direct`, `pm` averaged `0.93x`. Relative to `direct`, `fast` averaged `4.40x`.
 
 Artifacts: [fixtures-2026-03-28T11-05-20-477Z.md](results/fixtures-2026-03-28T11-05-20-477Z.md) · [fixtures-2026-03-28T11-05-20-477Z.json](results/fixtures-2026-03-28T11-05-20-477Z.json)
 
 Detailed per-case results are kept in the track artifact.
-

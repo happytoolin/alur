@@ -31,7 +31,7 @@ fn native_nr_runs_hooks_from_nearest_package_and_forwards_args() {
                 "nr",
                 "-C",
                 pkg.to_str().unwrap(),
-                "--native",
+                "--fast",
                 "dev",
                 "--",
                 "alpha",
@@ -71,7 +71,7 @@ fn native_nlx_runs_local_bin_directly() {
                 "nlx",
                 "-C",
                 project.to_str().unwrap(),
-                "--native",
+                "--fast",
                 "hello",
                 "world",
             ],
@@ -104,7 +104,7 @@ fn native_explain_reports_fallback_reason() {
                 "nr",
                 "-C",
                 project.to_str().unwrap(),
-                "--native",
+                "--fast",
                 "--explain",
                 "dev",
             ],
@@ -115,8 +115,8 @@ fn native_explain_reports_fallback_reason() {
         let stdout = String::from_utf8_lossy(&output.stdout);
         assert!(stdout.contains("fast_mode: true"));
         assert!(stdout.contains("execution_mode: package-manager"));
-        assert!(stdout.contains("native_status: fallback"));
-        assert!(stdout.contains("native_fallback_reason:"));
+        assert!(stdout.contains("fast_status: fallback"));
+        assert!(stdout.contains("fast_fallback_reason:"));
         assert!(stdout.contains("resolved: npm run dev"));
     });
 }
@@ -138,7 +138,7 @@ fn native_nr_preserves_shell_glob_expansion() {
         fs::write(src_dir.join("b.js"), "").unwrap();
 
         let output = run_hni(
-            vec!["nr", "-C", project.to_str().unwrap(), "--native", "show"],
+            vec!["nr", "-C", project.to_str().unwrap(), "--fast", "show"],
             &[("HNI_SKIP_PM_CHECK", "1")],
         );
 
@@ -176,7 +176,7 @@ fn node_run_prefers_builtin_node_run_when_supported() {
                 "node",
                 "-C",
                 project.to_str().unwrap(),
-                "--native",
+                "--fast",
                 "--debug-resolved",
                 "run",
                 "dev",
@@ -219,7 +219,7 @@ fn node_run_falls_back_to_native_when_node_run_is_unsafe() {
                 "node",
                 "-C",
                 project.to_str().unwrap(),
-                "--native",
+                "--fast",
                 "--debug-resolved",
                 "run",
                 "dev",
@@ -232,7 +232,7 @@ fn node_run_falls_back_to_native_when_node_run_is_unsafe() {
         assert!(run_output.status.success(), "{run_output:?}");
         assert_eq!(
             String::from_utf8_lossy(&run_output.stdout).trim(),
-            "hni native:run-script dev"
+            "hni fast:run-script dev"
         );
     });
 }
@@ -262,7 +262,7 @@ fn node_run_falls_back_to_native_when_script_uses_lifecycle_env() {
                 "node",
                 "-C",
                 project.to_str().unwrap(),
-                "--native",
+                "--fast",
                 "--debug-resolved",
                 "run",
                 "dev",
@@ -275,7 +275,7 @@ fn node_run_falls_back_to_native_when_script_uses_lifecycle_env() {
         assert!(run_output.status.success(), "{run_output:?}");
         assert_eq!(
             String::from_utf8_lossy(&run_output.stdout).trim(),
-            "hni native:run-script dev"
+            "hni fast:run-script dev"
         );
     });
 }
@@ -299,7 +299,7 @@ fn node_exec_inherits_native_resolution() {
                 "node",
                 "-C",
                 project.to_str().unwrap(),
-                "--native",
+                "--fast",
                 "--debug-resolved",
                 "exec",
                 "hello",
@@ -310,7 +310,7 @@ fn node_exec_inherits_native_resolution() {
         assert!(exec_output.status.success(), "{exec_output:?}");
         assert_eq!(
             String::from_utf8_lossy(&exec_output.stdout).trim(),
-            "hni native:run-local-bin hello world"
+            "hni fast:run-local-bin hello world"
         );
     });
 }

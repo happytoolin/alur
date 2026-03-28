@@ -466,8 +466,8 @@ fn node_run_falls_back_to_package_manager_when_neither_fast_path_is_safe() {
         assert_eq!(resolved.args, vec!["run", "dev"]);
         assert_eq!(resolved.execution_mode_name(), "package-manager");
         assert_eq!(
-            resolved.native_fallback_reason.as_deref(),
-            Some("script 'dev' uses unsupported native environment expansion (npm_package_)")
+            resolved.fast_fallback_reason.as_deref(),
+            Some("script 'dev' uses unsupported fast environment expansion (npm_package_)")
         );
     });
 }
@@ -597,7 +597,7 @@ fn nr_fast_mode_falls_back_for_yarn_berry_pnp() {
         assert_eq!(resolved.program, "yarn");
         assert_eq!(resolved.args, vec!["run", "dev"]);
         assert_eq!(
-            resolved.native_fallback_reason.as_deref(),
+            resolved.fast_fallback_reason.as_deref(),
             Some(
                 "yarn berry Plug'n'Play does not expose node_modules/.bin; falling back to yarn execution"
             )
@@ -716,6 +716,33 @@ fn nci_in_workspace_package_uses_root_lockfile() {
 }
 
 #[test]
+fn nci_in_pnpm_workspace_without_lockfile_uses_plain_install() {
+    with_skip_pm_check(|| {
+        let root = tempfile::tempdir().unwrap();
+        fs::write(
+            root.path().join("package.json"),
+            r#"{"packageManager":"pnpm@9.0.0","workspaces":["packages/*"]}"#,
+        )
+        .unwrap();
+        fs::write(
+            root.path().join("pnpm-workspace.yaml"),
+            "packages:\n  - packages/*\n",
+        )
+        .unwrap();
+
+        let pkg = root.path().join("packages").join("app");
+        fs::create_dir_all(&pkg).unwrap();
+        write_package_json(&pkg, r#"{"name":"app"}"#);
+
+        let ctx = ResolveContext::new(pkg, HniConfig::default());
+        let resolved = resolve::resolve_nci(Vec::new(), &ctx).unwrap();
+
+        assert_eq!(resolved.program, "pnpm");
+        assert_eq!(resolved.args, vec!["i"]);
+    });
+}
+
+#[test]
 fn nlx_npm_uses_npx() {
     with_skip_pm_check(|| {
         let dir = tempfile::tempdir().unwrap();
@@ -773,11 +800,34 @@ fn nlx_fast_mode_falls_back_to_package_manager_when_local_bin_is_missing() {
         assert!(matches!(resolved.strategy, ExecutionStrategy::External));
         assert_eq!(resolved.program, "npx");
         assert_eq!(
-            resolved.native_fallback_reason.as_deref(),
+            resolved.fast_fallback_reason.as_deref(),
             Some(
                 "local binary not found in node_modules/.bin or package.json bin entries; falling back to package-manager exec"
             )
         );
+    });
+}
+
+#[test]
+fn nlx_fast_mode_deno_remote_exec_ignores_malformed_ancestor_manifests() {
+    with_skip_pm_check(|| {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("repo");
+        let project = root.join("apps").join("deno-app");
+        fs::create_dir_all(&project).unwrap();
+        fs::write(root.join("package.json"), r#"{"name":"broken""#).unwrap();
+        fs::write(project.join("deno.json"), r#"{"tasks":{"dev":"echo ok"}}"#).unwrap();
+
+        let cfg = HniConfig {
+            fast_mode: true,
+            ..HniConfig::default()
+        };
+        let ctx = ResolveContext::new(project, cfg);
+        let resolved = resolve::resolve_nlx(vec!["create-vite".into()], &ctx).unwrap();
+
+        assert!(matches!(resolved.strategy, ExecutionStrategy::External));
+        assert_eq!(resolved.program, "deno");
+        assert_eq!(resolved.args, vec!["run", "npm:create-vite"]);
     });
 }
 
@@ -934,13 +984,13 @@ fn nlx_deno_wraps_target_with_npm_prefix() {
 }
 
 #[test]
-fn nu_interactive_for_yarn_classic_uses_upgrade_interactive() {
+fn nru_interactive_for_yarn_classic_uses_upgrade_interactive() {
     with_skip_pm_check(|| {
         let dir = tempfile::tempdir().unwrap();
         write_package_json(dir.path(), r#"{"packageManager":"yarn@1.22.0"}"#);
 
         let ctx = ResolveContext::new(dir.path().to_path_buf(), HniConfig::default());
-        let resolved = resolve::resolve_nu(vec!["-i".into(), "vite".into()], &ctx).unwrap();
+        let resolved = resolve::resolve_nru(vec!["-i".into(), "vite".into()], &ctx).unwrap();
 
         assert_eq!(resolved.program, "yarn");
         assert_eq!(resolved.args, vec!["upgrade-interactive", "vite"]);
@@ -948,14 +998,14 @@ fn nu_interactive_for_yarn_classic_uses_upgrade_interactive() {
 }
 
 #[test]
-fn nu_interactive_for_yarn_berry_uses_up_i() {
+fn nru_interactive_for_yarn_berry_uses_up_i() {
     with_skip_pm_check(|| {
         let dir = tempfile::tempdir().unwrap();
         write_package_json(dir.path(), r#"{"packageManager":"yarn@4.0.0"}"#);
 
         let ctx = ResolveContext::new(dir.path().to_path_buf(), HniConfig::default());
         let resolved =
-            resolve::resolve_nu(vec!["--interactive".into(), "vite".into()], &ctx).unwrap();
+            resolve::resolve_nru(vec!["--interactive".into(), "vite".into()], &ctx).unwrap();
 
         assert_eq!(resolved.program, "yarn");
         assert_eq!(resolved.args, vec!["up", "-i", "vite"]);
@@ -963,13 +1013,13 @@ fn nu_interactive_for_yarn_berry_uses_up_i() {
 }
 
 #[test]
-fn nu_interactive_for_deno_maps_to_outdated_update() {
+fn nru_interactive_for_deno_maps_to_outdated_update() {
     with_skip_pm_check(|| {
         let dir = tempfile::tempdir().unwrap();
         write_package_json(dir.path(), r#"{"packageManager":"deno@1.46.0"}"#);
 
         let ctx = ResolveContext::new(dir.path().to_path_buf(), HniConfig::default());
-        let resolved = resolve::resolve_nu(vec!["-i".into(), "jsr:@std/fs".into()], &ctx).unwrap();
+        let resolved = resolve::resolve_nru(vec!["-i".into(), "jsr:@std/fs".into()], &ctx).unwrap();
 
         assert_eq!(resolved.program, "deno");
         assert_eq!(resolved.args, vec!["outdated", "--update", "jsr:@std/fs"]);
@@ -977,13 +1027,13 @@ fn nu_interactive_for_deno_maps_to_outdated_update() {
 }
 
 #[test]
-fn nu_interactive_rejected_for_npm() {
+fn nru_interactive_rejected_for_npm() {
     with_skip_pm_check(|| {
         let dir = tempfile::tempdir().unwrap();
         write_package_json(dir.path(), r#"{"packageManager":"npm@10.0.0"}"#);
 
         let ctx = ResolveContext::new(dir.path().to_path_buf(), HniConfig::default());
-        let err = resolve::resolve_nu(vec!["-i".into()], &ctx).unwrap_err();
+        let err = resolve::resolve_nru(vec!["-i".into()], &ctx).unwrap_err();
 
         assert!(
             err.to_string()
@@ -993,14 +1043,14 @@ fn nu_interactive_rejected_for_npm() {
 }
 
 #[test]
-fn nu_interactive_for_pnpm_uses_update_i() {
+fn nru_interactive_for_pnpm_uses_update_i() {
     with_skip_pm_check(|| {
         let dir = tempfile::tempdir().unwrap();
         write_package_json(dir.path(), r#"{"packageManager":"pnpm@9.0.0"}"#);
 
         let ctx = ResolveContext::new(dir.path().to_path_buf(), HniConfig::default());
         let resolved =
-            resolve::resolve_nu(vec!["--interactive".into(), "vite".into()], &ctx).unwrap();
+            resolve::resolve_nru(vec!["--interactive".into(), "vite".into()], &ctx).unwrap();
 
         assert_eq!(resolved.program, "pnpm");
         assert_eq!(resolved.args, vec!["update", "-i", "vite"]);

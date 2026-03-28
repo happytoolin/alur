@@ -4,12 +4,12 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use anyhow::{Result, anyhow};
 use indexmap::IndexMap;
 use jsonc_parser::{ParseOptions, parse_to_serde_value};
 use serde::Deserialize;
 
 use super::{
-    error::{HniError, HniResult},
     package::node_modules_bin_dirs,
     pkg_json::{PackageJson, read_package_json},
     types::{NativeDenoTaskExecution, NativeDenoTaskStage, NativeDenoTaskStep},
@@ -31,7 +31,7 @@ pub(crate) struct DenoTaskDefinition {
     pub dependencies: Vec<String>,
 }
 
-pub(crate) fn find_nearest_deno_project(cwd: &Path) -> HniResult<Option<DenoProject>> {
+pub(crate) fn find_nearest_deno_project(cwd: &Path) -> Result<Option<DenoProject>> {
     for dir in cwd.ancestors() {
         let deno = read_deno_config(dir)?;
         let package_json = read_package_json(dir)?;
@@ -62,7 +62,7 @@ pub(crate) fn plan_native_deno_task(
     has_if_present: bool,
 ) -> Result<NativeDenoTaskExecution, String> {
     if project.has_workspace {
-        return Err("deno workspace task execution stays delegated".to_string());
+        return Err("deno workspace task execution stays in package-manager mode".to_string());
     }
 
     let deno_matches = match_deno_tasks(&project.deno_tasks, selection);
@@ -396,7 +396,7 @@ enum RawDenoTask {
     },
 }
 
-fn read_deno_config(dir: &Path) -> HniResult<Option<ParsedDenoConfig>> {
+fn read_deno_config(dir: &Path) -> Result<Option<ParsedDenoConfig>> {
     let path = if dir.join("deno.json").is_file() {
         dir.join("deno.json")
     } else if dir.join("deno.jsonc").is_file() {
@@ -406,11 +406,9 @@ fn read_deno_config(dir: &Path) -> HniResult<Option<ParsedDenoConfig>> {
     };
 
     let raw = fs::read_to_string(&path)
-        .map_err(|error| HniError::config(format!("failed to read {}: {error}", path.display())))?;
-    let config =
-        parse_to_serde_value::<RawDenoConfig>(&raw, &ParseOptions::default()).map_err(|error| {
-            HniError::config(format!("failed to parse {}: {error}", path.display()))
-        })?;
+        .map_err(|error| anyhow!("config error: failed to read {}: {error}", path.display()))?;
+    let config = parse_to_serde_value::<RawDenoConfig>(&raw, &ParseOptions::default())
+        .map_err(|error| anyhow!("config error: failed to parse {}: {error}", path.display()))?;
     let tasks = config
         .tasks
         .into_iter()

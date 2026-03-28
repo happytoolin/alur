@@ -25,7 +25,7 @@
     "ni": "bin/ni.js",
     "nr": "bin/nr.js",
     "nlx": "bin/nlx.js",
-    "nu": "bin/nu.js",
+    "nru": "bin/nru.js",
     "nun": "bin/nun.js",
     "nci": "bin/nci.js",
     "na": "bin/na.js",
@@ -52,12 +52,13 @@
     "node": ">=18"
   },
   "scripts": {
-    "test:rust": "node ./scripts/test-modes.mjs delegated",
-    "test:rust:native": "node ./scripts/test-modes.mjs native",
+    "test:rust": "node ./scripts/test-modes.mjs pm",
+    "test:rust:pm": "node ./scripts/test-modes.mjs pm",
+    "test:rust:fast": "node ./scripts/test-modes.mjs fast",
     "test:all-modes": "node ./scripts/test-modes.mjs all",
     "bench": "./benchmark/run.sh",
     "bench:compare": "./benchmark/run.sh --track=compare",
-    "bench:native": "./benchmark/run.sh --track=native",
+    "bench:fast": "./benchmark/run.sh --track=fast",
     "bench:runtime": "./benchmark/run.sh --track=runtime",
     "bench:profile": "./benchmark/profile.sh"
   }

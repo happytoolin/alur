@@ -55,7 +55,7 @@ impl HniConfig {
             cfg.global_package_manager = parse_pm(&v)?;
         }
 
-        if let Ok(v) = env::var("HNI_FAST_MODE") {
+        if let Ok(v) = env::var("HNI_FAST") {
             cfg.fast_mode = parse_bool(&v)?;
         }
 

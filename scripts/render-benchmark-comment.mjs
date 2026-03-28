@@ -44,19 +44,19 @@ function compareSection(track) {
   ].join('\n')
 }
 
-function nativeSections(track) {
+function fastSection(track) {
   const results = [...track.results]
   const ranked = results
     .map((result) => ({
       ...result,
-      relative: result.relative_to_first_mean.native,
+      relative: result.relative_to_first_mean.fast,
     }))
     .sort((left, right) => right.relative - left.relative)
 
   const highlights = ranked.slice(0, 5).map((result) => [
     `\`${result.case}\``,
-    formatMs(result.participants.delegated.mean),
-    formatMs(result.participants.native.mean),
+    formatMs(result.participants.pm.mean),
+    formatMs(result.participants.fast.mean),
     formatRatio(result.relative),
   ])
 
@@ -65,29 +65,29 @@ function nativeSections(track) {
     .sort((left, right) => left.relative - right.relative)
     .map((result) => [
       `\`${result.case}\``,
-      formatMs(result.participants.delegated.mean),
-      formatMs(result.participants.native.mean),
+      formatMs(result.participants.pm.mean),
+      formatMs(result.participants.fast.mean),
       formatRatio(result.relative),
     ])
 
   const lines = [
-    '### Native',
+    '### Fast',
     '',
-    `Overall: native vs delegated geometric mean \`${formatRatio(
-      track.summary.geometric_mean_relative_to_first.native,
+    `Overall: fast vs pm geometric mean \`${formatRatio(
+      track.summary.geometric_mean_relative_to_first.fast,
     )}\`.`,
     '',
     'Top wins:',
     '',
-    table(['Case', 'Delegated', 'Native', 'Relative'], highlights),
+    table(['Case', 'PM', 'Fast', 'Relative'], highlights),
   ]
 
   if (regressions.length > 0) {
     lines.push(
       '',
-      'Cases where native was slower:',
+      'Cases where fast was slower:',
       '',
-      table(['Case', 'Delegated', 'Native', 'Relative'], regressions),
+      table(['Case', 'PM', 'Fast', 'Relative'], regressions),
     )
   }
 
@@ -121,7 +121,7 @@ if (!combinedJsonPath) {
 
 const combined = readJson(combinedJsonPath)
 const tracks = combined.tracks ?? {}
-const firstTrack = tracks.compare ?? tracks.native ?? tracks.runtime
+const firstTrack = tracks.compare ?? tracks.fast ?? tracks.runtime
 
 if (!firstTrack) {
   console.error(`no benchmark tracks found in ${combinedJsonPath}`)
@@ -141,8 +141,8 @@ if (tracks.compare) {
   lines.push(compareSection(tracks.compare), '')
 }
 
-if (tracks.native) {
-  lines.push(nativeSections(tracks.native), '')
+if (tracks.fast) {
+  lines.push(fastSection(tracks.fast), '')
 }
 
 if (tracks.runtime) {
