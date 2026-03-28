@@ -82,7 +82,7 @@ fn fast_mode_matrix_covers_supported_and_fallback_package_managers() {
                 lockfile: "deno.lock",
                 local_bins: false,
                 yarn_pnp: false,
-                expected_nr: "deno task dev",
+                expected_nr: "hni native:run-deno-task dev",
                 expected_nlx: "deno run npm:hello --flag",
             },
         ];

@@ -76,6 +76,7 @@ pub enum ExecutionStrategy {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum NativeExecution {
     RunScript(NativeScriptExecution),
+    RunDenoTask(NativeDenoTaskExecution),
     RunLocalBin(NativeLocalBinExecution),
 }
 
@@ -92,6 +93,28 @@ pub struct NativeScriptExecution {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NativeScriptStep {
     pub event_name: String,
+    pub command: String,
+    pub forward_args: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NativeDenoTaskExecution {
+    pub project_root: PathBuf,
+    pub config_path: Option<PathBuf>,
+    pub selection: String,
+    pub stages: Vec<NativeDenoTaskStage>,
+    pub forwarded_args: Vec<String>,
+    pub bin_paths: Vec<PathBuf>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NativeDenoTaskStage {
+    pub steps: Vec<NativeDenoTaskStep>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NativeDenoTaskStep {
+    pub task_name: String,
     pub command: String,
     pub forward_args: bool,
 }
@@ -193,6 +216,24 @@ impl ResolvedExecution {
             passthrough: false,
             mode: ExecutionMode::Native,
             strategy: ExecutionStrategy::Native(NativeExecution::RunScript(exec)),
+            native_requested: true,
+            native_fallback_reason: None,
+        }
+    }
+
+    pub fn native_deno_task(
+        selection: impl Into<String>,
+        cwd: PathBuf,
+        exec: NativeDenoTaskExecution,
+    ) -> Self {
+        let selection = selection.into();
+        Self {
+            program: selection.clone(),
+            args: exec.forwarded_args.clone(),
+            cwd,
+            passthrough: false,
+            mode: ExecutionMode::Native,
+            strategy: ExecutionStrategy::Native(NativeExecution::RunDenoTask(exec)),
             native_requested: true,
             native_fallback_reason: None,
         }
