@@ -162,38 +162,40 @@ fn default_fast_mode_resolves_nr_and_nlx_natively() {
         fs::write(bin_dir.join("hello"), "#!/bin/sh\nexit 0\n").unwrap();
         make_executable(&bin_dir.join("hello"));
 
-        let nr = run_hni(
-            vec![
-                "nr",
-                "-C",
-                project.to_str().unwrap(),
-                "--debug-resolved",
-                "dev",
-            ],
-            &[("HNI_SKIP_PM_CHECK", "1")],
-        );
-        assert!(nr.status.success(), "{nr:?}");
-        assert_eq!(
-            String::from_utf8_lossy(&nr.stdout).trim(),
-            "hni native:run-script dev"
-        );
+        support::with_var_removed("HNI_NATIVE", || {
+            let nr = run_hni(
+                vec![
+                    "nr",
+                    "-C",
+                    project.to_str().unwrap(),
+                    "--debug-resolved",
+                    "dev",
+                ],
+                &[("HNI_SKIP_PM_CHECK", "1")],
+            );
+            assert!(nr.status.success(), "{nr:?}");
+            assert_eq!(
+                String::from_utf8_lossy(&nr.stdout).trim(),
+                "hni native:run-script dev"
+            );
 
-        let nlx = run_hni(
-            vec![
-                "nlx",
-                "-C",
-                project.to_str().unwrap(),
-                "--debug-resolved",
-                "hello",
-                "world",
-            ],
-            &[("HNI_SKIP_PM_CHECK", "1")],
-        );
-        assert!(nlx.status.success(), "{nlx:?}");
-        assert_eq!(
-            String::from_utf8_lossy(&nlx.stdout).trim(),
-            "hni native:run-local-bin hello world"
-        );
+            let nlx = run_hni(
+                vec![
+                    "nlx",
+                    "-C",
+                    project.to_str().unwrap(),
+                    "--debug-resolved",
+                    "hello",
+                    "world",
+                ],
+                &[("HNI_SKIP_PM_CHECK", "1")],
+            );
+            assert!(nlx.status.success(), "{nlx:?}");
+            assert_eq!(
+                String::from_utf8_lossy(&nlx.stdout).trim(),
+                "hni native:run-local-bin hello world"
+            );
+        });
     });
 }
 

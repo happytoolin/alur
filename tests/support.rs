@@ -2,6 +2,7 @@
 
 use std::{
     ffi::OsStr,
+    fs,
     path::{Path, PathBuf},
     process::Command,
     sync::{Mutex, OnceLock},
@@ -37,6 +38,19 @@ where
     // SAFETY: Callers must hold the global env lock via `with_env_lock`, ensuring
     // serialized environment mutation within the test process.
     unsafe { std::env::remove_var(key) };
+}
+
+pub fn with_var_removed<F, T>(key: &str, f: F) -> T
+where
+    F: FnOnce() -> T,
+{
+    let previous = std::env::var_os(key);
+    remove_var(key);
+    let result = f();
+    if let Some(value) = previous {
+        set_var(key, value);
+    }
+    result
 }
 
 /// Run hni with the given arguments and extra environment variables.
@@ -87,6 +101,21 @@ pub fn command_exists(program: &str) -> bool {
     which::which(program).is_ok()
 }
 
+pub fn fixture_root() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("tests")
+        .join("fixtures")
+}
+
+pub fn fixture_path(category: &str, name: &str) -> PathBuf {
+    fixture_root().join(category).join(name)
+}
+
+pub fn copy_fixture_into(category: &str, name: &str, dest: &Path) {
+    copy_dir_all(&fixture_path(category, name), dest)
+        .unwrap_or_else(|error| panic!("failed to copy fixture {category}/{name}: {error}"));
+}
+
 pub fn real_node_supports_run() -> bool {
     let output = match Command::new("node").arg("--help").output() {
         Ok(output) => output,
@@ -108,4 +137,25 @@ pub fn hni_executable_path() -> PathBuf {
     path.push("debug");
     path.push(if cfg!(windows) { "hni.exe" } else { "hni" });
     path
+}
+
+fn copy_dir_all(src: &Path, dest: &Path) -> std::io::Result<()> {
+    fs::create_dir_all(dest)?;
+
+    for entry in fs::read_dir(src)? {
+        let entry = entry?;
+        let file_type = entry.file_type()?;
+        let target = dest.join(entry.file_name());
+
+        if file_type.is_dir() {
+            copy_dir_all(&entry.path(), &target)?;
+        } else if file_type.is_file() {
+            if let Some(parent) = target.parent() {
+                fs::create_dir_all(parent)?;
+            }
+            fs::copy(entry.path(), target)?;
+        }
+    }
+
+    Ok(())
 }

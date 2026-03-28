@@ -9,7 +9,8 @@ import { fileURLToPath } from 'node:url'
 
 const DEFAULT_RUNS = 500
 const DEFAULT_WARMUPS = 50
-const TRACKS = ['compare', 'native', 'runtime', 'direct']
+const TRACKS = ['compare', 'native', 'runtime', 'direct', 'fixtures']
+const SUMMARY_ONLY_TRACKS = new Set(['fixtures'])
 
 const PMS = [
   {
@@ -664,6 +665,27 @@ function runHyperfineCase({ repoRoot, caseDef, runs, warmups, rawOutputPath, com
   }
 }
 
+function validateBenchmarkCommands(repoRoot, commands) {
+  for (const command of commands) {
+    const result = spawnSync('sh', ['-lc', command.command], {
+      cwd: repoRoot,
+      encoding: 'utf8',
+    })
+    if (result.status === 0) {
+      continue
+    }
+
+    const detail = [result.stderr, result.stdout]
+      .map((value) => value.trim())
+      .find((value) => value.length > 0)
+      ?.split('\n')[0]
+
+    return `preflight failed for ${command.name}${detail ? `: ${detail}` : ''}`
+  }
+
+  return null
+}
+
 function summarizeTrack(track, results, skipped) {
   const grouped = groupBy(results, 'group')
   const perGroup = {}
@@ -733,26 +755,79 @@ function printTrackSummary(payload, format) {
       )
     }
   } else {
-    const competitor = Object.keys(payload.summary.geometric_mean_relative_to_first)[0]
-    const baselineLabel = payload.results[0] ? payload.results[0].baseline : 'baseline'
-    lines.push(
-      'case'.padEnd(34) +
-        `${baselineLabel} (ms)`.padStart(16) +
-        `${competitor} (ms)`.padStart(16) +
-        'relative'.padStart(12),
-    )
-    lines.push('-'.repeat(78))
-    for (const row of payload.results) {
+    const baselineLabel = payload.results[0]?.baseline ?? 'baseline'
+    const participantNames = payload.results[0]
+      ? Object.keys(payload.results[0].participants)
+      : [baselineLabel]
+    const competitors = participantNames.filter((name) => name !== baselineLabel)
+
+    if (competitors.length <= 1) {
+      const competitor = competitors[0] ?? 'other'
       lines.push(
-        row.case.padEnd(34) +
-          row.participants[baselineLabel].mean.toFixed(2).padStart(16) +
-          row.participants[competitor].mean.toFixed(2).padStart(16) +
-          `${row.relative_to_first_mean[competitor].toFixed(2)}x`.padStart(12),
+        'case'.padEnd(34) +
+          `${baselineLabel} (ms)`.padStart(16) +
+          `${competitor} (ms)`.padStart(16) +
+          'relative'.padStart(12),
       )
+      lines.push('-'.repeat(78))
+      for (const row of payload.results) {
+        lines.push(
+          row.case.padEnd(34) +
+            row.participants[baselineLabel].mean.toFixed(2).padStart(16) +
+            row.participants[competitor].mean.toFixed(2).padStart(16) +
+            `${row.relative_to_first_mean[competitor].toFixed(2)}x`.padStart(12),
+        )
+      }
+    } else {
+      const widths = {
+        case: 32,
+        metric: 14,
+        relative: 12,
+      }
+      const separator = '  '
+      const summaryWidth =
+        widths.case +
+        participantNames.length * widths.metric +
+        competitors.length * widths.relative +
+        (participantNames.length + competitors.length) * separator.length
+      lines.push(
+        'case'.padEnd(widths.case) +
+          participantNames
+            .map((name) => `${name} (ms)`.padStart(widths.metric))
+            .join(separator) +
+          separator +
+          competitors
+            .map((name) => `${name} rel`.padStart(widths.relative))
+            .join(separator),
+      )
+      lines.push('-'.repeat(summaryWidth))
+      for (const row of payload.results) {
+        lines.push(
+          row.case.padEnd(widths.case) +
+            participantNames
+              .map((name) => row.participants[name].mean.toFixed(2).padStart(widths.metric))
+              .join(separator) +
+            separator +
+            competitors
+              .map((name) => `${row.relative_to_first_mean[name].toFixed(2)}x`.padStart(widths.relative))
+              .join(separator),
+        )
+      }
     }
   }
 
-  lines.push('-'.repeat(payload.track === 'runtime' ? 64 : 78))
+  const participantCount = payload.results[0]
+    ? Object.keys(payload.results[0].participants).length
+    : 0
+  lines.push(
+    '-'.repeat(
+      payload.track === 'runtime'
+        ? 64
+        : participantCount > 2
+          ? 32 + participantCount * 14 + (participantCount - 1) * 12 + participantCount * 2
+          : 78,
+    ),
+  )
   for (const [name, value] of Object.entries(payload.summary.geometric_mean_relative_to_first)) {
     lines.push(`geometric mean relative to ${payload.results[0]?.baseline ?? 'baseline'} (${name}): ${value.toFixed(2)}x`)
   }
@@ -813,17 +888,46 @@ function trackTable(payload) {
   }
 
   const baseline = payload.results[0]?.baseline ?? 'baseline'
-  const competitor = Object.keys(payload.summary.geometric_mean_relative_to_first)[0] ?? 'other'
+  const participantNames = payload.results[0]
+    ? Object.keys(payload.results[0].participants)
+    : [baseline]
+  const competitors = participantNames.filter((name) => name !== baseline)
+
+  if (competitors.length <= 1) {
+    const competitor = competitors[0] ?? 'other'
+    const lines = [
+      `| Case | ${baseline} | ${competitor} | Relative |`,
+      '| --- | ---: | ---: | ---: |',
+    ]
+
+    for (const row of payload.results) {
+      lines.push(
+        `| ${row.case} | ${formatMs(row.participants[baseline].mean)} | ${formatMs(
+          row.participants[competitor].mean,
+        )} | ${formatRatio(row.relative_to_first_mean[competitor])} |`,
+      )
+    }
+
+    return lines.join('\n')
+  }
+
+  const headers = [
+    '| Case |',
+    ...participantNames.map((name) => ` ${name} |`),
+    ...competitors.map((name) => ` ${name} vs ${baseline} |`),
+  ]
   const lines = [
-    `| Case | ${baseline} | ${competitor} | Relative |`,
-    '| --- | ---: | ---: | ---: |',
+    headers.join(''),
+    ['| --- |', ...participantNames.map(() => ' ---: |'), ...competitors.map(() => ' ---: |')].join(''),
   ]
 
   for (const row of payload.results) {
     lines.push(
-      `| ${row.case} | ${formatMs(row.participants[baseline].mean)} | ${formatMs(
-        row.participants[competitor].mean,
-      )} | ${formatRatio(row.relative_to_first_mean[competitor])} |`,
+      [
+        `| ${row.case} |`,
+        ...participantNames.map((name) => ` ${formatMs(row.participants[name].mean)} |`),
+        ...competitors.map((name) => ` ${formatRatio(row.relative_to_first_mean[name])} |`),
+      ].join(''),
     )
   }
 
@@ -890,6 +994,10 @@ function combinedMarkdown(combined, combinedArtifacts, fromDir) {
         relativePath(fromDir, artifacts.jsonPath),
       )} · ${markdownLink(path.basename(artifacts.markdownPath), relativePath(fromDir, artifacts.markdownPath))}`,
     )
+    if (SUMMARY_ONLY_TRACKS.has(track)) {
+      lines.push('')
+      lines.push('Detailed per-case results are kept in the track artifact.')
+    }
     lines.push('')
   }
 
@@ -924,8 +1032,13 @@ function latestMarkdown(combined, combinedArtifacts, benchmarkDir) {
       )} · ${markdownLink(path.basename(artifacts.jsonPath), relativePath(benchmarkDir, artifacts.jsonPath))}`,
     )
     lines.push('')
-    lines.push(trackTable(payload))
-    lines.push('')
+    if (SUMMARY_ONLY_TRACKS.has(track)) {
+      lines.push('Detailed per-case results are kept in the track artifact.')
+      lines.push('')
+    } else {
+      lines.push(trackTable(payload))
+      lines.push('')
+    }
   }
 
   return `${lines.join('\n')}\n`
@@ -1011,6 +1124,129 @@ function prepareFixtures(tempRoot) {
   return fixturePaths
 }
 
+function prepareFixtureBenchmarkDirs(tempRoot, repoRoot) {
+  const sourceRoot = path.join(repoRoot, 'tests', 'fixtures')
+  const copiedRoot = path.join(tempRoot, 'fixtures-benchmark')
+  ensureDir(copiedRoot)
+
+  for (const category of fs.readdirSync(sourceRoot).sort()) {
+    const sourceCategory = path.join(sourceRoot, category)
+    if (!fs.statSync(sourceCategory).isDirectory()) continue
+
+    for (const name of fs.readdirSync(sourceCategory).sort()) {
+      const sourceFixture = path.join(sourceCategory, name)
+      if (!fs.statSync(sourceFixture).isDirectory()) continue
+
+      const targetFixture = path.join(copiedRoot, category, name)
+      ensureDir(path.dirname(targetFixture))
+      fs.cpSync(sourceFixture, targetFixture, { recursive: true })
+    }
+  }
+
+  return copiedRoot
+}
+
+function inferFixturePmId(name) {
+  if (name === 'unknown') return null
+  if (name.startsWith('npm')) return 'npm'
+  if (name.startsWith('pnpm')) return 'pnpm'
+  if (name.startsWith('yarn')) return 'yarn'
+  if (name === 'bun') return 'bun'
+  if (name === 'deno') return 'deno'
+  return null
+}
+
+function requiredBinsForPmId(pmId) {
+  return PMS.find((pm) => pm.id === pmId)?.requiredBins ?? []
+}
+
+function fixtureDirectCommand(pmId, fixturePath) {
+  if (pmId === 'deno') {
+    return `deno task --cwd ${shellQuote(fixturePath)} --quiet dev`
+  }
+
+  if (pmId === 'bun') {
+    return `cd ${shellQuote(fixturePath)} && bun run --silent dev`
+  }
+
+  if (pmId === 'yarn') {
+    return `cd ${shellQuote(fixturePath)} && yarn run --silent dev`
+  }
+
+  return `cd ${shellQuote(fixturePath)} && ${pmId} run --silent dev`
+}
+
+function fixtureDirectEnv(pmId) {
+  if (pmId === 'npm') {
+    return { npm_config_force: 'true' }
+  }
+
+  return {}
+}
+
+function fixtureHniEnv(pmId, nativeEnabled) {
+  return {
+    HNI_NATIVE: nativeEnabled ? 'true' : 'false',
+    ...(pmId === 'npm' ? { npm_config_force: 'true' } : {}),
+  }
+}
+
+function fixtureCases(fixturesRoot) {
+  const cases = []
+
+  for (const category of fs.readdirSync(fixturesRoot).sort()) {
+    const categoryRoot = path.join(fixturesRoot, category)
+    if (!fs.statSync(categoryRoot).isDirectory()) continue
+
+    for (const name of fs.readdirSync(categoryRoot).sort()) {
+      const fixturePath = path.join(categoryRoot, name)
+      if (!fs.statSync(fixturePath).isDirectory()) continue
+
+      const pmId = inferFixturePmId(name)
+      if (!pmId) {
+        cases.push({
+          id: `fixtures_${category}_${name}`.replaceAll(/[^a-zA-Z0-9_]+/g, '_'),
+          group: category,
+          case: `${category}/${name}`,
+          commands: [],
+          requiredBins: [],
+          skipReason: 'unknown fixture has no benchmark package-manager baseline',
+        })
+        continue
+      }
+
+      cases.push({
+        id: `fixtures_${category}_${name}`.replaceAll(/[^a-zA-Z0-9_]+/g, '_'),
+        group: category,
+        case: `${category}/${name}`,
+        commands: [
+          {
+            name: 'direct',
+            kind: 'shell',
+            command: fixtureDirectCommand(pmId, fixturePath),
+            env: fixtureDirectEnv(pmId),
+          },
+          {
+            name: 'delegated',
+            bin: 'nr',
+            args: ['-C', fixturePath, 'dev'],
+            env: fixtureHniEnv(pmId, false),
+          },
+          {
+            name: 'native',
+            bin: 'nr',
+            args: ['-C', fixturePath, 'dev'],
+            env: fixtureHniEnv(pmId, true),
+          },
+        ],
+        requiredBins: requiredBinsForPmId(pmId),
+      })
+    }
+  }
+
+  return cases
+}
+
 function prepareAliasDir(tempRoot, ourBin) {
   const aliasDir = path.join(tempRoot, 'bin')
   ensureDir(aliasDir)
@@ -1020,11 +1256,12 @@ function prepareAliasDir(tempRoot, ourBin) {
   return aliasDir
 }
 
-function resolveTrackCases(track, fixturePaths) {
+function resolveTrackCases(track, fixturePaths, fixtureBenchmarkRoot) {
   if (track === 'compare') return compareCases()
   if (track === 'native') return nativeCases(fixturePaths)
   if (track === 'runtime') return runtimeCases(fixturePaths)
   if (track === 'direct') return directCases(fixturePaths)
+  if (track === 'fixtures') return fixtureCases(fixtureBenchmarkRoot)
   throw new Error(`unsupported track: ${track}`)
 }
 
@@ -1059,6 +1296,15 @@ function filterRunnableCases(cases, availableBins, antfuBinDir) {
   const runnable = []
 
   for (const caseDef of cases) {
+    if (caseDef.skipReason) {
+      skipped.push({
+        id: caseDef.id,
+        case: caseDef.case,
+        reason: caseDef.skipReason,
+      })
+      continue
+    }
+
     const missing = caseDef.requiredBins.filter((bin) => !availableBins[bin])
     if (missing.length > 0) {
       skipped.push({
@@ -1179,6 +1425,7 @@ function main() {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'hni-benchmark-'))
   try {
     const fixturePaths = prepareFixtures(tempRoot)
+    const fixtureBenchmarkRoot = prepareFixtureBenchmarkDirs(tempRoot, repoRoot)
     const aliasDir = prepareAliasDir(tempRoot, ourBin)
     const availableBins = availableBinaries()
     const baseEnv = {
@@ -1193,8 +1440,9 @@ function main() {
       const trackRawDir = path.join(rawDir, track)
       ensureDir(trackRawDir)
 
-      const cases = resolveTrackCases(track, fixturePaths)
-      const { runnable, skipped } = filterRunnableCases(cases, availableBins, antfuBinDir)
+      const cases = resolveTrackCases(track, fixturePaths, fixtureBenchmarkRoot)
+      const { runnable, skipped: initiallySkipped } = filterRunnableCases(cases, availableBins, antfuBinDir)
+      const skipped = [...initiallySkipped]
       const results = []
       const stamp = new Date().toISOString().replace(/[:.]/g, '-')
 
@@ -1213,6 +1461,19 @@ function main() {
           antfuBinDir,
           fixturePaths,
         })
+
+        if (track === 'fixtures') {
+          const preflightFailure = validateBenchmarkCommands(repoRoot, commands)
+          if (preflightFailure) {
+            skipped.push({
+              id: caseDef.id,
+              case: caseDef.case,
+              reason: preflightFailure,
+            })
+            continue
+          }
+        }
+
         const rawOutputPath = path.join(trackRawDir, `${stamp}-${caseDef.id}.json`)
         results.push(
           runHyperfineCase({
@@ -1230,7 +1491,7 @@ function main() {
         track,
         args,
         repoRoot,
-        fixtures: fixturePaths,
+        fixtures: track === 'fixtures' ? { root: fixtureBenchmarkRoot } : fixturePaths,
         binaries: {
           hni: ourBin,
           antfu_prefix: needsCompare ? antfuPrefix : null,

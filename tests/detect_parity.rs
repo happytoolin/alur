@@ -3,190 +3,279 @@ use std::fs;
 use hni::core::{
     config::HniConfig,
     detect::{DetectOptions, DetectStrategy, detect, detect_user_agent, detect_with_options},
-    types::{DetectionSource, PackageManager},
+    types::{DetectionResult, DetectionSource, PackageManager},
 };
 
 mod support;
 
 #[derive(Clone, Copy)]
-struct DetectCase {
+struct FixtureExpectation {
     name: &'static str,
-    setup: fn(&std::path::Path),
-    expected_agent: Option<PackageManager>,
-    expected_version: Option<&'static str>,
-    expected_source: DetectionSource,
+    agent: PackageManager,
+    version: Option<&'static str>,
+    source: DetectionSource,
+    has_lock: bool,
 }
 
 #[test]
-fn package_manager_field_cases_match_hni_semantics() {
-    run_cases(
+fn packager_fixtures_match_hni_semantics() {
+    run_fixture_cases(
+        "packager",
         &[
-            DetectCase {
-                name: "npm",
-                setup: |dir| write_package_json(dir, r#"{"packageManager":"npm@7"}"#),
-                expected_agent: Some(PackageManager::Npm),
-                expected_version: Some("7"),
-                expected_source: DetectionSource::PackageManagerField,
-            },
-            DetectCase {
-                name: "pnpm-range",
-                setup: |dir| write_package_json(dir, r#"{"packageManager":"^pnpm@8.0.0"}"#),
-                expected_agent: Some(PackageManager::Pnpm),
-                expected_version: Some("8.0.0"),
-                expected_source: DetectionSource::PackageManagerField,
-            },
-            DetectCase {
-                name: "pnpm-v6",
-                setup: |dir| write_package_json(dir, r#"{"packageManager":"pnpm@6"}"#),
-                expected_agent: Some(PackageManager::Pnpm),
-                expected_version: Some("6"),
-                expected_source: DetectionSource::PackageManagerField,
-            },
-            DetectCase {
-                name: "yarn-berry",
-                setup: |dir| write_package_json(dir, r#"{"packageManager":"yarn@3"}"#),
-                expected_agent: Some(PackageManager::YarnBerry),
-                expected_version: Some("3"),
-                expected_source: DetectionSource::PackageManagerField,
-            },
-            DetectCase {
-                name: "unknown-falls-through",
-                setup: |dir| {
-                    write_package_json(dir, r#"{"packageManager":"future-package-manager"}"#);
-                    fs::write(dir.join("package-lock.json"), "lock").unwrap();
-                },
-                expected_agent: Some(PackageManager::Npm),
-                expected_version: None,
-                expected_source: DetectionSource::Lockfile,
-            },
-        ],
-        None,
-    );
-}
-
-#[test]
-fn dev_engines_cases_match_hni_semantics() {
-    run_cases(
-        &[
-            DetectCase {
-                name: "npm",
-                setup: |dir| {
-                    write_package_json(
-                        dir,
-                        r#"{"devEngines":{"packageManager":{"name":"npm","version":"7"}}}"#,
-                    )
-                },
-                expected_agent: Some(PackageManager::Npm),
-                expected_version: Some("7"),
-                expected_source: DetectionSource::DevEnginesField,
-            },
-            DetectCase {
-                name: "pnpm-range",
-                setup: |dir| {
-                    write_package_json(
-                        dir,
-                        r#"{"devEngines":{"packageManager":{"name":"pnpm","version":"^8.0.0"}}}"#,
-                    )
-                },
-                expected_agent: Some(PackageManager::Pnpm),
-                expected_version: Some("8.0.0"),
-                expected_source: DetectionSource::DevEnginesField,
-            },
-            DetectCase {
-                name: "pnpm-v6",
-                setup: |dir| {
-                    write_package_json(
-                        dir,
-                        r#"{"devEngines":{"packageManager":{"name":"pnpm","version":"6"}}}"#,
-                    )
-                },
-                expected_agent: Some(PackageManager::Pnpm),
-                expected_version: Some("6"),
-                expected_source: DetectionSource::DevEnginesField,
-            },
-            DetectCase {
-                name: "yarn-berry",
-                setup: |dir| {
-                    write_package_json(
-                        dir,
-                        r#"{"devEngines":{"packageManager":{"name":"yarn","version":"4"}}}"#,
-                    )
-                },
-                expected_agent: Some(PackageManager::YarnBerry),
-                expected_version: Some("4"),
-                expected_source: DetectionSource::DevEnginesField,
-            },
-            DetectCase {
-                name: "unknown-falls-through",
-                setup: |dir| {
-                    write_package_json(
-                        dir,
-                        r#"{"devEngines":{"packageManager":{"name":"future-package-manager","version":"1.0.0"}}}"#,
-                    );
-                    fs::write(dir.join("package-lock.json"), "lock").unwrap();
-                },
-                expected_agent: Some(PackageManager::Npm),
-                expected_version: None,
-                expected_source: DetectionSource::Lockfile,
-            },
-        ],
-        Some(DetectOptions {
-            strategies: vec![
-                DetectStrategy::DevEnginesField,
-                DetectStrategy::Lockfile,
-                DetectStrategy::PackageManagerField,
-                DetectStrategy::InstallMetadata,
-            ],
-            stop_at: None,
-        }),
-    );
-}
-
-#[test]
-fn install_metadata_cases_match_hni_semantics() {
-    run_cases(
-        &[
-            DetectCase {
-                name: "npm",
-                setup: |dir| write_file(dir, "node_modules/.package-lock.json", "{}"),
-                expected_agent: Some(PackageManager::Npm),
-                expected_version: None,
-                expected_source: DetectionSource::InstallMetadata,
-            },
-            DetectCase {
-                name: "pnpm",
-                setup: |dir| write_dir(dir, "node_modules/.pnpm"),
-                expected_agent: Some(PackageManager::Pnpm),
-                expected_version: None,
-                expected_source: DetectionSource::InstallMetadata,
-            },
-            DetectCase {
-                name: "yarn-classic",
-                setup: |dir| write_file(dir, "node_modules/.yarn_integrity", ""),
-                expected_agent: Some(PackageManager::Yarn),
-                expected_version: None,
-                expected_source: DetectionSource::InstallMetadata,
-            },
-            DetectCase {
-                name: "yarn-berry-pnp",
-                setup: |dir| write_file(dir, ".pnp.cjs", "module.exports = {};\n"),
-                expected_agent: Some(PackageManager::YarnBerry),
-                expected_version: None,
-                expected_source: DetectionSource::InstallMetadata,
-            },
-            DetectCase {
-                name: "deno",
-                setup: |dir| write_dir(dir, "node_modules/.deno"),
-                expected_agent: Some(PackageManager::Deno),
-                expected_version: None,
-                expected_source: DetectionSource::InstallMetadata,
-            },
-            DetectCase {
+            FixtureExpectation {
                 name: "bun",
-                setup: |dir| write_file(dir, "bun.lockb", "lock"),
-                expected_agent: Some(PackageManager::Bun),
-                expected_version: None,
-                expected_source: DetectionSource::InstallMetadata,
+                agent: PackageManager::Bun,
+                version: Some("0"),
+                source: DetectionSource::PackageManagerField,
+                has_lock: false,
+            },
+            FixtureExpectation {
+                name: "deno",
+                agent: PackageManager::Deno,
+                version: Some("2"),
+                source: DetectionSource::PackageManagerField,
+                has_lock: false,
+            },
+            FixtureExpectation {
+                name: "npm",
+                agent: PackageManager::Npm,
+                version: Some("7"),
+                source: DetectionSource::PackageManagerField,
+                has_lock: false,
+            },
+            FixtureExpectation {
+                name: "pnpm",
+                agent: PackageManager::Pnpm,
+                version: Some("8"),
+                source: DetectionSource::PackageManagerField,
+                has_lock: false,
+            },
+            FixtureExpectation {
+                name: "pnpm-version-range",
+                agent: PackageManager::Pnpm,
+                version: Some("8.0.0"),
+                source: DetectionSource::PackageManagerField,
+                has_lock: false,
+            },
+            FixtureExpectation {
+                name: "pnpm@6",
+                agent: PackageManager::Pnpm,
+                version: Some("6"),
+                source: DetectionSource::PackageManagerField,
+                has_lock: false,
+            },
+            FixtureExpectation {
+                name: "yarn",
+                agent: PackageManager::Yarn,
+                version: Some("1"),
+                source: DetectionSource::PackageManagerField,
+                has_lock: false,
+            },
+            FixtureExpectation {
+                name: "yarn@berry",
+                agent: PackageManager::YarnBerry,
+                version: Some("3"),
+                source: DetectionSource::PackageManagerField,
+                has_lock: false,
+            },
+        ],
+        None,
+    );
+}
+
+#[test]
+fn dev_engines_fixtures_match_hni_semantics() {
+    run_fixture_cases(
+        "dev-engines",
+        &[
+            FixtureExpectation {
+                name: "bun",
+                agent: PackageManager::Bun,
+                version: Some("0"),
+                source: DetectionSource::DevEnginesField,
+                has_lock: false,
+            },
+            FixtureExpectation {
+                name: "deno",
+                agent: PackageManager::Deno,
+                version: Some("2"),
+                source: DetectionSource::DevEnginesField,
+                has_lock: false,
+            },
+            FixtureExpectation {
+                name: "npm",
+                agent: PackageManager::Npm,
+                version: Some("7"),
+                source: DetectionSource::DevEnginesField,
+                has_lock: false,
+            },
+            FixtureExpectation {
+                name: "pnpm",
+                agent: PackageManager::Pnpm,
+                version: Some("8"),
+                source: DetectionSource::DevEnginesField,
+                has_lock: false,
+            },
+            FixtureExpectation {
+                name: "pnpm-version-range",
+                agent: PackageManager::Pnpm,
+                version: Some("8.0.0"),
+                source: DetectionSource::DevEnginesField,
+                has_lock: false,
+            },
+            FixtureExpectation {
+                name: "pnpm@6",
+                agent: PackageManager::Pnpm,
+                version: Some("6"),
+                source: DetectionSource::DevEnginesField,
+                has_lock: false,
+            },
+            FixtureExpectation {
+                name: "yarn",
+                agent: PackageManager::Yarn,
+                version: Some("1"),
+                source: DetectionSource::DevEnginesField,
+                has_lock: false,
+            },
+            FixtureExpectation {
+                name: "yarn@berry",
+                agent: PackageManager::YarnBerry,
+                version: Some("3"),
+                source: DetectionSource::DevEnginesField,
+                has_lock: false,
+            },
+        ],
+        Some(DetectOptions {
+            strategies: vec![
+                DetectStrategy::DevEnginesField,
+                DetectStrategy::Lockfile,
+                DetectStrategy::PackageManagerField,
+                DetectStrategy::InstallMetadata,
+            ],
+            stop_at: None,
+        }),
+    );
+}
+
+#[test]
+fn lockfile_fixtures_match_hni_semantics() {
+    run_fixture_cases(
+        "lockfile",
+        &[
+            FixtureExpectation {
+                name: "bun",
+                agent: PackageManager::Bun,
+                version: None,
+                source: DetectionSource::Lockfile,
+                has_lock: true,
+            },
+            FixtureExpectation {
+                name: "deno",
+                agent: PackageManager::Deno,
+                version: None,
+                source: DetectionSource::Lockfile,
+                has_lock: true,
+            },
+            FixtureExpectation {
+                name: "npm",
+                agent: PackageManager::Npm,
+                version: None,
+                source: DetectionSource::Lockfile,
+                has_lock: true,
+            },
+            FixtureExpectation {
+                name: "pnpm",
+                agent: PackageManager::Pnpm,
+                version: None,
+                source: DetectionSource::Lockfile,
+                has_lock: true,
+            },
+            FixtureExpectation {
+                name: "pnpm@6",
+                agent: PackageManager::Pnpm,
+                version: None,
+                source: DetectionSource::Lockfile,
+                has_lock: true,
+            },
+            FixtureExpectation {
+                name: "yarn",
+                agent: PackageManager::Yarn,
+                version: None,
+                source: DetectionSource::Lockfile,
+                has_lock: true,
+            },
+            FixtureExpectation {
+                name: "yarn@berry",
+                agent: PackageManager::Yarn,
+                version: None,
+                source: DetectionSource::Lockfile,
+                has_lock: true,
+            },
+        ],
+        None,
+    );
+}
+
+#[test]
+fn install_metadata_fixtures_match_hni_semantics() {
+    run_fixture_cases(
+        "install-metadata",
+        &[
+            FixtureExpectation {
+                name: "bun",
+                agent: PackageManager::Bun,
+                version: None,
+                source: DetectionSource::InstallMetadata,
+                has_lock: true,
+            },
+            FixtureExpectation {
+                name: "deno",
+                agent: PackageManager::Deno,
+                version: None,
+                source: DetectionSource::InstallMetadata,
+                has_lock: false,
+            },
+            FixtureExpectation {
+                name: "npm",
+                agent: PackageManager::Npm,
+                version: None,
+                source: DetectionSource::InstallMetadata,
+                has_lock: false,
+            },
+            FixtureExpectation {
+                name: "pnpm",
+                agent: PackageManager::Pnpm,
+                version: None,
+                source: DetectionSource::InstallMetadata,
+                has_lock: false,
+            },
+            FixtureExpectation {
+                name: "yarn",
+                agent: PackageManager::Yarn,
+                version: None,
+                source: DetectionSource::InstallMetadata,
+                has_lock: false,
+            },
+            FixtureExpectation {
+                name: "yarn@berry",
+                agent: PackageManager::YarnBerry,
+                version: None,
+                source: DetectionSource::InstallMetadata,
+                has_lock: false,
+            },
+            FixtureExpectation {
+                name: "yarn@berry_pnp-v2",
+                agent: PackageManager::YarnBerry,
+                version: None,
+                source: DetectionSource::InstallMetadata,
+                has_lock: false,
+            },
+            FixtureExpectation {
+                name: "yarn@berry_pnp-v3",
+                agent: PackageManager::YarnBerry,
+                version: None,
+                source: DetectionSource::InstallMetadata,
+                has_lock: false,
             },
         ],
         Some(DetectOptions {
@@ -202,40 +291,51 @@ fn install_metadata_cases_match_hni_semantics() {
 }
 
 #[test]
-fn lockfile_cases_match_hni_semantics() {
-    run_cases(
-        &[
-            DetectCase {
-                name: "npm",
-                setup: |dir| write_file(dir, "package-lock.json", "lock"),
-                expected_agent: Some(PackageManager::Npm),
-                expected_version: None,
-                expected_source: DetectionSource::Lockfile,
-            },
-            DetectCase {
-                name: "pnpm-workspace",
-                setup: |dir| write_file(dir, "pnpm-workspace.yaml", "packages:\n  - packages/*\n"),
-                expected_agent: Some(PackageManager::Pnpm),
-                expected_version: None,
-                expected_source: DetectionSource::Lockfile,
-            },
-            DetectCase {
-                name: "yarn",
-                setup: |dir| write_file(dir, "yarn.lock", "lock"),
-                expected_agent: Some(PackageManager::Yarn),
-                expected_version: None,
-                expected_source: DetectionSource::Lockfile,
-            },
-            DetectCase {
-                name: "deno",
-                setup: |dir| write_file(dir, "deno.lock", "{}"),
-                expected_agent: Some(PackageManager::Deno),
-                expected_version: None,
-                expected_source: DetectionSource::Lockfile,
-            },
-        ],
-        None,
-    );
+fn unknown_fixture_variants_fall_back_to_local_defaults() {
+    for (category, options) in [
+        ("packager", None),
+        (
+            "dev-engines",
+            Some(DetectOptions {
+                strategies: vec![
+                    DetectStrategy::DevEnginesField,
+                    DetectStrategy::Lockfile,
+                    DetectStrategy::PackageManagerField,
+                    DetectStrategy::InstallMetadata,
+                ],
+                stop_at: None,
+            }),
+        ),
+        ("lockfile", None),
+        (
+            "install-metadata",
+            Some(DetectOptions {
+                strategies: vec![
+                    DetectStrategy::InstallMetadata,
+                    DetectStrategy::Lockfile,
+                    DetectStrategy::PackageManagerField,
+                    DetectStrategy::DevEnginesField,
+                ],
+                stop_at: None,
+            }),
+        ),
+    ] {
+        let detected = detect_fixture(category, "unknown", options.as_ref());
+        assert_eq!(detected.version_hint, None, "fixture {category}/unknown");
+        assert!(!detected.has_lock, "fixture {category}/unknown");
+
+        if support::command_exists("npm") {
+            assert_eq!(
+                detected.agent,
+                Some(PackageManager::Npm),
+                "fixture {category}/unknown"
+            );
+            assert_eq!(detected.source, DetectionSource::Fallback);
+        } else {
+            assert_eq!(detected.agent, None, "fixture {category}/unknown");
+            assert_eq!(detected.source, DetectionSource::None);
+        }
+    }
 }
 
 #[test]
@@ -306,40 +406,44 @@ fn user_agent_detection_matches_supported_managers() {
     });
 }
 
-fn run_cases(cases: &[DetectCase], options: Option<DetectOptions>) {
-    let config = HniConfig::default();
+fn run_fixture_cases(category: &str, cases: &[FixtureExpectation], options: Option<DetectOptions>) {
     for case in cases {
-        let dir = tempfile::tempdir().unwrap();
-        (case.setup)(dir.path());
-
-        let detected = match &options {
-            Some(options) => detect_with_options(dir.path(), &config, options).unwrap(),
-            None => detect(dir.path(), &config).unwrap(),
-        };
-
-        assert_eq!(detected.agent, case.expected_agent, "case {}", case.name);
+        let detected = detect_fixture(category, case.name, options.as_ref());
         assert_eq!(
-            detected.version_hint.as_deref(),
-            case.expected_version,
-            "case {}",
+            detected.agent,
+            Some(case.agent),
+            "fixture {category}/{}",
             case.name
         );
-        assert_eq!(detected.source, case.expected_source, "case {}", case.name);
+        assert_eq!(
+            detected.version_hint.as_deref(),
+            case.version,
+            "fixture {category}/{}",
+            case.name
+        );
+        assert_eq!(
+            detected.source, case.source,
+            "fixture {category}/{}",
+            case.name
+        );
+        assert_eq!(
+            detected.has_lock, case.has_lock,
+            "fixture {category}/{}",
+            case.name
+        );
+    }
+}
+
+fn detect_fixture(category: &str, name: &str, options: Option<&DetectOptions>) -> DetectionResult {
+    let dir = tempfile::tempdir().unwrap();
+    support::copy_fixture_into(category, name, dir.path());
+
+    match options {
+        Some(options) => detect_with_options(dir.path(), &HniConfig::default(), options).unwrap(),
+        None => detect(dir.path(), &HniConfig::default()).unwrap(),
     }
 }
 
 fn write_package_json(dir: &std::path::Path, raw: &str) {
     fs::write(dir.join("package.json"), raw).unwrap();
-}
-
-fn write_file(dir: &std::path::Path, relative: &str, raw: &str) {
-    let path = dir.join(relative);
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).unwrap();
-    }
-    fs::write(path, raw).unwrap();
-}
-
-fn write_dir(dir: &std::path::Path, relative: &str) {
-    fs::create_dir_all(dir.join(relative)).unwrap();
 }

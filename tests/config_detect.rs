@@ -87,7 +87,7 @@ fn ignores_legacy_ni_environment_variables() {
         support::set_var("NI_USE_SFW", "true");
         support::set_var("NI_AUTO_INSTALL", "true");
 
-        let cfg = HniConfig::load().unwrap();
+        let cfg = support::with_var_removed("HNI_NATIVE", HniConfig::load).unwrap();
 
         support::remove_var("NI_DEFAULT_AGENT");
         support::remove_var("NI_GLOBAL_AGENT");
@@ -113,7 +113,7 @@ fn ignores_legacy_nirc_fallback() {
         .unwrap();
 
         support::set_var("HOME", &home);
-        let cfg = HniConfig::load().unwrap();
+        let cfg = support::with_var_removed("HNI_NATIVE", HniConfig::load).unwrap();
         support::remove_var("HOME");
 
         assert_eq!(cfg.default_package_manager, None);

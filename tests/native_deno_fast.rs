@@ -16,22 +16,24 @@ fn deno_fast_path_uses_native_task_execution() {
         )
         .unwrap();
 
-        let output = run_hni(
-            vec![
-                "nr",
-                "-C",
-                work.path().to_str().unwrap(),
-                "--debug-resolved",
-                "dev",
-            ],
-            &[("HNI_SKIP_PM_CHECK", "1")],
-        );
+        support::with_var_removed("HNI_NATIVE", || {
+            let output = run_hni(
+                vec![
+                    "nr",
+                    "-C",
+                    work.path().to_str().unwrap(),
+                    "--debug-resolved",
+                    "dev",
+                ],
+                &[("HNI_SKIP_PM_CHECK", "1")],
+            );
 
-        assert!(output.status.success(), "{output:?}");
-        assert_eq!(
-            String::from_utf8_lossy(&output.stdout).trim(),
-            "hni native:run-deno-task dev"
-        );
+            assert!(output.status.success(), "{output:?}");
+            assert_eq!(
+                String::from_utf8_lossy(&output.stdout).trim(),
+                "hni native:run-deno-task dev"
+            );
+        });
     });
 }
 
