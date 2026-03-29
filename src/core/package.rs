@@ -16,9 +16,23 @@ pub fn find_nearest_package(cwd: &Path) -> Result<Option<NearestPackage>> {
 }
 
 pub fn node_modules_bin_dirs(cwd: &Path) -> Vec<PathBuf> {
-    ProjectState::scan(cwd)
-        .map(|state| state.bin_dirs().to_vec())
-        .unwrap_or_default()
+    let mut bin_dirs = Vec::new();
+
+    for dir in cwd.ancestors() {
+        for candidate in [
+            dir.join("node_modules").join(".bin"),
+            dir.join("node_modules")
+                .join(".pnpm")
+                .join("node_modules")
+                .join(".bin"),
+        ] {
+            if candidate.is_dir() {
+                bin_dirs.push(candidate);
+            }
+        }
+    }
+
+    bin_dirs
 }
 
 pub fn resolve_local_bin(bin_name: &str, bin_dirs: &[PathBuf]) -> Option<PathBuf> {
