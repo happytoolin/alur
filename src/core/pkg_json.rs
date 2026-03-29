@@ -31,13 +31,20 @@ pub struct PackageJson {
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct DevEngines {
     #[serde(rename = "packageManager")]
-    pub package_manager: Option<DeclaredPackageManager>,
+    pub package_manager: Option<DeclaredPackageManagerSpec>,
 }
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct DeclaredPackageManager {
     pub name: Option<String>,
     pub version: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(untagged)]
+pub enum DeclaredPackageManagerSpec {
+    Single(DeclaredPackageManager),
+    Multiple(Vec<DeclaredPackageManager>),
 }
 
 #[derive(Debug, Clone, Deserialize, Default)]

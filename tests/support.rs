@@ -44,13 +44,26 @@ pub fn with_var_removed<F, T>(key: &str, f: F) -> T
 where
     F: FnOnce() -> T,
 {
-    let previous = std::env::var_os(key);
-    remove_var(key);
-    let result = f();
-    if let Some(value) = previous {
-        set_var(key, value);
+    struct RestoreEnv {
+        key: String,
+        previous: Option<std::ffi::OsString>,
     }
-    result
+
+    impl Drop for RestoreEnv {
+        fn drop(&mut self) {
+            match self.previous.as_ref() {
+                Some(value) => set_var(&self.key, value),
+                None => remove_var(&self.key),
+            }
+        }
+    }
+
+    let _restore = RestoreEnv {
+        key: key.to_string(),
+        previous: std::env::var_os(key),
+    };
+    remove_var(key);
+    f()
 }
 
 /// Run hni with the given arguments and extra environment variables.
@@ -68,7 +81,7 @@ pub fn run_hni_owned(args: &[String], extra_env: &[(&str, &str)]) -> std::proces
         .env_remove("HNI_CONFIG_FILE")
         .env_remove("HNI_DEFAULT_PACKAGE_MANAGER")
         .env_remove("HNI_GLOBAL_PACKAGE_MANAGER")
-        .env_remove("HNI_FAST_MODE")
+        .env_remove("HNI_FAST")
         .env_remove("HNI_SKIP_PM_CHECK")
         .env_remove("HNI_REAL_NODE")
         .env_remove("HNI_NODE_SHIM_ACTIVE");

@@ -1,7 +1,8 @@
 use anyhow::Result;
 
 use crate::core::{
-    package::resolve_local_bin,
+    deno::{find_nearest_deno_project, plan_native_deno_task},
+    package::{node_modules_bin_dirs, resolve_local_bin},
     resolve::ResolveContext,
     types::{NativeLocalBinExecution, NativeScriptExecution, NativeScriptStep, PackageManager},
 };
@@ -19,14 +20,24 @@ pub(super) fn plan_nr(
     ctx: &ResolveContext,
     has_if_present: bool,
 ) -> Result<NativeDecision> {
-    let state = ctx.project_state()?;
-
     if pm == Some(PackageManager::Deno) {
-        return Ok(NativeDecision::Ineligible(
-            FallbackReason::DenoScriptExecution,
-        ));
+        let selection = args.first().cloned().unwrap_or_else(|| "start".to_string());
+        let forwarded_args = args.iter().skip(1).cloned().collect::<Vec<_>>();
+        let Some(project) = find_nearest_deno_project(ctx.cwd())? else {
+            return Ok(NativeDecision::Ineligible(
+                FallbackReason::MissingNearestDenoProject,
+            ));
+        };
+
+        return Ok(
+            match plan_native_deno_task(&project, &selection, &forwarded_args, has_if_present) {
+                Ok(exec) => NativeDecision::Eligible(NativePlan::DenoTask(exec)),
+                Err(_) => NativeDecision::Ineligible(FallbackReason::DenoScriptExecution),
+            },
+        );
     }
 
+    let state = ctx.project_state()?;
     let Some(pkg) = state.nearest_package() else {
         return Ok(NativeDecision::Ineligible(
             FallbackReason::MissingNearestPackage,
@@ -92,19 +103,29 @@ pub(super) fn plan_nlx(
     args: &[String],
     ctx: &ResolveContext,
 ) -> Result<NativeDecision> {
-    let state = ctx.project_state()?;
-
-    if pm == Some(PackageManager::Deno) {
-        return Ok(NativeDecision::Ineligible(
-            FallbackReason::DenoScriptExecution,
-        ));
-    }
-
     let Some(bin_name) = args.first() else {
         return Ok(NativeDecision::Ineligible(
             FallbackReason::MissingLocalBinCommand,
         ));
     };
+
+    if pm == Some(PackageManager::Deno) {
+        let bin_paths = node_modules_bin_dirs(ctx.cwd());
+        let Some(bin_path) = resolve_local_bin(bin_name, &bin_paths) else {
+            return Ok(NativeDecision::Ineligible(FallbackReason::RemoteDenoExec));
+        };
+
+        return Ok(NativeDecision::Eligible(NativePlan::LocalBin(
+            NativeLocalBinExecution {
+                bin_name: bin_name.clone(),
+                launcher: resolve_local_bin_launcher(&bin_path)?,
+                forwarded_args: args.iter().skip(1).cloned().collect(),
+                bin_paths,
+            },
+        )));
+    }
+
+    let state = ctx.project_state()?;
 
     if pm == Some(PackageManager::YarnBerry) && state.has_yarn_pnp_loader() {
         return Ok(NativeDecision::Ineligible(FallbackReason::YarnBerryPnp));

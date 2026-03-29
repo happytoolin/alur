@@ -3,13 +3,14 @@ use std::{
     sync::OnceLock,
 };
 
+use anyhow::Result;
+
 use crate::core::{
     config::HniConfig,
-    detect::{DetectOptions, detect_in_project_state, detect_lockfile_in_dir},
-    error::HniResult,
+    detect::{DetectOptions, detect_with_options},
     package::NearestPackage,
     pkg_json::{PackageJson, package_json_path, read_package_json},
-    types::{DetectionResult, PackageManager},
+    types::DetectionResult,
 };
 
 #[derive(Debug)]
@@ -40,7 +41,7 @@ impl ResolveContext {
         }
     }
 
-    pub(crate) fn project_state(&self) -> HniResult<&ProjectState> {
+    pub(crate) fn project_state(&self) -> Result<&ProjectState> {
         if let Some(state) = self.project_state.get() {
             return Ok(state);
         }
@@ -53,12 +54,12 @@ impl ResolveContext {
             .expect("project state should be initialized"))
     }
 
-    pub fn detect(&self) -> HniResult<DetectionResult> {
+    pub fn detect(&self) -> Result<DetectionResult> {
         if let Some(detection) = self.detection.get() {
             return Ok(detection.clone());
         }
 
-        let detection = self.project_state()?.detect(&self.config);
+        let detection = detect_with_options(&self.cwd, &self.config, &DetectOptions::default())?;
         let _ = self.detection.set(detection.clone());
         Ok(detection)
     }
@@ -84,11 +85,10 @@ pub(crate) struct ProjectState {
 pub(crate) struct AncestorState {
     dir: PathBuf,
     manifest: Option<PackageJson>,
-    lockfile_pm: Option<PackageManager>,
 }
 
 impl ProjectState {
-    pub(crate) fn scan(cwd: &Path) -> HniResult<Self> {
+    pub(crate) fn scan(cwd: &Path) -> Result<Self> {
         let mut ancestors = Vec::new();
         let mut nearest_package = None;
         let mut bin_dirs = Vec::new();
@@ -98,7 +98,6 @@ impl ProjectState {
             let dir = dir.to_path_buf();
             let manifest = read_package_json(&dir)?;
             let package_json_path = package_json_path(&dir);
-            let lockfile_pm = detect_lockfile_in_dir(&dir);
 
             if nearest_package.is_none()
                 && let Some(manifest) = manifest.clone()
@@ -124,11 +123,7 @@ impl ProjectState {
 
             has_yarn_pnp_loader |= dir.join(".pnp.cjs").exists() || dir.join(".pnp.js").exists();
 
-            ancestors.push(AncestorState {
-                dir,
-                manifest,
-                lockfile_pm,
-            });
+            ancestors.push(AncestorState { dir, manifest });
         }
 
         Ok(Self {
@@ -158,35 +153,5 @@ impl ProjectState {
             let candidate = ancestor.dir.join(relative);
             candidate.is_file().then_some(candidate)
         })
-    }
-
-    pub(crate) fn ancestors(&self) -> &[AncestorState] {
-        &self.ancestors
-    }
-
-    pub(crate) fn detect(&self, config: &HniConfig) -> DetectionResult {
-        detect_in_project_state(
-            self,
-            self.ancestors
-                .first()
-                .map(|ancestor| ancestor.dir.as_path())
-                .unwrap_or_else(|| Path::new(".")),
-            config,
-            &DetectOptions::default(),
-        )
-    }
-}
-
-impl AncestorState {
-    pub(crate) fn dir(&self) -> &Path {
-        &self.dir
-    }
-
-    pub(crate) fn manifest(&self) -> Option<&PackageJson> {
-        self.manifest.as_ref()
-    }
-
-    pub(crate) fn lockfile_pm(&self) -> Option<PackageManager> {
-        self.lockfile_pm
     }
 }
