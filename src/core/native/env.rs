@@ -1,9 +1,13 @@
-use std::{env, path::PathBuf, process::Command};
+use std::{
+    env,
+    path::{Path, PathBuf},
+    process::Command,
+};
 
 use anyhow::Result;
 
 use crate::{
-    core::types::NativeScriptExecution,
+    core::types::{NativeLocalBinExecution, NativeScriptExecution, PackageManager},
     platform::node::{REAL_NODE_ENV, resolve_real_node_path},
 };
 
@@ -46,13 +50,34 @@ pub(super) fn native_script_env(
     Ok(envs)
 }
 
-pub(super) fn apply_native_environment(command: &mut Command, bin_paths: &[PathBuf]) -> Result<()> {
-    if let Ok(path) = merged_path_with_bins(bin_paths) {
+pub(super) fn apply_local_bin_environment(
+    command: &mut Command,
+    exec: &NativeLocalBinExecution,
+    invocation_cwd: &Path,
+) -> Result<()> {
+    if let Ok(path) = merged_path_with_bins(&exec.bin_paths) {
         command.env("PATH", path);
     }
 
     if let Ok(real_node) = resolve_real_node_path() {
         command.env(REAL_NODE_ENV, &real_node);
+        command.env("npm_node_execpath", real_node);
+    }
+
+    command.env("INIT_CWD", invocation_cwd);
+    command.env("npm_command", "exec");
+    command.env(
+        "npm_execpath",
+        package_manager_execpath(exec.package_manager),
+    );
+
+    if let Ok(user_agent) = env::var("npm_config_user_agent") {
+        command.env("npm_config_user_agent", user_agent);
+    } else {
+        command.env(
+            "npm_config_user_agent",
+            synthetic_user_agent(exec.package_manager),
+        );
     }
 
     Ok(())
@@ -83,4 +108,15 @@ fn join_paths_string(paths: Vec<PathBuf>) -> Result<String> {
     env::join_paths(paths)
         .map(|value| value.to_string_lossy().to_string())
         .map_err(Into::into)
+}
+
+fn package_manager_execpath(pm: PackageManager) -> String {
+    which::which(pm.bin())
+        .unwrap_or_else(|_| PathBuf::from(pm.bin()))
+        .to_string_lossy()
+        .to_string()
+}
+
+fn synthetic_user_agent(pm: PackageManager) -> String {
+    format!("{}/0.0.0 hni/fast", pm.bin())
 }

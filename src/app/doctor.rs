@@ -2,10 +2,7 @@ use std::{ffi::OsStr, path::Path};
 
 use crate::{
     core::{resolve::ResolveContext, types::DetectionSource},
-    platform::{
-        node::{real_node_supports_run, resolve_real_node_path},
-        paths_equal,
-    },
+    platform::{node::resolve_real_node_path, paths_equal},
 };
 
 pub fn print_doctor(ctx: &ResolveContext) {
@@ -38,7 +35,6 @@ pub fn print_doctor(ctx: &ResolveContext) {
             .as_ref()
             .map_or_else(|| "unavailable".to_string(), |p| p.display().to_string())
     );
-    println!("node_run_supported: {}", real_node_supports_run());
     println!(
         "shim_precedence_active: {}",
         shim_precedence_active(current_hni.as_deref(), path_node.as_deref())

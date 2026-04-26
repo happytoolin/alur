@@ -75,7 +75,6 @@ fn doctor_reports_shell_setup_fields() {
         assert!(stdout.contains("current_hni:"));
         assert!(stdout.contains("path_node:"));
         assert!(stdout.contains("real_node:"));
-        assert!(stdout.contains("node_run_supported:"));
         assert!(stdout.contains("shim_precedence_active:"));
     });
 }

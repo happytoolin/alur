@@ -61,7 +61,6 @@ pub struct ResolvedExecution {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ExecutionMode {
     PackageManager,
-    NodeRun,
     PassthroughNode,
     Fast,
     Internal,
@@ -125,6 +124,7 @@ pub struct NativeLocalBinExecution {
     pub launcher: NativeLocalBinLauncher,
     pub forwarded_args: Vec<String>,
     pub bin_paths: Vec<PathBuf>,
+    pub package_manager: PackageManager,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -263,7 +263,6 @@ impl ResolvedExecution {
     pub fn execution_mode_name(&self) -> &'static str {
         match self.mode {
             ExecutionMode::PackageManager => "package-manager",
-            ExecutionMode::NodeRun => "node-run",
             ExecutionMode::PassthroughNode => "passthrough-node",
             ExecutionMode::Fast => "fast",
             ExecutionMode::Internal => "internal",

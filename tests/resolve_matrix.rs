@@ -350,27 +350,16 @@ fn nlx_fast_mode_does_not_require_detected_package_manager() {
 
 #[cfg(unix)]
 #[test]
-fn node_run_prefers_native_fast_path_when_supported() {
+fn node_run_uses_native_fast_path() {
     with_skip_pm_check(|| {
         let dir = tempfile::tempdir().unwrap();
-        let fake_node = dir
-            .path()
-            .join(if cfg!(windows) { "node.exe" } else { "node" });
-        fs::write(
-            &fake_node,
-            "#!/bin/sh\nif [ \"$1\" = \"--help\" ]; then\n  printf '  --run\\n'\n  exit 0\nfi\nexit 0\n",
-        )
-        .unwrap();
-        make_executable(&fake_node);
         write_package_json(
             dir.path(),
             r#"{"packageManager":"npm@10.0.0","scripts":{"dev":"vite"}}"#,
         );
 
-        support::set_var("HNI_REAL_NODE", &fake_node);
         let ctx = ResolveContext::new(dir.path().to_path_buf(), HniConfig::default());
         let resolved = resolve::resolve_node_run(vec!["dev".into()], &ctx).unwrap();
-        support::remove_var("HNI_REAL_NODE");
 
         assert!(matches!(
             resolved.strategy,
@@ -382,25 +371,14 @@ fn node_run_prefers_native_fast_path_when_supported() {
 
 #[cfg(unix)]
 #[test]
-fn node_run_safe_path_does_not_require_detected_package_manager() {
+fn node_run_fast_path_does_not_require_detected_package_manager() {
     with_skip_pm_check(|| {
         with_path_override("", || {
             let dir = tempfile::tempdir().unwrap();
-            let fake_node = dir
-                .path()
-                .join(if cfg!(windows) { "node.exe" } else { "node" });
-            fs::write(
-                &fake_node,
-                "#!/bin/sh\nif [ \"$1\" = \"--help\" ]; then\n  printf '  --run\\n'\n  exit 0\nfi\nexit 0\n",
-            )
-            .unwrap();
-            make_executable(&fake_node);
             write_package_json(dir.path(), r#"{"name":"x","scripts":{"dev":"vite"}}"#);
 
-            support::set_var("HNI_REAL_NODE", &fake_node);
             let ctx = ResolveContext::new(dir.path().to_path_buf(), HniConfig::default());
             let resolved = resolve::resolve_node_run(vec!["dev".into()], &ctx).unwrap();
-            support::remove_var("HNI_REAL_NODE");
 
             assert!(matches!(
                 resolved.strategy,
@@ -413,27 +391,16 @@ fn node_run_safe_path_does_not_require_detected_package_manager() {
 
 #[cfg(unix)]
 #[test]
-fn node_run_falls_back_to_native_when_builtin_node_run_is_unsafe() {
+fn node_run_uses_native_fast_path_with_hooks() {
     with_skip_pm_check(|| {
         let dir = tempfile::tempdir().unwrap();
-        let fake_node = dir
-            .path()
-            .join(if cfg!(windows) { "node.exe" } else { "node" });
-        fs::write(
-            &fake_node,
-            "#!/bin/sh\nif [ \"$1\" = \"--help\" ]; then\n  printf '  --run\\n'\n  exit 0\nfi\nexit 0\n",
-        )
-        .unwrap();
-        make_executable(&fake_node);
         write_package_json(
             dir.path(),
             r#"{"packageManager":"npm@10.0.0","scripts":{"predev":"echo pre","dev":"vite"}}"#,
         );
 
-        support::set_var("HNI_REAL_NODE", &fake_node);
         let ctx = ResolveContext::new(dir.path().to_path_buf(), HniConfig::default());
         let resolved = resolve::resolve_node_run(vec!["dev".into()], &ctx).unwrap();
-        support::remove_var("HNI_REAL_NODE");
 
         assert!(matches!(
             resolved.strategy,
@@ -444,27 +411,16 @@ fn node_run_falls_back_to_native_when_builtin_node_run_is_unsafe() {
 
 #[cfg(unix)]
 #[test]
-fn node_run_falls_back_to_package_manager_when_neither_fast_path_is_safe() {
+fn node_run_falls_back_to_package_manager_when_fast_env_is_unsupported() {
     with_skip_pm_check(|| {
         let dir = tempfile::tempdir().unwrap();
-        let fake_node = dir
-            .path()
-            .join(if cfg!(windows) { "node.exe" } else { "node" });
-        fs::write(
-            &fake_node,
-            "#!/bin/sh\nif [ \"$1\" = \"--help\" ]; then\n  printf '  --run\\n'\n  exit 0\nfi\nexit 0\n",
-        )
-        .unwrap();
-        make_executable(&fake_node);
         write_package_json(
             dir.path(),
             r#"{"packageManager":"npm@10.0.0","scripts":{"dev":"echo $npm_package_name"}}"#,
         );
 
-        support::set_var("HNI_REAL_NODE", &fake_node);
         let ctx = ResolveContext::new(dir.path().to_path_buf(), HniConfig::default());
         let resolved = resolve::resolve_node_run(vec!["dev".into()], &ctx).unwrap();
-        support::remove_var("HNI_REAL_NODE");
 
         assert_eq!(resolved.program, "npm");
         assert_eq!(resolved.args, vec!["run", "dev"]);

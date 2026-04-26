@@ -136,6 +136,7 @@ pub(super) fn plan_nlx(
                 launcher: resolve_local_bin_launcher(&bin_path)?,
                 forwarded_args: args.iter().skip(1).cloned().collect(),
                 bin_paths,
+                package_manager: PackageManager::Npm,
             },
         )));
     }
@@ -179,6 +180,7 @@ pub(super) fn plan_nlx_from_state(
             launcher: resolve_local_bin_launcher(&bin_path)?,
             forwarded_args: args.iter().skip(1).cloned().collect(),
             bin_paths,
+            package_manager: pm.unwrap_or(PackageManager::Npm),
         },
     )))
 }
@@ -214,6 +216,7 @@ pub(super) fn plan_nlx_from_local_bin_state(
             launcher: resolve_local_bin_launcher(&bin_path)?,
             forwarded_args: args.iter().skip(1).cloned().collect(),
             bin_paths,
+            package_manager: pm.unwrap_or(PackageManager::Npm),
         },
     )))
 }

@@ -129,16 +129,6 @@ pub fn copy_fixture_into(category: &str, name: &str, dest: &Path) {
         .unwrap_or_else(|error| panic!("failed to copy fixture {category}/{name}: {error}"));
 }
 
-pub fn real_node_supports_run() -> bool {
-    let output = match Command::new("node").arg("--help").output() {
-        Ok(output) => output,
-        Err(_) => return false,
-    };
-
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    stdout.contains("--run")
-}
-
 /// Get the path to the hni executable.
 pub fn hni_executable_path() -> PathBuf {
     if let Ok(path) = std::env::var("CARGO_BIN_EXE_hni") {

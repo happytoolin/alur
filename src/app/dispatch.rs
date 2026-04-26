@@ -124,7 +124,7 @@ fn print_explain(
     if config.fast_mode {
         let fast_status = if resolved.fast_fallback_reason.is_some() {
             "fallback"
-        } else if matches!(resolved.mode, ExecutionMode::Fast | ExecutionMode::NodeRun) {
+        } else if matches!(resolved.mode, ExecutionMode::Fast) {
             "eligible"
         } else {
             "not-applicable"

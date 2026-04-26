@@ -60,7 +60,7 @@ pub fn finish(iterations: usize) -> Option<String> {
 
 fn render(stats: &ProfileStats, iterations: usize) -> String {
     let mut spans = stats.spans.iter().collect::<Vec<_>>();
-    spans.sort_by(|(_, left), (_, right)| right.total.cmp(&left.total));
+    spans.sort_by_key(|(_, span)| std::cmp::Reverse(span.total));
     let measured_total = spans
         .iter()
         .map(|(_, span)| span.total)
