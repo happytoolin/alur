@@ -7,7 +7,7 @@ $ErrorActionPreference = "Stop"
 $Repo = "happytoolin/hni"
 $DownloadRoot = "https://happytoolin.com"
 $FallbackDownloadRoot = "https://github.com/$Repo"
-$Aliases = @("ni", "nr", "nlx", "nu", "nun", "nci", "na", "np", "ns")
+$Aliases = @("ni", "nr", "nlx", "nru", "nun", "nci", "na", "np", "ns")
 
 function Write-Log {
   param([string]$Message)

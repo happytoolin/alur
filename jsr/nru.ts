@@ -1,5 +1,5 @@
 import { runInvocation } from "./shared.ts";
 
 if (import.meta.main) {
-  await runInvocation("nu");
+  await runInvocation("nru");
 }

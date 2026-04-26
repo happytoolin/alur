@@ -92,7 +92,7 @@ pub fn decide_with_shim_state(
         "add" => route(Intent::Add, routed_args, "route add to package manager add"),
         "run" => route(Intent::Run, routed_args, "route run through nr parser"),
         "exec" | "x" | "dlx" => route(Intent::Execute, routed_args, "route exec through nlx"),
-        "update" | "upgrade" => route(Intent::Upgrade, routed_args, "route update through nu"),
+        "update" | "upgrade" => route(Intent::Upgrade, routed_args, "route update through nru"),
         "uninstall" | "remove" => route(
             Intent::Uninstall,
             routed_args,

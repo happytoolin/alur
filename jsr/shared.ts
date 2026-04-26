@@ -15,7 +15,7 @@ export type Invocation =
   | "ni"
   | "nr"
   | "nlx"
-  | "nu"
+  | "nru"
   | "nun"
   | "nci"
   | "na"

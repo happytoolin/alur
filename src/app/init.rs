@@ -114,7 +114,7 @@ fn render_fish(exe_path: &Path, bin_dir: &Path) -> String {
          end\n\
          functions -e node 2>/dev/null\n\
          function node --description \"hni node shim\"\n\
-             \"$__hni_cmd\" node $argv\n\
+             {hni_cmd} node $argv\n\
          end\n"
     )
 }
@@ -139,8 +139,9 @@ fn render_powershell(exe_path: &Path, bin_dir: &Path) -> String {
            $env:PATH = if ($env:PATH) {{ \"$($__hniBin);$env:PATH\" }} else {{ $__hniBin }}\n\
          }}\n\
          function global:node {{\n\
-           & $__hniCmd node @args\n\
-         }}\n"
+           & {hni_cmd} node @args\n\
+         }}\n\
+         Remove-Variable __hniCmd, __hniBin, __hniRealNode, __hniPathEntries, __hniHasPriority -ErrorAction SilentlyContinue\n"
     )
 }
 
@@ -161,9 +162,8 @@ fn render_nushell(exe_path: &Path, bin_dir: &Path) -> String {
          if (($env.PATH | is-empty) or (($env.PATH | first) != $hni_bin)) {{\n\
            $env.PATH = ($env.PATH | prepend $hni_bin)\n\
          }}\n\
-         $env.HNI_CMD = $hni_cmd\n\
          def --wrapped node [...rest] {{\n\
-           ^$env.HNI_CMD node ...$rest\n\
+           ^{hni_cmd} node ...$rest\n\
          }}\n"
     )
 }
@@ -183,15 +183,7 @@ fn powershell_quote(value: &str) -> String {
 }
 
 fn nushell_quote(value: &str) -> String {
-    let mut hashes = String::new();
-    loop {
-        let candidate = format!("r{hashes}'{value}'{hashes}", hashes = hashes);
-        let end_delimiter = format!("'{hashes}");
-        if !value.contains(&end_delimiter) {
-            return candidate;
-        }
-        hashes.push('#');
-    }
+    format!("\"{}\"", value.replace('\\', "\\\\").replace('"', "\\\""))
 }
 
 #[cfg(test)]
@@ -252,22 +244,24 @@ mod tests {
     }
 
     #[test]
-    fn nushell_render_uses_raw_strings_and_prepend() {
+    fn nushell_render_uses_double_quoted_strings_and_prepend() {
         let out = render_init(
             InitShell::Nushell,
             Path::new("/tmp/hni/bin/hni"),
             Path::new("/tmp/hni/bin"),
         );
-        assert!(out.contains("let hni_cmd = r'"));
+        assert!(out.contains("let hni_cmd = \""));
         assert!(out.contains("| prepend $hni_bin"));
         assert!(out.contains("^$hni_cmd internal real-node-path"));
         assert!(out.contains("def --wrapped node"));
+        assert!(out.contains("^\"/tmp/hni/bin/hni\" node ...$rest"));
     }
 
     #[test]
-    fn nushell_quote_uses_more_hashes_when_needed() {
-        let quoted = nushell_quote("a'b");
-        assert!(quoted.starts_with("r#'"));
-        assert!(quoted.ends_with("'#"));
+    fn nushell_quote_uses_double_quoted_strings() {
+        assert_eq!(
+            nushell_quote(r#"C:\hni\bin\hni "dev".exe"#),
+            r#""C:\\hni\\bin\\hni \"dev\".exe""#
+        );
     }
 }

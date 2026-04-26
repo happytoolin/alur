@@ -58,7 +58,7 @@ class Hni < Formula
 
   def install
     bin.install "hni"
-    %w[ni nr nlx nu nun nci na np ns].each do |name|
+    %w[ni nr nlx nru nun nci na np ns].each do |name|
       bin.install_symlink bin/"hni" => name
     end
     generate_completions_from_executable(bin/"hni", "completion", shells: [:bash, :zsh, :fish])

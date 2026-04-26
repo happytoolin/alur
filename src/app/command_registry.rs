@@ -76,17 +76,17 @@ const COMMAND_SPECS: &[CommandSpec] = &[
         handler: commands::handle_nlx,
     },
     CommandSpec {
-        name: "nu",
-        invocation: InvocationKind::Nu,
-        help_topic: HelpTopic::Nu,
+        name: "nru",
+        invocation: InvocationKind::Nru,
+        help_topic: HelpTopic::Nru,
         about: "upgrade dependencies",
         long_about: "Upgrades dependencies using package-manager-specific update commands.",
         examples: "Examples:\n\
              \n\
-             nu\n\
-             nu react react-dom\n\
-             nu --interactive      Interactive mode when supported",
-        handler: commands::handle_nu,
+             nru\n\
+             nru react react-dom\n\
+             nru --interactive      Interactive mode when supported",
+        handler: commands::handle_nru,
     },
     CommandSpec {
         name: "nun",
