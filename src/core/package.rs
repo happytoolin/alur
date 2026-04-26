@@ -2,7 +2,7 @@ use std::path::{Component, Path, PathBuf};
 
 use anyhow::Result;
 
-use super::{pkg_json::PackageJson, resolve::ProjectState};
+use super::{config::HniConfig, pkg_json::PackageJson, resolve::ProjectState};
 
 #[derive(Debug, Clone)]
 pub struct NearestPackage {
@@ -12,53 +12,57 @@ pub struct NearestPackage {
 }
 
 pub fn find_nearest_package(cwd: &Path) -> Result<Option<NearestPackage>> {
-    Ok(ProjectState::scan(cwd)?.nearest_package())
+    Ok(ProjectState::scan(cwd, &HniConfig::default())?.nearest_package())
 }
 
 pub fn node_modules_bin_dirs(cwd: &Path) -> Vec<PathBuf> {
-    let mut bin_dirs = Vec::new();
+    crate::core::profile::measure("local_bin.scan_dirs", || {
+        let mut bin_dirs = Vec::new();
 
-    for dir in cwd.ancestors() {
-        for candidate in [
-            dir.join("node_modules").join(".bin"),
-            dir.join("node_modules")
-                .join(".pnpm")
-                .join("node_modules")
-                .join(".bin"),
-        ] {
-            if candidate.is_dir() {
-                bin_dirs.push(candidate);
+        for dir in cwd.ancestors() {
+            for candidate in [
+                dir.join("node_modules").join(".bin"),
+                dir.join("node_modules")
+                    .join(".pnpm")
+                    .join("node_modules")
+                    .join(".bin"),
+            ] {
+                if candidate.is_dir() {
+                    bin_dirs.push(candidate);
+                }
             }
         }
-    }
 
-    bin_dirs
+        bin_dirs
+    })
 }
 
 pub fn resolve_local_bin(bin_name: &str, bin_dirs: &[PathBuf]) -> Option<PathBuf> {
-    if !is_safe_bin_name(bin_name) {
-        return None;
-    }
+    crate::core::profile::measure("local_bin.lookup", || {
+        if !is_safe_bin_name(bin_name) {
+            return None;
+        }
 
-    #[cfg(windows)]
-    const SUFFIXES: &[&str] = &["", ".cmd", ".exe", ".bat", ".ps1"];
-    #[cfg(not(windows))]
-    const SUFFIXES: &[&str] = &[""];
+        #[cfg(windows)]
+        const SUFFIXES: &[&str] = &["", ".cmd", ".exe", ".bat", ".ps1"];
+        #[cfg(not(windows))]
+        const SUFFIXES: &[&str] = &[""];
 
-    for dir in bin_dirs {
-        for suffix in SUFFIXES {
-            let candidate = dir.join(format!("{bin_name}{suffix}"));
-            if is_runnable_file(&candidate) {
-                return Some(candidate);
+        for dir in bin_dirs {
+            for suffix in SUFFIXES {
+                let candidate = dir.join(format!("{bin_name}{suffix}"));
+                if is_runnable_file(&candidate) {
+                    return Some(candidate);
+                }
             }
         }
-    }
 
-    None
+        None
+    })
 }
 
 pub fn resolve_declared_package_bin(cwd: &Path, bin_name: &str) -> Result<Option<PathBuf>> {
-    ProjectState::scan(cwd)?.resolve_declared_package_bin(bin_name)
+    ProjectState::scan(cwd, &HniConfig::default())?.resolve_declared_package_bin(bin_name)
 }
 
 fn is_safe_bin_name(bin_name: &str) -> bool {

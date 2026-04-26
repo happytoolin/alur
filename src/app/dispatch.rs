@@ -82,8 +82,9 @@ pub fn run_from_env() -> Result<ExitCode> {
             invocation,
             args,
             iterations,
+            timings,
         } => {
-            run_profile_loop(invocation, args, iterations, &resolve_ctx)?;
+            run_profile_loop(invocation, args, iterations, timings, &resolve_ctx)?;
             Ok(ExitCode::SUCCESS)
         }
         ParsedCommand::Execute { invocation, args } => {
@@ -156,16 +157,30 @@ fn run_profile_loop(
     invocation: InvocationKind,
     args: Vec<String>,
     iterations: usize,
+    timings: bool,
     ctx: &ResolveContext,
 ) -> Result<()> {
+    if timings {
+        crate::core::profile::start();
+    }
+
     for _ in 0..iterations {
-        let resolved = dispatch_invocation(invocation, args.clone(), ctx)?;
+        let resolved = crate::core::profile::measure("dispatch.resolve", || {
+            dispatch_invocation(invocation, args.clone(), ctx)
+        })?;
         if let Some(resolved) = resolved {
-            std::hint::black_box(
-                runner::format_debug(&resolved)
-                    .map_err(|error| anyhow!("execution error: {error}"))?,
-            );
+            std::hint::black_box(crate::core::profile::measure(
+                "runner.format_debug",
+                || {
+                    runner::format_debug(&resolved)
+                        .map_err(|error| anyhow!("execution error: {error}"))
+                },
+            )?);
         }
+    }
+
+    if timings && let Some(rendered) = crate::core::profile::finish(iterations) {
+        println!("{rendered}");
     }
 
     Ok(())

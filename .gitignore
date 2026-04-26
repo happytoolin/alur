@@ -156,6 +156,7 @@ dist
 benchmark/.cache/
 benchmark/results/*.json
 benchmark/results/raw/
+benchmark/profiles/*.txt
 benchmark/profiles/*.svg
 !benchmark/results/.gitkeep
 !benchmark/profiles/.gitkeep

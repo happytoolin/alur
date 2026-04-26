@@ -75,7 +75,7 @@ pub fn detect(cwd: &Path, config: &HniConfig) -> Result<DetectionResult> {
     Ok(fallback_detection(config, has_lock))
 }
 
-fn fallback_detection(config: &HniConfig, has_lock: bool) -> DetectionResult {
+pub(crate) fn fallback_detection(config: &HniConfig, has_lock: bool) -> DetectionResult {
     if let Some(agent) = config.default_package_manager {
         return DetectionResult {
             agent: Some(agent),
@@ -162,7 +162,7 @@ pub(crate) fn parse_package_manager_field(value: &str) -> Option<(PackageManager
     parse_package_manager_spec(value)
 }
 
-fn detect_package_manager_field(package_json: &PackageJson) -> Option<DetectionResult> {
+pub(crate) fn detect_package_manager_field(package_json: &PackageJson) -> Option<DetectionResult> {
     package_json
         .package_manager
         .as_deref()
@@ -175,7 +175,7 @@ fn detect_package_manager_field(package_json: &PackageJson) -> Option<DetectionR
         })
 }
 
-fn detect_dev_engines_field(package_json: &PackageJson) -> Option<DetectionResult> {
+pub(crate) fn detect_dev_engines_field(package_json: &PackageJson) -> Option<DetectionResult> {
     package_json
         .dev_engines
         .as_ref()

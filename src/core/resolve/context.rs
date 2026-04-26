@@ -4,9 +4,13 @@ use anyhow::Result;
 
 use crate::core::{
     config::HniConfig,
-    detect::detect,
+    detect::{
+        detect, detect_dev_engines_field, detect_install_metadata_in_dir, detect_lockfile_in_dir,
+        detect_package_manager_field, fallback_detection,
+    },
     package::NearestPackage,
     pkg_json::{PackageJson, package_json_path, read_package_json},
+    types::{DetectionResult, PackageManager},
 };
 
 #[derive(Debug)]
@@ -34,11 +38,13 @@ impl ResolveContext {
     }
 
     pub(crate) fn project_state(&self) -> Result<ProjectState> {
-        ProjectState::scan(&self.cwd)
+        crate::core::profile::measure("project.scan", || {
+            ProjectState::scan(&self.cwd, &self.config)
+        })
     }
 
     pub fn detect(&self) -> Result<crate::core::types::DetectionResult> {
-        detect(&self.cwd, &self.config)
+        crate::core::profile::measure("detect.total", || detect(&self.cwd, &self.config))
     }
 
     pub fn cwd(&self) -> &Path {
@@ -55,7 +61,7 @@ pub(crate) struct ProjectState {
     ancestors: Vec<AncestorState>,
     nearest_package: Option<NearestPackage>,
     bin_dirs: Vec<PathBuf>,
-    has_yarn_pnp_loader: bool,
+    detection: DetectionResult,
 }
 
 #[derive(Debug, Clone)]
@@ -65,15 +71,27 @@ pub(crate) struct AncestorState {
 }
 
 impl ProjectState {
-    pub(crate) fn scan(cwd: &Path) -> Result<Self> {
+    pub(crate) fn scan(cwd: &Path, config: &HniConfig) -> Result<Self> {
         let mut ancestors = Vec::new();
         let mut nearest_package = None;
         let mut bin_dirs = Vec::new();
-        let mut has_yarn_pnp_loader = false;
+        let mut has_lock = false;
+        let mut resolved_detection = None;
 
         for dir in cwd.ancestors() {
             let dir = dir.to_path_buf();
-            let manifest = if nearest_package.is_none() {
+            let should_detect = resolved_detection.is_none() || !has_lock;
+            let lockfile_pm = should_detect
+                .then(|| detect_lockfile_in_dir(&dir))
+                .flatten();
+            has_lock |= lockfile_pm.is_some();
+
+            let resolved_agent = resolved_detection
+                .as_ref()
+                .and_then(|detection: &DetectionResult| detection.agent);
+            let needs_nearest_package =
+                nearest_package.is_none() && resolved_agent != Some(PackageManager::Deno);
+            let manifest = if needs_nearest_package || resolved_detection.is_none() {
                 read_package_json(&dir)?
             } else {
                 None
@@ -90,6 +108,29 @@ impl ProjectState {
                 });
             }
 
+            if should_detect && resolved_detection.is_none() {
+                resolved_detection = manifest
+                    .as_ref()
+                    .and_then(detect_package_manager_field)
+                    .or_else(|| {
+                        lockfile_pm.map(|pm| DetectionResult {
+                            agent: Some(pm),
+                            has_lock,
+                            version_hint: None,
+                            source: crate::core::types::DetectionSource::Lockfile,
+                        })
+                    })
+                    .or_else(|| manifest.as_ref().and_then(detect_dev_engines_field))
+                    .or_else(|| {
+                        detect_install_metadata_in_dir(&dir).map(|pm| DetectionResult {
+                            agent: Some(pm),
+                            has_lock,
+                            version_hint: None,
+                            source: crate::core::types::DetectionSource::InstallMetadata,
+                        })
+                    });
+            }
+
             for candidate in [
                 dir.join("node_modules").join(".bin"),
                 dir.join("node_modules")
@@ -102,16 +143,18 @@ impl ProjectState {
                 }
             }
 
-            has_yarn_pnp_loader |= dir.join(".pnp.cjs").exists() || dir.join(".pnp.js").exists();
-
             ancestors.push(AncestorState { dir, manifest });
         }
+
+        let mut detection =
+            resolved_detection.unwrap_or_else(|| fallback_detection(config, has_lock));
+        detection.has_lock = has_lock;
 
         Ok(Self {
             ancestors,
             nearest_package,
             bin_dirs,
-            has_yarn_pnp_loader,
+            detection,
         })
     }
 
@@ -124,7 +167,15 @@ impl ProjectState {
     }
 
     pub(crate) fn has_yarn_pnp_loader(&self) -> bool {
-        self.has_yarn_pnp_loader
+        crate::core::profile::measure("project.scan_pnp", || {
+            self.ancestors.iter().any(|ancestor| {
+                ancestor.dir.join(".pnp.cjs").exists() || ancestor.dir.join(".pnp.js").exists()
+            })
+        })
+    }
+
+    pub(crate) fn detection(&self) -> DetectionResult {
+        self.detection.clone()
     }
 
     pub(crate) fn resolve_declared_package_bin(&self, bin_name: &str) -> Result<Option<PathBuf>> {

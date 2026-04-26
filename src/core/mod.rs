@@ -6,6 +6,7 @@ pub mod help;
 pub mod native;
 pub mod package;
 pub mod pkg_json;
+pub mod profile;
 pub mod resolve;
 pub mod runner;
 pub mod shell;

@@ -1,7 +1,7 @@
 use std::{env, ffi::OsStr, path::PathBuf};
 
 use anyhow::{Result, anyhow};
-use clap::{Arg, ArgMatches, Command, builder::PossibleValuesParser};
+use clap::{Arg, ArgAction, ArgMatches, Command, builder::PossibleValuesParser};
 
 use crate::app::{
     command_registry::{
@@ -40,6 +40,7 @@ pub enum ParsedCommand {
         invocation: InvocationKind,
         args: Vec<String>,
         iterations: usize,
+        timings: bool,
     },
     Execute {
         invocation: InvocationKind,
@@ -227,6 +228,7 @@ fn parse_internal_command(sub_matches: &ArgMatches) -> Result<ParsedCommand> {
             iterations: *matches
                 .get_one::<usize>("iterations")
                 .ok_or_else(|| anyhow!("parse error: missing iterations"))?,
+            timings: matches.get_flag("timings"),
         }),
         _ => Ok(ParsedCommand::PrintHelp(HelpTopic::Hni)),
     }
@@ -306,6 +308,11 @@ fn internal_parser() -> Command {
                         .long("iterations")
                         .value_parser(clap::value_parser!(usize))
                         .default_value("2000"),
+                )
+                .arg(
+                    Arg::new("timings")
+                        .long("timings")
+                        .action(ArgAction::SetTrue),
                 )
                 .arg(
                     Arg::new("invocation")

@@ -12,7 +12,7 @@ use crate::{
 
 use super::{
     context::ResolveContext,
-    detect::{detect_for_action, ensure_detected_available},
+    detect::{agent_resolution_from_detection, detect_for_action, ensure_detected_available},
     flags::{exclude_flag, normalize_ni_args, prepend},
     map::{
         add_command, execute_command, frozen_command, global_install_command,
@@ -120,14 +120,22 @@ pub fn resolve_nr(mut args: Vec<String>, ctx: &ResolveContext) -> Result<Resolve
     }
 
     if ctx.config.fast_mode {
-        let detected_hint = ctx.detect()?.agent;
-        match native::attempt_nr(detected_hint, &normalized_args, ctx, has_if_present)? {
+        let state = ctx.project_state()?;
+        let detected_hint = state.detection().agent;
+        match native::attempt_nr_from_state(
+            detected_hint,
+            &normalized_args,
+            ctx,
+            &state,
+            has_if_present,
+        )? {
             NativeAttempt::Eligible(exec) => return Ok(*exec),
             NativeAttempt::Ineligible(reason) => {
-                if let Some(mut resolved) = build_node_run_exec_if_safe(
+                if let Some(mut resolved) = build_node_run_exec_if_safe_from_state(
                     detected_hint,
                     &normalized_args,
                     ctx,
+                    &state,
                     has_if_present,
                 )? {
                     resolved.fast_requested = true;
@@ -135,7 +143,7 @@ pub fn resolve_nr(mut args: Vec<String>, ctx: &ResolveContext) -> Result<Resolve
                     return Ok(resolved);
                 }
 
-                let detected = detect_for_action(ctx, false)?;
+                let detected = agent_resolution_from_detection(ctx, false, state.detection())?;
                 ensure_detected_available(&detected, ctx)?;
                 let mut resolved = build_exec(
                     detected.pm,
@@ -192,14 +200,22 @@ pub fn resolve_node_run(mut args: Vec<String>, ctx: &ResolveContext) -> Result<R
     }
 
     if ctx.config.fast_mode {
-        let detected_hint = ctx.detect()?.agent;
-        match native::attempt_nr(detected_hint, &normalized_args, ctx, has_if_present)? {
+        let state = ctx.project_state()?;
+        let detected_hint = state.detection().agent;
+        match native::attempt_nr_from_state(
+            detected_hint,
+            &normalized_args,
+            ctx,
+            &state,
+            has_if_present,
+        )? {
             NativeAttempt::Eligible(exec) => return Ok(*exec),
             NativeAttempt::Ineligible(reason) => {
-                if let Some(mut resolved) = build_node_run_exec_if_safe(
+                if let Some(mut resolved) = build_node_run_exec_if_safe_from_state(
                     detected_hint,
                     &normalized_args,
                     ctx,
+                    &state,
                     has_if_present,
                 )? {
                     resolved.fast_requested = true;
@@ -207,7 +223,7 @@ pub fn resolve_node_run(mut args: Vec<String>, ctx: &ResolveContext) -> Result<R
                     return Ok(resolved);
                 }
 
-                let detected = detect_for_action(ctx, false)?;
+                let detected = agent_resolution_from_detection(ctx, false, state.detection())?;
                 ensure_detected_available(&detected, ctx)?;
                 let mut resolved = build_exec(
                     detected.pm,
@@ -250,11 +266,12 @@ pub fn resolve_node_run(mut args: Vec<String>, ctx: &ResolveContext) -> Result<R
 
 pub fn resolve_nlx(args: Vec<String>, ctx: &ResolveContext) -> Result<ResolvedExecution> {
     if ctx.config.fast_mode {
-        let detected_hint = ctx.detect()?.agent;
-        match native::attempt_nlx(detected_hint, &args, ctx)? {
+        let state = ctx.project_state()?;
+        let detected_hint = state.detection().agent;
+        match native::attempt_nlx_from_state(detected_hint, &args, ctx, &state)? {
             NativeAttempt::Eligible(exec) => return Ok(*exec),
             NativeAttempt::Ineligible(reason) => {
-                let detected = detect_for_action(ctx, false)?;
+                let detected = agent_resolution_from_detection(ctx, false, state.detection())?;
                 ensure_detected_available(&detected, ctx)?;
                 let mut resolved = build_exec(
                     detected.pm,
@@ -489,10 +506,11 @@ fn build_exec(
     ResolvedExecution::external(program, args, cwd.to_path_buf(), false)
 }
 
-fn build_node_run_exec_if_safe(
+fn build_node_run_exec_if_safe_from_state(
     pm: Option<PackageManager>,
     args: &[String],
     ctx: &ResolveContext,
+    state: &crate::core::resolve::ProjectState,
     has_if_present: bool,
 ) -> Result<Option<ResolvedExecution>> {
     if pm == Some(PackageManager::Deno) {
@@ -507,7 +525,6 @@ fn build_node_run_exec_if_safe(
         return Ok(None);
     }
 
-    let state = ctx.project_state()?;
     let Some(pkg) = state.nearest_package() else {
         return Ok(None);
     };

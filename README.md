@@ -381,24 +381,24 @@ Tracked benchmark docs:
 
 ### Representative Results
 
-The tracked snapshot in [`benchmark/LATEST.md`](benchmark/LATEST.md) was generated from the default `fast` track with `3` warmups and `20` measured runs per case.
+The tracked snapshot in [`benchmark/LATEST.md`](benchmark/LATEST.md) was generated from the `direct` track with `2` warmups and `10` measured runs per case.
 
-If you only want the headline, it is this: `hni --fast` averaged `4.63x` faster than pm mode inside `hni`.
+If you only want the headline, it is this: `hni --fast` averaged `5.44x` faster than direct package-manager commands in the latest direct run.
 
-The `fast` track compares pm mode versus fast mode across npm, pnpm, yarn, bun, deno, and local-bin execution.
+The `fast` track compares pm mode versus fast mode inside `hni` across npm, pnpm, yarn, bun, deno, and local-bin execution. In the latest local fast run, `hni --fast` averaged `4.70x` faster than pm mode.
 
 A few representative wins:
 
 | Case | pm | fast | Relative |
 | --- | ---: | ---: | ---: |
-| `nr noop (npm)` | 209.60 ms | 27.72 ms | 7.56x |
-| `nr noop (pnpm)` | 426.00 ms | 28.12 ms | 15.15x |
-| `nr noop (yarn)` | 265.92 ms | 28.10 ms | 9.46x |
-| `node run noop (pnpm)` | 426.86 ms | 26.85 ms | 15.90x |
-| `node run noop (bun)` | 33.02 ms | 28.68 ms | 1.15x |
-| `nlx hello --flag (npm local bin)` | 245.41 ms | 4.99 ms | 49.14x |
+| `nr noop (npm)` | 217.92 ms | 28.33 ms | 7.69x |
+| `nr noop (pnpm)` | 439.87 ms | 28.72 ms | 15.32x |
+| `nr noop (yarn)` | 279.55 ms | 29.17 ms | 9.58x |
+| `node run noop (pnpm)` | 446.16 ms | 28.63 ms | 15.59x |
+| `node run noop (bun)` | 35.13 ms | 28.50 ms | 1.23x |
+| `nlx hello --flag (npm local bin)` | 263.79 ms | 5.04 ms | 52.35x |
 
-The direct track also compares normal package-manager usage (`npm run`, `pnpm exec`, `yarn`, `bun x`, `deno task`) with `hni --fast`. In the latest local direct run, `hni` averaged `5.46x` faster, including local-bin wins for `pnpm exec` (`49.70x`) and `yarn` (`15.03x`).
+The direct track also compares normal package-manager usage (`npm run`, `pnpm exec`, `yarn`, `bun x`, `deno task`) with `hni --fast`. In the latest local direct run, `hni` averaged `5.44x` faster, including local-bin wins for `pnpm exec` (`49.05x`) and `yarn` (`15.74x`).
 
 ### Methodology
 
