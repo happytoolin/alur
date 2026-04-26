@@ -5,7 +5,7 @@ use clap_complete::{
     shells::{Bash, Fish, Zsh},
 };
 
-use crate::app::help::help_command;
+use crate::app::command_registry::help_command_for_topic;
 use crate::core::types::HelpTopic;
 
 pub fn completion_script_bash(command: &str) -> String {
@@ -36,7 +36,7 @@ fn generate_completion<G>(command: &str, generator: G) -> String
 where
     G: clap_complete::Generator,
 {
-    let mut cmd = help_command(HelpTopic::Nr)
+    let mut cmd = help_command_for_topic(HelpTopic::Nr)
         .arg(
             clap::Arg::new("completion")
                 .long("completion")

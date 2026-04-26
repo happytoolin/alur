@@ -1,12 +1,12 @@
-use std::{collections::BTreeMap, path::Path};
+use std::collections::BTreeMap;
 
 use anyhow::{Result, anyhow};
 use dialoguer::{FuzzySelect, theme::ColorfulTheme};
 
-use crate::core::package::find_nearest_package;
+use crate::core::resolve::ResolveContext;
 
-pub fn read_scripts(cwd: &Path) -> Result<Vec<ScriptEntry>> {
-    let Some(pkg) = find_nearest_package(cwd)? else {
+pub fn read_scripts(ctx: &ResolveContext) -> Result<Vec<ScriptEntry>> {
+    let Some(pkg) = ctx.project_state()?.nearest_package() else {
         return Ok(Vec::new());
     };
 
@@ -16,8 +16,8 @@ pub fn read_scripts(cwd: &Path) -> Result<Vec<ScriptEntry>> {
     Ok(build_script_entries(&scripts, &scripts_info))
 }
 
-pub fn choose_script_interactive(cwd: &Path) -> Result<String> {
-    let scripts = read_scripts(cwd)?;
+pub fn choose_script_interactive(ctx: &ResolveContext) -> Result<String> {
+    let scripts = read_scripts(ctx)?;
     if scripts.is_empty() {
         return Err(anyhow!(
             "interactive error: no scripts found in package.json"

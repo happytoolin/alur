@@ -22,6 +22,17 @@ Maximise the **strict score** honestly. Your main cycle: **scan → plan → exe
 
 Three phases, repeated as a cycle.
 
+### Monorepos and multi-project directories
+
+If the workspace contains multiple programs (e.g., frontend + backend in sibling folders), scan each one separately — do not scan the parent directory:
+
+```bash
+desloppify --lang typescript scan --path ./frontend
+desloppify --lang python scan --path ./backend
+```
+
+Each `--path` target should be a single coherent project. Scanning a parent that contains multiple programs mixes state and path context, producing unreliable results.
+
 ### Phase 1: Scan and review — understand the codebase
 
 ```bash
@@ -47,7 +58,7 @@ desloppify plan triage --stage organize --report "summary of priorities..."
 desloppify plan triage --complete --strategy "execution plan..."
 ```
 
-For automated triage: `desloppify plan triage --run-stages --runner codex` (Codex) or `--runner Codex` (Codex). Options: `--only-stages`, `--dry-run`, `--stage-timeout-seconds`.
+For automated triage: `desloppify plan triage --run-stages --runner codex` (Codex) or `--runner claude` (Claude). Options: `--only-stages`, `--dry-run`, `--stage-timeout-seconds`.
 
 Then shape the queue. **The plan shapes everything `next` gives you** — `next` is the execution queue, not the full backlog. Don't skip this step.
 
@@ -117,14 +128,14 @@ Overall score = **25% mechanical** + **75% subjective**.
 Four paths to get subjective scores:
 
 - **Local runner (Codex)**: `desloppify review --run-batches --runner codex --parallel --scan-after-import` — automated end-to-end.
-- **Local runner (Codex)**: `desloppify review --prepare` → launch parallel subagents → `desloppify review --import merged.json` — see skill doc overlay for details.
-- **Cloud/external**: `desloppify review --external-start --external-runner Codex` → follow session template → `--external-submit`.
+- **Local runner (Claude)**: `desloppify review --prepare` → launch parallel subagents → `desloppify review --import merged.json` — see skill doc overlay for details.
+- **Cloud/external**: `desloppify review --external-start --external-runner claude` → follow session template → `--external-submit`.
 - **Manual path**: `desloppify review --prepare` → review per dimension → `desloppify review --import file.json`.
 
 **Batch output vs import filenames:** Individual batch outputs from subagents must be named `batch-N.raw.txt` (plain text/JSON content, `.raw.txt` extension). The `.json` filenames in `--import merged.json` or `--import findings.json` refer to the final merged import file, not individual batch outputs. Do not name batch outputs with a `.json` extension.
 
 - Import first, fix after — import creates tracked state entries for correlation.
-- Target-matching scores trigger auto-reset to prevent gaming. Use the blind-review workflow described in your agent overlay doc (e.g. `docs/AGENTS.md`, `docs/HERMES.md`).
+- Target-matching scores trigger auto-reset to prevent gaming. Use the blind-review workflow described in your agent overlay doc (e.g. `docs/CLAUDE.md`, `docs/HERMES.md`).
 - Even moderate scores (60-80) dramatically improve overall health.
 - Stale dimensions auto-surface in `next` — just follow the queue.
 
@@ -161,7 +172,7 @@ Return machine-readable JSON for review imports. For `--external-submit`, includ
 
 #### Import paths
 
-- Robust session flow (recommended): `desloppify review --external-start --external-runner Codex` → use generated prompt/template → run printed `--external-submit` command.
+- Robust session flow (recommended): `desloppify review --external-start --external-runner claude` → use generated prompt/template → run printed `--external-submit` command.
 - Durable scored import (legacy): `desloppify review --import findings.json --attested-external --attest "I validated this review was completed without awareness of overall score and is unbiased."`
 - Findings-only fallback: `desloppify review --import findings.json`
 
@@ -211,8 +222,8 @@ Directives are messages shown to agents at lifecycle phase transitions — use t
 
 ```bash
 desloppify directives                     # show all configured directives
-desloppify directives set execute "Switch to Codex-sonnet-4-6. Focus on speed."
-desloppify directives set triage "Switch to Codex-opus-4-6. Read carefully."
+desloppify directives set execute "Switch to claude-sonnet-4-6. Focus on speed."
+desloppify directives set triage "Switch to claude-opus-4-6. Read carefully."
 desloppify directives set review "Use blind packet. Do not anchor on previous scores."
 desloppify directives unset execute       # remove a directive
 ```
@@ -285,42 +296,23 @@ If `uvx` is not available: `pip install desloppify[full] && desloppify setup`
 
 ## Codex Overlay
 
-Use Codex subagents for subjective scoring work. **Do not use `--runner codex`** — use Codex subagents exclusively.
+This is the canonical Codex overlay used by the README install command.
 
-### Review workflow
-
-Run `desloppify review --prepare` first to generate review data, then use Codex subagents:
-
-1. **Prepare**: `desloppify review --prepare` — writes `query.json` and `.desloppify/review_packet_blind.json`.
-2. **Launch subagents**: Split the review across N parallel Codex subagents (one message, multiple Task calls). Each agent reviews a subset of dimensions.
-3. **Merge & import**: Merge agent outputs, then `desloppify review --import merged.json --manual-override --attest "Codex subagents ran blind reviews against review_packet_blind.json" --scan-after-import`.
-
-#### How to split dimensions across subagents
-
-- Read `dimension_prompts` from `query.json` for dimensions with definitions and seed files.
-- Read `.desloppify/review_packet_blind.json` for the blind packet (no score targets, no anchoring data).
-- Group dimensions into 3-4 batches by theme (e.g., architecture, code quality, testing, conventions).
-- Launch one Task agent per batch with `subagent_type: "general-purpose"`. Each agent gets:
-  - The codebase path and list of dimensions to score
-  - The blind packet path to read
-  - Instruction to score from code evidence only, not from targets
-- Each agent writes output to `results/batch-N.raw.txt` (matching the batch index). Merge assessments (average overlapping dimension scores) and concatenate findings.
-
-### Subagent rules
-
-1. Each agent must be context-isolated — do not pass conversation history or score targets.
-2. Agents must consume `.desloppify/review_packet_blind.json` (not full `query.json`) to avoid score anchoring.
+1. Prefer first-class batch runs: `desloppify review --run-batches --runner codex --parallel --scan-after-import`.
+2. The command writes immutable packet snapshots under `.desloppify/review_packets/holistic_packet_*.json`; use those for reproducible retries.
+3. Keep reviewer input scoped to the immutable packet and the source files named in each batch.
+4. If a batch fails, retry only that slice with `desloppify review --run-batches --packet <packet.json> --only-batches <idxs>`.
+5. Manual override is safety-scoped: you cannot combine it with `--allow-partial`, and provisional manual scores expire on the next `scan` unless replaced by trusted internal or attested-external imports.
 
 ### Triage workflow
 
-Orchestrate triage with per-stage subagents:
-1. `desloppify plan triage --run-stages --runner Codex` — prints orchestrator instructions
-2. For each stage (observe → reflect → organize → enrich):
-   - Get prompt: `desloppify plan triage --stage-prompt <stage>`
-   - Launch a subagent with that prompt
-   - Verify: `desloppify plan triage` (check dashboard)
-   - Confirm: `desloppify plan triage --confirm <stage> --attestation "..."`
-3. Complete: `desloppify plan triage --complete --strategy "..." --attestation "..."`
+Prefer automated triage: `desloppify plan triage --run-stages --runner codex`
 
-<!-- desloppify-overlay: Codex -->
+Options: `--only-stages observe,reflect` (subset), `--dry-run` (prompts only), `--stage-timeout-seconds N` (per-stage).
+
+Run artifacts go to `.desloppify/triage_runs/<timestamp>/` — each run gets its own directory with `run.log` (live timestamped events), `run_summary.json`, per-stage `prompts/`, `output/`, and `logs/`. Check `run.log` to diagnose stalls or failures. Re-running resumes from the last confirmed stage.
+
+If automated triage stalls, check `run.log` for the last event, then use `desloppify plan triage --stage-prompt <stage>` to get the full prompt with gate rules.
+
+<!-- desloppify-overlay: codex -->
 <!-- desloppify-end -->

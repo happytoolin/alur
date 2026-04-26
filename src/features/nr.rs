@@ -24,21 +24,21 @@ pub fn handle(mut args: Vec<String>, ctx: &ResolveContext) -> Result<Option<Reso
         }
 
         if first == "--completion" {
-            handle_completion_query(&args[1..], ctx.cwd())?;
+            handle_completion_query(&args[1..], ctx)?;
             return Ok(None);
         }
     }
 
     if args.is_empty() {
-        args.push(choose_script_interactive(ctx.cwd())?);
+        args.push(choose_script_interactive(ctx)?);
     }
 
     let resolved = resolve::resolve_nr(args, ctx)?;
     Ok(Some(resolved))
 }
 
-fn handle_completion_query(args: &[String], cwd: &std::path::Path) -> Result<()> {
-    let scripts = read_scripts(cwd)?;
+fn handle_completion_query(args: &[String], ctx: &ResolveContext) -> Result<()> {
+    let scripts = read_scripts(ctx)?;
     let script_names = scripts.into_iter().map(|s| s.name).collect::<Vec<_>>();
 
     let comp_word = env::var("COMP_CWORD")

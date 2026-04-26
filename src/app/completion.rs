@@ -6,7 +6,7 @@ use clap_complete::{
     shells::{Bash, Fish, Zsh},
 };
 
-use super::help::help_command;
+use super::command_registry::help_command_for_topic;
 pub use crate::core::types::HelpTopic;
 
 /// Print shell completion script.
@@ -22,7 +22,7 @@ pub fn print_completion(shell: Option<&str>, program: &str) -> Result<()> {
         .or_else(detect_shell_from_env)
         .ok_or_else(|| anyhow!("parse error: missing shell; use one of: bash, zsh, fish"))?;
 
-    let mut cmd = help_command(HelpTopic::Hni);
+    let mut cmd = help_command_for_topic(HelpTopic::Hni);
     let mut out = io::stdout();
 
     match shell.as_str() {
