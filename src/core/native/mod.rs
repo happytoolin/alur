@@ -34,18 +34,6 @@ pub enum NativeAttempt {
     Ineligible(String),
 }
 
-pub fn attempt_nr(
-    pm: Option<PackageManager>,
-    args: &[String],
-    ctx: &ResolveContext,
-    has_if_present: bool,
-) -> Result<NativeAttempt> {
-    let decision = crate::core::profile::measure("native.plan_nr", || {
-        eligibility::plan_nr(pm, args, ctx, has_if_present)
-    })?;
-    crate::core::profile::measure("native.materialize", || into_attempt(decision, ctx.cwd()))
-}
-
 pub(crate) fn attempt_nr_from_state(
     pm: Option<PackageManager>,
     args: &[String],
@@ -56,16 +44,6 @@ pub(crate) fn attempt_nr_from_state(
     let decision = crate::core::profile::measure("native.plan_nr", || {
         eligibility::plan_nr_from_state(pm, args, ctx, state, has_if_present)
     })?;
-    crate::core::profile::measure("native.materialize", || into_attempt(decision, ctx.cwd()))
-}
-
-pub fn attempt_nlx(
-    pm: Option<PackageManager>,
-    args: &[String],
-    ctx: &ResolveContext,
-) -> Result<NativeAttempt> {
-    let decision =
-        crate::core::profile::measure("native.plan_nlx", || eligibility::plan_nlx(pm, args, ctx))?;
     crate::core::profile::measure("native.materialize", || into_attempt(decision, ctx.cwd()))
 }
 

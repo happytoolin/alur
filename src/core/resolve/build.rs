@@ -91,81 +91,21 @@ pub fn resolve_ni(args: Vec<String>, ctx: &ResolveContext) -> Result<ResolvedExe
 }
 
 pub fn resolve_nr(mut args: Vec<String>, ctx: &ResolveContext) -> Result<ResolvedExecution> {
-    if args.is_empty() {
-        args.push("start".to_string());
-    }
-
-    let has_if_present = args.iter().any(|a| a == "--if-present");
-    if has_if_present {
-        args = exclude_flag(args, "--if-present");
-    }
-
-    let mut normalized_args = args.clone();
-    if normalized_args.get(1).is_some_and(|arg| arg == "--") {
-        normalized_args.remove(1);
-    }
-
-    if ctx.config.fast_mode {
-        let state = ctx.project_state()?;
-        let detected_hint = state.detection().agent;
-        match native::attempt_nr_from_state(
-            detected_hint,
-            &normalized_args,
-            ctx,
-            &state,
-            has_if_present,
-        )? {
-            NativeAttempt::Eligible(exec) => return Ok(*exec),
-            NativeAttempt::Ineligible(reason) => {
-                let detected = agent_resolution_from_detection(ctx, false, state.detection())?;
-                ensure_detected_available(&detected, ctx)?;
-                let mut resolved = build_exec(
-                    detected.pm,
-                    Intent::Run,
-                    normalized_args,
-                    ctx.cwd(),
-                    false,
-                    detected.has_lock,
-                );
-
-                if has_if_present {
-                    insert_if_present(&mut resolved);
-                }
-
-                resolved.fast_requested = true;
-                resolved.fast_fallback_reason = Some(reason);
-                return Ok(resolved);
-            }
-        }
-    }
-
-    let detected = detect_for_action(ctx, false)?;
-    ensure_detected_available(&detected, ctx)?;
-
-    let mut resolved = build_exec(
-        detected.pm,
-        Intent::Run,
-        normalized_args,
-        ctx.cwd(),
-        false,
-        detected.has_lock,
-    );
-
-    if has_if_present {
-        insert_if_present(&mut resolved);
-    }
-
-    Ok(resolved)
+    resolve_run_like(&mut args, ctx)
 }
 
 pub fn resolve_node_run(mut args: Vec<String>, ctx: &ResolveContext) -> Result<ResolvedExecution> {
+    resolve_run_like(&mut args, ctx)
+}
+
+fn resolve_run_like(args: &mut Vec<String>, ctx: &ResolveContext) -> Result<ResolvedExecution> {
     if args.is_empty() {
         args.push("start".to_string());
     }
 
     let has_if_present = args.iter().any(|a| a == "--if-present");
     if has_if_present {
-        args = exclude_flag(args, "--if-present");
+        *args = exclude_flag(std::mem::take(args), "--if-present");
     }
 
     let mut normalized_args = args.clone();
@@ -185,21 +125,8 @@ pub fn resolve_node_run(mut args: Vec<String>, ctx: &ResolveContext) -> Result<R
         )? {
             NativeAttempt::Eligible(exec) => return Ok(*exec),
             NativeAttempt::Ineligible(reason) => {
-                let detected = agent_resolution_from_detection(ctx, false, state.detection())?;
-                ensure_detected_available(&detected, ctx)?;
-                let mut resolved = build_exec(
-                    detected.pm,
-                    Intent::Run,
-                    normalized_args,
-                    ctx.cwd(),
-                    false,
-                    detected.has_lock,
-                );
-
-                if has_if_present {
-                    insert_if_present(&mut resolved);
-                }
-
+                let mut resolved =
+                    build_run_fallback(ctx, normalized_args, has_if_present, state.detection())?;
                 resolved.fast_requested = true;
                 resolved.fast_fallback_reason = Some(reason);
                 return Ok(resolved);
@@ -260,6 +187,31 @@ pub fn resolve_nlx(args: Vec<String>, ctx: &ResolveContext) -> Result<ResolvedEx
         false,
         detected.has_lock,
     ))
+}
+
+fn build_run_fallback(
+    ctx: &ResolveContext,
+    args: Vec<String>,
+    has_if_present: bool,
+    detection: crate::core::types::DetectionResult,
+) -> Result<ResolvedExecution> {
+    let detected = agent_resolution_from_detection(ctx, false, detection)?;
+    ensure_detected_available(&detected, ctx)?;
+
+    let mut resolved = build_exec(
+        detected.pm,
+        Intent::Run,
+        args,
+        ctx.cwd(),
+        false,
+        detected.has_lock,
+    );
+
+    if has_if_present {
+        insert_if_present(&mut resolved);
+    }
+
+    Ok(resolved)
 }
 
 pub fn resolve_nru(mut args: Vec<String>, ctx: &ResolveContext) -> Result<ResolvedExecution> {

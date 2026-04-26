@@ -68,6 +68,7 @@ pub(crate) struct ProjectState {
     nearest_package: Option<NearestPackage>,
     bin_dirs: Vec<PathBuf>,
     detection: DetectionResult,
+    has_yarn_pnp_loader: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -91,6 +92,7 @@ impl ProjectState {
         let mut bin_dirs = Vec::new();
         let mut has_lock = false;
         let mut resolved_detection = None;
+        let mut has_yarn_pnp_loader = false;
 
         for dir in cwd.ancestors() {
             let dir = dir.to_path_buf();
@@ -99,6 +101,7 @@ impl ProjectState {
                 .then(|| detect_lockfile_in_dir(&dir))
                 .flatten();
             has_lock |= lockfile_pm.is_some();
+            has_yarn_pnp_loader |= yarn_pnp_loader_exists(&dir);
 
             let resolved_agent = resolved_detection
                 .as_ref()
@@ -125,36 +128,12 @@ impl ProjectState {
                 resolved_detection = manifest
                     .as_ref()
                     .and_then(detect_package_manager_field)
-                    .or_else(|| {
-                        lockfile_pm.map(|pm| DetectionResult {
-                            agent: Some(pm),
-                            has_lock,
-                            version_hint: None,
-                            source: DetectionSource::Lockfile,
-                        })
-                    })
+                    .or_else(|| detection_from_lockfile(lockfile_pm, has_lock))
                     .or_else(|| manifest.as_ref().and_then(detect_dev_engines_field))
-                    .or_else(|| {
-                        detect_install_metadata_in_dir(&dir).map(|pm| DetectionResult {
-                            agent: Some(pm),
-                            has_lock,
-                            version_hint: None,
-                            source: DetectionSource::InstallMetadata,
-                        })
-                    });
+                    .or_else(|| detection_from_install_metadata(&dir, has_lock));
             }
 
-            for candidate in [
-                dir.join("node_modules").join(".bin"),
-                dir.join("node_modules")
-                    .join(".pnpm")
-                    .join("node_modules")
-                    .join(".bin"),
-            ] {
-                if candidate.is_dir() {
-                    bin_dirs.push(candidate);
-                }
-            }
+            collect_bin_dirs(&dir, &mut bin_dirs);
 
             ancestors.push(AncestorState { dir, manifest });
 
@@ -178,6 +157,7 @@ impl ProjectState {
             nearest_package,
             bin_dirs,
             detection,
+            has_yarn_pnp_loader,
         })
     }
 
@@ -190,11 +170,7 @@ impl ProjectState {
     }
 
     pub(crate) fn has_yarn_pnp_loader(&self) -> bool {
-        crate::core::profile::measure("project.scan_pnp", || {
-            self.ancestors.iter().any(|ancestor| {
-                ancestor.dir.join(".pnp.cjs").exists() || ancestor.dir.join(".pnp.js").exists()
-            })
-        })
+        self.has_yarn_pnp_loader
     }
 
     pub(crate) fn detection(&self) -> DetectionResult {
@@ -240,36 +216,13 @@ impl LocalBinProjectState {
             has_lock |= lockfile_pm.is_some();
 
             if should_detect && resolved_detection.is_none() {
-                resolved_detection = lockfile_pm
-                    .map(|pm| DetectionResult {
-                        agent: Some(pm),
-                        has_lock,
-                        version_hint: None,
-                        source: DetectionSource::Lockfile,
-                    })
-                    .or_else(|| {
-                        detect_install_metadata_in_dir(&dir).map(|pm| DetectionResult {
-                            agent: Some(pm),
-                            has_lock,
-                            version_hint: None,
-                            source: DetectionSource::InstallMetadata,
-                        })
-                    });
+                resolved_detection = detection_from_lockfile(lockfile_pm, has_lock)
+                    .or_else(|| detection_from_install_metadata(&dir, has_lock));
             }
 
-            for candidate in [
-                dir.join("node_modules").join(".bin"),
-                dir.join("node_modules")
-                    .join(".pnpm")
-                    .join("node_modules")
-                    .join(".bin"),
-            ] {
-                if candidate.is_dir() {
-                    bin_dirs.push(candidate);
-                }
-            }
+            collect_bin_dirs(&dir, &mut bin_dirs);
 
-            has_yarn_pnp_loader |= dir.join(".pnp.cjs").exists() || dir.join(".pnp.js").exists();
+            has_yarn_pnp_loader |= yarn_pnp_loader_exists(&dir);
             ancestors.push(dir);
 
             if has_lock && resolved_detection.is_some() {
@@ -335,4 +288,43 @@ fn config_only_detection(config: &HniConfig, has_lock: bool) -> DetectionResult 
         version_hint: None,
         source: DetectionSource::None,
     }
+}
+
+fn collect_bin_dirs(dir: &Path, bin_dirs: &mut Vec<PathBuf>) {
+    for candidate in [
+        dir.join("node_modules").join(".bin"),
+        dir.join("node_modules")
+            .join(".pnpm")
+            .join("node_modules")
+            .join(".bin"),
+    ] {
+        if candidate.is_dir() {
+            bin_dirs.push(candidate);
+        }
+    }
+}
+
+fn detection_from_lockfile(
+    lockfile_pm: Option<PackageManager>,
+    has_lock: bool,
+) -> Option<DetectionResult> {
+    lockfile_pm.map(|pm| DetectionResult {
+        agent: Some(pm),
+        has_lock,
+        version_hint: None,
+        source: DetectionSource::Lockfile,
+    })
+}
+
+fn detection_from_install_metadata(dir: &Path, has_lock: bool) -> Option<DetectionResult> {
+    detect_install_metadata_in_dir(dir).map(|pm| DetectionResult {
+        agent: Some(pm),
+        has_lock,
+        version_hint: None,
+        source: DetectionSource::InstallMetadata,
+    })
+}
+
+fn yarn_pnp_loader_exists(dir: &Path) -> bool {
+    dir.join(".pnp.cjs").exists() || dir.join(".pnp.js").exists()
 }
