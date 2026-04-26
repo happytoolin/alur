@@ -10,7 +10,7 @@ use crate::core::{
     },
     package::NearestPackage,
     pkg_json::{PackageJson, package_json_path, read_package_json},
-    types::{DetectionResult, PackageManager},
+    types::{DetectionResult, DetectionSource, PackageManager},
 };
 
 #[derive(Debug)]
@@ -116,7 +116,7 @@ impl ProjectState {
                             agent: Some(pm),
                             has_lock,
                             version_hint: None,
-                            source: crate::core::types::DetectionSource::Lockfile,
+                            source: DetectionSource::Lockfile,
                         })
                     })
                     .or_else(|| manifest.as_ref().and_then(detect_dev_engines_field))
@@ -125,7 +125,7 @@ impl ProjectState {
                             agent: Some(pm),
                             has_lock,
                             version_hint: None,
-                            source: crate::core::types::DetectionSource::InstallMetadata,
+                            source: DetectionSource::InstallMetadata,
                         })
                     });
             }
@@ -143,6 +143,16 @@ impl ProjectState {
             }
 
             ancestors.push(AncestorState { dir, manifest });
+
+            let resolved_agent = resolved_detection
+                .as_ref()
+                .and_then(|detection: &DetectionResult| detection.agent);
+            if has_lock
+                && resolved_detection.is_some()
+                && (nearest_package.is_some() || resolved_agent == Some(PackageManager::Deno))
+            {
+                break;
+            }
         }
 
         let mut detection =
