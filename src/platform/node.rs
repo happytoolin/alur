@@ -5,7 +5,6 @@ use std::{
     io::Read,
     path::{Path, PathBuf},
     process::{Command, Stdio},
-    sync::OnceLock,
     thread,
     time::{Duration, Instant},
 };
@@ -18,8 +17,6 @@ pub const REAL_NODE_ENV: &str = "HNI_REAL_NODE";
 pub const SHIM_ACTIVE_ENV: &str = "HNI_NODE_SHIM_ACTIVE";
 pub const NODE_SHIM_ENV: &str = "HNI_NODE";
 
-static REAL_NODE_PATH: OnceLock<PathBuf> = OnceLock::new();
-static REAL_NODE_SUPPORTS_RUN: OnceLock<bool> = OnceLock::new();
 const NODE_RUN_PROBE_TIMEOUT: Duration = Duration::from_secs(1);
 
 pub fn resolve_real_node_path() -> Result<PathBuf> {
@@ -36,39 +33,21 @@ pub fn resolve_real_node_path() -> Result<PathBuf> {
         ));
     }
 
-    if let Some(cached) = REAL_NODE_PATH.get() {
-        return Ok(cached.clone());
-    }
-
-    let resolved = resolve_real_node_path_uncached()?.ok_or_else(|| {
+    resolve_real_node_path_from_sources()?.ok_or_else(|| {
         anyhow!(
             "unable to locate real node binary. Set {}=/absolute/path/to/node",
             REAL_NODE_ENV
         )
-    })?;
-    let _ = REAL_NODE_PATH.set(resolved.clone());
-    Ok(resolved)
+    })
 }
 
 pub fn real_node_supports_run() -> bool {
-    if env::var_os(REAL_NODE_ENV).is_some() {
-        return resolve_real_node_path()
-            .ok()
-            .is_some_and(|path| probe_node_run_support(&path));
-    }
-
-    if let Some(cached) = REAL_NODE_SUPPORTS_RUN.get() {
-        return *cached;
-    }
-
-    let supported = resolve_real_node_path()
+    resolve_real_node_path()
         .ok()
-        .is_some_and(|path| probe_node_run_support(&path));
-    let _ = REAL_NODE_SUPPORTS_RUN.set(supported);
-    supported
+        .is_some_and(|path| probe_node_run_support(&path))
 }
 
-fn resolve_real_node_path_uncached() -> Result<Option<PathBuf>> {
+fn resolve_real_node_path_from_sources() -> Result<Option<PathBuf>> {
     if let Some(recorded) = read_recorded_real_node_path()?
         && recorded.exists()
     {
@@ -224,7 +203,7 @@ mod tests {
     use std::{fs, sync::Mutex};
     use tempfile::tempdir;
 
-    static ENV_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+    static ENV_LOCK: Mutex<()> = Mutex::new(());
 
     #[test]
     fn path_with_real_node_priority_prepends_real_node_dir_once() {
@@ -276,17 +255,12 @@ mod tests {
     }
 
     #[test]
-    fn env_override_takes_effect_even_after_cache_is_initialized() {
-        let _guard = ENV_LOCK
-            .get_or_init(|| Mutex::new(()))
-            .lock()
-            .expect("env lock poisoned");
+    fn env_override_takes_effect() {
+        let _guard = ENV_LOCK.lock().expect("env lock poisoned");
         let original = env::var_os(REAL_NODE_ENV);
         let dir = tempdir().unwrap();
         let fake_node = dir.path().join("node");
         fs::write(&fake_node, b"node").unwrap();
-
-        let _ = resolve_real_node_path();
 
         unsafe { env::set_var(REAL_NODE_ENV, &fake_node) };
         assert_eq!(resolve_real_node_path().unwrap(), fake_node);
@@ -310,10 +284,7 @@ mod tests {
     fn real_node_supports_run_uses_env_override() {
         use std::os::unix::fs::PermissionsExt;
 
-        let _guard = ENV_LOCK
-            .get_or_init(|| Mutex::new(()))
-            .lock()
-            .expect("env lock poisoned");
+        let _guard = ENV_LOCK.lock().expect("env lock poisoned");
         let original = env::var_os(REAL_NODE_ENV);
         let dir = tempdir().unwrap();
         let fake_node = dir.path().join("node");
@@ -341,10 +312,7 @@ mod tests {
         use std::os::unix::fs::PermissionsExt;
         use std::time::{Duration, Instant};
 
-        let _guard = ENV_LOCK
-            .get_or_init(|| Mutex::new(()))
-            .lock()
-            .expect("env lock poisoned");
+        let _guard = ENV_LOCK.lock().expect("env lock poisoned");
         let original = env::var_os(REAL_NODE_ENV);
         let dir = tempdir().unwrap();
         let fake_node = dir.path().join("node");

@@ -96,14 +96,13 @@ impl ProjectState {
             } else {
                 None
             };
-            let package_json_path = package_json_path(&dir);
 
             if nearest_package.is_none()
                 && let Some(manifest) = manifest.clone()
             {
                 nearest_package = Some(NearestPackage {
                     root: dir.clone(),
-                    package_json_path: package_json_path.clone(),
+                    package_json_path: package_json_path(&dir),
                     manifest,
                 });
             }
