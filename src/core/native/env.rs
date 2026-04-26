@@ -52,7 +52,7 @@ pub(super) fn apply_native_environment(command: &mut Command, bin_paths: &[PathB
     Ok(())
 }
 
-fn merged_path_with_bins(bin_paths: &[PathBuf]) -> Result<String> {
+pub(super) fn merged_path_with_bins(bin_paths: &[PathBuf]) -> Result<String> {
     let current_path = env::var_os("PATH");
     let mut ordered = bin_paths.to_vec();
 

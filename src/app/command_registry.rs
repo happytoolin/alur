@@ -50,13 +50,13 @@ const COMMAND_SPECS: &[CommandSpec] = &[
         invocation: InvocationKind::Nr,
         help_topic: HelpTopic::Nr,
         about: "run package scripts",
-        long_about: "Runs scripts through the fast/native ladder by default, then falls back to node or the detected package manager when needed.",
+        long_about: "Runs scripts in fast mode by default, then falls back to node or the detected package manager when needed.",
         examples: "Examples:\n\
              \n\
              nr                   Run 'start'\n\
              nr dev               Run dev script\n\
-             nr --fast dev        Force the fast/native ladder\n\
-             nr --no-native dev   Force package-manager execution\n\
+             nr --fast dev        Force fast mode\n\
+             nr --pm dev          Force package-manager mode\n\
              nr test -- --watch   Pass extra args to script\n\
              nr --if-present lint Skip failure if script is missing",
         handler: commands::handle_nr,
