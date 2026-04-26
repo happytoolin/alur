@@ -57,9 +57,6 @@
     "test:rust:fast": "node ./scripts/test-modes.mjs fast",
     "test:all-modes": "node ./scripts/test-modes.mjs all",
     "bench": "./benchmark/run.sh",
-    "bench:compare": "./benchmark/run.sh --track=compare",
-    "bench:fast": "./benchmark/run.sh --track=fast",
-    "bench:runtime": "./benchmark/run.sh --track=runtime",
     "bench:profile": "./benchmark/profile.sh"
   }
 }

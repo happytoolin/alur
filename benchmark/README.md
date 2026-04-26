@@ -16,8 +16,9 @@ All timing uses `hyperfine`.
 
 Defaults:
 
-- `500` measured runs per case
-- `50` warmups per case
+- `fast` track only
+- `50` measured runs per case
+- `2` warmups per case
 
 ## Requirements
 
@@ -43,7 +44,7 @@ cargo install flamegraph
 
 ## Run
 
-Build release binary and run all tracks:
+Build release binary and run the default local benchmark:
 
 ```bash
 ./benchmark/run.sh
@@ -59,7 +60,13 @@ Run one track:
 ./benchmark/run.sh --track=fixtures
 ```
 
-Smaller local run:
+Full release-style run:
+
+```bash
+./benchmark/run.sh --track=all --runs=500 --warmups=50
+```
+
+Tiny smoke run:
 
 ```bash
 ./benchmark/run.sh --runs=3 --warmups=1 --no-build

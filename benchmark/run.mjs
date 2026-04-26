@@ -7,8 +7,9 @@ import path from 'node:path'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 
-const DEFAULT_RUNS = 500
-const DEFAULT_WARMUPS = 50
+const DEFAULT_RUNS = 50
+const DEFAULT_WARMUPS = 2
+const DEFAULT_TRACK = 'fast'
 const TRACKS = ['compare', 'fast', 'runtime', 'direct', 'fixtures']
 const SUMMARY_ONLY_TRACKS = new Set(['fixtures'])
 
@@ -58,7 +59,7 @@ function parseArgs(argv) {
     runs: DEFAULT_RUNS,
     warmups: DEFAULT_WARMUPS,
     build: true,
-    track: 'all',
+    track: DEFAULT_TRACK,
     format: 'table',
   }
 
@@ -657,7 +658,7 @@ function runHyperfineCase({ repoRoot, caseDef, runs, warmups, rawOutputPath, com
     id: caseDef.id,
     group: caseDef.group,
     case: caseDef.case,
-    raw_json: rawOutputPath,
+    raw_json: relativePath(repoRoot, rawOutputPath),
     participants,
     baseline,
     relative_to_first_mean: relativeToFirstMean,
@@ -1044,6 +1045,41 @@ function latestMarkdown(combined, combinedArtifacts, benchmarkDir) {
   return `${lines.join('\n')}\n`
 }
 
+function latestTrackMarkdown(payload, artifactPaths, benchmarkDir) {
+  const lines = [
+    '# Latest Benchmark Snapshot',
+    '',
+    `Updated: ${payload.timestamp}`,
+    '',
+    'This file is the small release-friendly benchmark snapshot. Raw JSON stays in `benchmark/results/`.',
+    '',
+    `Report: ${markdownLink(
+      path.basename(artifactPaths.markdownPath),
+      relativePath(benchmarkDir, artifactPaths.markdownPath),
+    )}`,
+    '',
+    `## ${payload.track[0].toUpperCase()}${payload.track.slice(1)}`,
+    '',
+    trackOverviewLine(payload),
+    '',
+    `Artifacts: ${markdownLink(
+      path.basename(artifactPaths.markdownPath),
+      relativePath(benchmarkDir, artifactPaths.markdownPath),
+    )} · ${markdownLink(path.basename(artifactPaths.jsonPath), relativePath(benchmarkDir, artifactPaths.jsonPath))}`,
+    '',
+  ]
+
+  if (SUMMARY_ONLY_TRACKS.has(payload.track)) {
+    lines.push('Detailed per-case results are kept in the track artifact.')
+    lines.push('')
+  } else {
+    lines.push(trackTable(payload))
+    lines.push('')
+  }
+
+  return `${lines.join('\n')}\n`
+}
+
 function historyMarkdown(resultsDir, benchmarkDir) {
   const files = fs
     .readdirSync(resultsDir)
@@ -1070,6 +1106,23 @@ function historyMarkdown(resultsDir, benchmarkDir) {
       )} | ${markdownLink(jsonFile, relativePath(benchmarkDir, path.join(resultsDir, jsonFile)))} |`,
     )
   }
+
+  return `${lines.join('\n')}\n`
+}
+
+function historyTrackMarkdown(payload, artifactPaths, benchmarkDir) {
+  const lines = [
+    '# Benchmark History',
+    '',
+    'The repo intentionally keeps only the latest tracked benchmark report. Use `benchmark/LATEST.md` for the release-facing snapshot.',
+    '',
+    '| Run | Track | Report | JSON |',
+    '| --- | --- | --- | --- |',
+    `| ${payload.timestamp} | ${payload.track} | ${markdownLink(
+      path.basename(artifactPaths.markdownPath),
+      relativePath(benchmarkDir, artifactPaths.markdownPath),
+    )} | ${markdownLink(path.basename(artifactPaths.jsonPath), relativePath(benchmarkDir, artifactPaths.jsonPath))} |`,
+  ]
 
   return `${lines.join('\n')}\n`
 }
@@ -1387,6 +1440,18 @@ function writeHistorySnapshot(resultsDir, benchmarkDir) {
   return output
 }
 
+function writeLatestTrackSnapshot(benchmarkDir, payload, artifactPaths) {
+  const output = path.join(benchmarkDir, 'LATEST.md')
+  fs.writeFileSync(output, latestTrackMarkdown(payload, artifactPaths, benchmarkDir), 'utf8')
+  return output
+}
+
+function writeHistoryTrackSnapshot(benchmarkDir, payload, artifactPaths) {
+  const output = path.join(benchmarkDir, 'HISTORY.md')
+  fs.writeFileSync(output, historyTrackMarkdown(payload, artifactPaths, benchmarkDir), 'utf8')
+  return output
+}
+
 function main() {
   const args = parseArgs(process.argv.slice(2))
   const scriptDir = path.dirname(fileURLToPath(import.meta.url))
@@ -1493,8 +1558,8 @@ function main() {
         repoRoot,
         fixtures: track === 'fixtures' ? { root: fixtureBenchmarkRoot } : fixturePaths,
         binaries: {
-          hni: ourBin,
-          antfu_prefix: needsCompare ? antfuPrefix : null,
+          hni: relativePath(repoRoot, ourBin),
+          antfu_prefix: needsCompare ? relativePath(repoRoot, antfuPrefix) : null,
           hyperfine: ensureBinary('hyperfine'),
         },
         skipped,
@@ -1510,6 +1575,23 @@ function main() {
       trackArtifacts[track] = trackArtifact
       process.stdout.write(`JSON written to ${trackJson}\n`)
       process.stdout.write(`Markdown written to ${trackMarkdownPath}\n`)
+    }
+
+    if (selectedTracks.length === 1) {
+      const track = selectedTracks[0]
+      const latestPath = writeLatestTrackSnapshot(
+        benchmarkDir,
+        trackPayloads[track],
+        trackArtifacts[track],
+      )
+      const historyPath = writeHistoryTrackSnapshot(
+        benchmarkDir,
+        trackPayloads[track],
+        trackArtifacts[track],
+      )
+      process.stdout.write(`Latest snapshot written to ${latestPath}\n`)
+      process.stdout.write(`History written to ${historyPath}\n`)
+      return
     }
 
     const combined = {

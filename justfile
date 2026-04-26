@@ -32,20 +32,8 @@ test-all:
 
 ci: fmt-check lint test
 
-bench:
-    ./benchmark/run.sh
-
-bench-compare:
-    ./benchmark/run.sh --track=compare
-
-bench-fast:
-    ./benchmark/run.sh --track=fast
-
-bench-runtime:
-    ./benchmark/run.sh --track=runtime
-
-bench-direct:
-    ./benchmark/run.sh --track=direct
+bench *args:
+    ./benchmark/run.sh {{args}}
 
 bench-profile:
     ./benchmark/profile.sh
