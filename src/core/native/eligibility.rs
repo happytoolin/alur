@@ -2,7 +2,7 @@ use anyhow::Result;
 
 use crate::core::{
     deno::{find_nearest_deno_project, plan_native_deno_task},
-    package::resolve_local_bin,
+    package::{node_modules_bin_dirs, resolve_local_bin},
     resolve::ResolveContext,
     types::{NativeLocalBinExecution, NativeScriptExecution, NativeScriptStep, PackageManager},
 };
@@ -110,10 +110,20 @@ pub(super) fn plan_nlx(
         ));
     };
 
-    if !matches!(pm, None | Some(PackageManager::Npm)) {
-        return Ok(NativeDecision::Ineligible(
-            FallbackReason::PackageManagerExec,
-        ));
+    if pm == Some(PackageManager::Deno) {
+        let bin_paths = node_modules_bin_dirs(ctx.cwd());
+        let Some(bin_path) = resolve_local_bin(bin_name, &bin_paths) else {
+            return Ok(NativeDecision::Ineligible(FallbackReason::MissingLocalBin));
+        };
+
+        return Ok(NativeDecision::Eligible(NativePlan::LocalBin(
+            NativeLocalBinExecution {
+                bin_name: bin_name.clone(),
+                launcher: resolve_local_bin_launcher(&bin_path)?,
+                forwarded_args: args.iter().skip(1).cloned().collect(),
+                bin_paths,
+            },
+        )));
     }
 
     let state = ctx.project_state()?;
@@ -123,8 +133,10 @@ pub(super) fn plan_nlx(
     }
 
     let bin_paths = state.bin_dirs().to_vec();
-    let bin_path = resolve_local_bin(bin_name, &bin_paths)
-        .or_else(|| state.resolve_declared_package_bin(bin_name));
+    let bin_path = match resolve_local_bin(bin_name, &bin_paths) {
+        Some(bin_path) => Some(bin_path),
+        None => state.resolve_declared_package_bin(bin_name)?,
+    };
     let Some(bin_path) = bin_path else {
         return Ok(NativeDecision::Ineligible(FallbackReason::MissingLocalBin));
     };

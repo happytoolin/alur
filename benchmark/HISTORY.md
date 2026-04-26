@@ -4,4 +4,4 @@ The repo intentionally keeps only the latest tracked benchmark report. Use `benc
 
 | Run | Track | Report | JSON |
 | --- | --- | --- | --- |
-| 2026-04-26T14:32:31.952Z | fast | [fast-2026-04-26T14-32-31-952Z.md](results/fast-2026-04-26T14-32-31-952Z.md) | [fast-2026-04-26T14-32-31-952Z.json](results/fast-2026-04-26T14-32-31-952Z.json) |
+| 2026-04-26T18:39:21.663Z | fast | [fast-2026-04-26T18-39-21-663Z.md](results/fast-2026-04-26T18-39-21-663Z.md) | [fast-2026-04-26T18-39-21-663Z.json](results/fast-2026-04-26T18-39-21-663Z.json) |

@@ -409,7 +409,7 @@ fn deno_cycle_and_workspace_fall_back_to_pm_mode() {
 }
 
 #[test]
-fn deno_nlx_fast_delegates_local_and_remote_exec() {
+fn deno_nlx_fast_runs_local_bins_and_delegates_remote_exec() {
     support::with_env_lock(|| {
         let work = tempfile::tempdir().unwrap();
         let bin_dir = work.path().join("node_modules").join(".bin");
@@ -437,7 +437,7 @@ fn deno_nlx_fast_delegates_local_and_remote_exec() {
         assert!(local.status.success(), "{local:?}");
         assert_eq!(
             String::from_utf8_lossy(&local.stdout).trim(),
-            "deno run npm:hello --flag"
+            "hni fast:run-local-bin hello --flag"
         );
 
         let remote = run_hni(

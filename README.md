@@ -381,9 +381,9 @@ Tracked benchmark docs:
 
 ### Representative Results
 
-The tracked snapshot in [`benchmark/LATEST.md`](benchmark/LATEST.md) was generated from the default `fast` track with `2` warmups and `50` measured runs per case.
+The tracked snapshot in [`benchmark/LATEST.md`](benchmark/LATEST.md) was generated from the default `fast` track with `3` warmups and `20` measured runs per case.
 
-If you only want the headline, it is this: `hni --fast` averaged `3.21x` faster than pm mode inside `hni`.
+If you only want the headline, it is this: `hni --fast` averaged `4.63x` faster than pm mode inside `hni`.
 
 The `fast` track compares pm mode versus fast mode across npm, pnpm, yarn, bun, deno, and local-bin execution.
 
@@ -391,14 +391,14 @@ A few representative wins:
 
 | Case | pm | fast | Relative |
 | --- | ---: | ---: | ---: |
-| `nr noop (npm)` | 277.68 ms | 50.09 ms | 5.54x |
-| `nr noop (pnpm)` | 428.50 ms | 32.10 ms | 13.35x |
-| `nr noop (yarn)` | 303.21 ms | 42.39 ms | 7.15x |
-| `nr hooks (npm)` | 548.99 ms | 82.75 ms | 6.63x |
-| `nr hooks (pnpm)` | 739.70 ms | 113.99 ms | 6.49x |
-| `nlx hello --flag (npm local bin)` | 324.59 ms | 8.64 ms | 37.56x |
+| `nr noop (npm)` | 209.60 ms | 27.72 ms | 7.56x |
+| `nr noop (pnpm)` | 426.00 ms | 28.12 ms | 15.15x |
+| `nr noop (yarn)` | 265.92 ms | 28.10 ms | 9.46x |
+| `node run noop (pnpm)` | 426.86 ms | 26.85 ms | 15.90x |
+| `node run noop (bun)` | 33.02 ms | 28.68 ms | 1.15x |
+| `nlx hello --flag (npm local bin)` | 245.41 ms | 4.99 ms | 49.14x |
 
-Bun is the main caveat: `node run noop (bun)` is slower in fast mode in the current snapshot, while the plain `nr` bun cases are close to parity.
+The direct track also compares normal package-manager usage (`npm run`, `pnpm exec`, `yarn`, `bun x`, `deno task`) with `hni --fast`. In the latest local direct run, `hni` averaged `5.46x` faster, including local-bin wins for `pnpm exec` (`49.70x`) and `yarn` (`15.03x`).
 
 ### Methodology
 

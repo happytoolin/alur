@@ -350,7 +350,7 @@ fn nlx_fast_mode_does_not_require_detected_package_manager() {
 
 #[cfg(unix)]
 #[test]
-fn node_run_prefers_builtin_node_run_when_supported() {
+fn node_run_prefers_native_fast_path_when_supported() {
     with_skip_pm_check(|| {
         let dir = tempfile::tempdir().unwrap();
         let fake_node = dir
@@ -372,9 +372,11 @@ fn node_run_prefers_builtin_node_run_when_supported() {
         let resolved = resolve::resolve_node_run(vec!["dev".into()], &ctx).unwrap();
         support::remove_var("HNI_REAL_NODE");
 
-        assert_eq!(resolved.program, "node");
-        assert_eq!(resolved.args, vec!["--run", "dev"]);
-        assert_eq!(resolved.execution_mode_name(), "node-run");
+        assert!(matches!(
+            resolved.strategy,
+            ExecutionStrategy::Native(NativeExecution::RunScript(_))
+        ));
+        assert_eq!(resolved.execution_mode_name(), "fast");
     });
 }
 
@@ -400,9 +402,11 @@ fn node_run_safe_path_does_not_require_detected_package_manager() {
             let resolved = resolve::resolve_node_run(vec!["dev".into()], &ctx).unwrap();
             support::remove_var("HNI_REAL_NODE");
 
-            assert_eq!(resolved.program, "node");
-            assert_eq!(resolved.args, vec!["--run", "dev"]);
-            assert_eq!(resolved.execution_mode_name(), "node-run");
+            assert!(matches!(
+                resolved.strategy,
+                ExecutionStrategy::Native(NativeExecution::RunScript(_))
+            ));
+            assert_eq!(resolved.execution_mode_name(), "fast");
         });
     });
 }
@@ -861,7 +865,7 @@ fn nlx_fast_mode_uses_declared_package_bin_when_present() {
 }
 
 #[test]
-fn nlx_fast_mode_keeps_pnpm_exec_behavior_even_with_local_bins() {
+fn nlx_fast_mode_uses_pnpm_hoisted_local_bin_when_present() {
     with_skip_pm_check(|| {
         let dir = tempfile::tempdir().unwrap();
         write_package_json(dir.path(), r#"{"packageManager":"pnpm@9.0.0"}"#);
@@ -892,13 +896,16 @@ fn nlx_fast_mode_keeps_pnpm_exec_behavior_even_with_local_bins() {
         let ctx = ResolveContext::new(dir.path().to_path_buf(), cfg);
         let resolved = resolve::resolve_nlx(vec!["vitest".into()], &ctx).unwrap();
 
-        assert!(matches!(resolved.strategy, ExecutionStrategy::External));
-        assert_eq!(resolved.program, "pnpm");
-        assert_eq!(resolved.args, vec!["dlx", "vitest"]);
-        assert_eq!(
-            resolved.fast_fallback_reason.as_deref(),
-            Some("fast local binary execution stays in package-manager exec mode")
-        );
+        match &resolved.strategy {
+            ExecutionStrategy::Native(NativeExecution::RunLocalBin(exec)) => {
+                assert_eq!(exec.bin_name, "vitest");
+                assert!(
+                    exec.resolved_path()
+                        .ends_with("node_modules/.pnpm/node_modules/.bin/vitest")
+                );
+            }
+            other => panic!("expected native local bin execution, got {other:?}"),
+        }
     });
 }
 

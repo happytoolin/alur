@@ -196,7 +196,7 @@ fn native_nr_exposes_supported_shared_npm_env() {
 }
 
 #[test]
-fn node_run_prefers_builtin_node_run_when_supported() {
+fn node_run_prefers_native_fast_path_when_supported() {
     support::with_env_lock(|| {
         let work = tempfile::tempdir().unwrap();
         let project = work.path().join("project");
@@ -232,10 +232,10 @@ fn node_run_prefers_builtin_node_run_when_supported() {
             ],
         );
         assert!(run_output.status.success(), "{run_output:?}");
-        let stdout = String::from_utf8_lossy(&run_output.stdout);
-        let rendered = stdout.trim();
-        assert!(rendered.contains(fake_node.to_str().unwrap()), "{rendered}");
-        assert!(rendered.ends_with(" --run dev"), "{rendered}");
+        assert_eq!(
+            String::from_utf8_lossy(&run_output.stdout).trim(),
+            "hni fast:run-script dev"
+        );
     });
 }
 

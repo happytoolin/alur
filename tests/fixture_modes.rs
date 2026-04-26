@@ -33,7 +33,7 @@ fn fixture_projects_cover_pm_and_fast_resolution_modes() {
                 pm_nr: "pnpm run dev",
                 fast_nr: "hni fast:run-script dev",
                 pm_nlx: "pnpm dlx hello --flag",
-                fast_nlx: "pnpm dlx hello --flag",
+                fast_nlx: "hni fast:run-local-bin hello --flag",
                 local_bin: true,
             },
             ModeCase {
@@ -42,7 +42,7 @@ fn fixture_projects_cover_pm_and_fast_resolution_modes() {
                 pm_nr: "yarn run dev",
                 fast_nr: "hni fast:run-script dev",
                 pm_nlx: "npx hello --flag",
-                fast_nlx: "npx hello --flag",
+                fast_nlx: "hni fast:run-local-bin hello --flag",
                 local_bin: true,
             },
             ModeCase {
@@ -51,7 +51,7 @@ fn fixture_projects_cover_pm_and_fast_resolution_modes() {
                 pm_nr: "yarn run dev",
                 fast_nr: "hni fast:run-script dev",
                 pm_nlx: "yarn dlx hello --flag",
-                fast_nlx: "yarn dlx hello --flag",
+                fast_nlx: "hni fast:run-local-bin hello --flag",
                 local_bin: true,
             },
             ModeCase {

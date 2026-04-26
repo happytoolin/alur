@@ -58,7 +58,7 @@ pub fn resolve_local_bin(bin_name: &str, bin_dirs: &[PathBuf]) -> Option<PathBuf
 }
 
 pub fn resolve_declared_package_bin(cwd: &Path, bin_name: &str) -> Result<Option<PathBuf>> {
-    Ok(ProjectState::scan(cwd)?.resolve_declared_package_bin(bin_name))
+    ProjectState::scan(cwd)?.resolve_declared_package_bin(bin_name)
 }
 
 fn is_safe_bin_name(bin_name: &str) -> bool {

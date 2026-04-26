@@ -193,16 +193,20 @@ pub fn resolve_node_run(mut args: Vec<String>, ctx: &ResolveContext) -> Result<R
 
     if ctx.config.fast_mode {
         let detected_hint = ctx.detect()?.agent;
-        if let Some(mut resolved) =
-            build_node_run_exec_if_safe(detected_hint, &normalized_args, ctx, has_if_present)?
-        {
-            resolved.fast_requested = true;
-            return Ok(resolved);
-        }
-
         match native::attempt_nr(detected_hint, &normalized_args, ctx, has_if_present)? {
             NativeAttempt::Eligible(exec) => return Ok(*exec),
             NativeAttempt::Ineligible(reason) => {
+                if let Some(mut resolved) = build_node_run_exec_if_safe(
+                    detected_hint,
+                    &normalized_args,
+                    ctx,
+                    has_if_present,
+                )? {
+                    resolved.fast_requested = true;
+                    resolved.fast_fallback_reason = Some(reason);
+                    return Ok(resolved);
+                }
+
                 let detected = detect_for_action(ctx, false)?;
                 ensure_detected_available(&detected, ctx)?;
                 let mut resolved = build_exec(
@@ -503,7 +507,8 @@ fn build_node_run_exec_if_safe(
         return Ok(None);
     }
 
-    let Some(pkg) = ctx.project_state()?.nearest_package() else {
+    let state = ctx.project_state()?;
+    let Some(pkg) = state.nearest_package() else {
         return Ok(None);
     };
     let scripts = pkg.manifest.scripts.unwrap_or_default();
@@ -515,7 +520,7 @@ fn build_node_run_exec_if_safe(
     if scripts.contains_key(&format!("pre{script_name}"))
         || scripts.contains_key(&format!("post{script_name}"))
         || script_uses_node_run_unsupported_env(script)
-        || ctx.project_state()?.has_yarn_pnp_loader()
+        || state.has_yarn_pnp_loader()
     {
         return Ok(None);
     }
