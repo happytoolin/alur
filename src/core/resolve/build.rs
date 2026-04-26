@@ -266,12 +266,12 @@ pub fn resolve_node_run(mut args: Vec<String>, ctx: &ResolveContext) -> Result<R
 
 pub fn resolve_nlx(args: Vec<String>, ctx: &ResolveContext) -> Result<ResolvedExecution> {
     if ctx.config.fast_mode {
-        let state = ctx.project_state()?;
+        let state = ctx.local_bin_project_state();
         let detected_hint = state.detection().agent;
-        match native::attempt_nlx_from_state(detected_hint, &args, ctx, &state)? {
+        match native::attempt_nlx_from_local_bin_state(detected_hint, &args, ctx, &state)? {
             NativeAttempt::Eligible(exec) => return Ok(*exec),
             NativeAttempt::Ineligible(reason) => {
-                let detected = agent_resolution_from_detection(ctx, false, state.detection())?;
+                let detected = detect_for_action(ctx, false)?;
                 ensure_detected_available(&detected, ctx)?;
                 let mut resolved = build_exec(
                     detected.pm,

@@ -1,0 +1,506 @@
+{
+  "timestamp": "2026-04-26T19:43:24.512Z",
+  "benchmark_tool": "hyperfine",
+  "track": "direct",
+  "platform": "darwin",
+  "arch": "arm64",
+  "runs": 10,
+  "warmups": 2,
+  "binaries": {
+    "hni": "target/release/hni",
+    "antfu_prefix": null,
+    "hyperfine": "/opt/homebrew/bin/hyperfine"
+  },
+  "fixtures": {
+    "npm": "/var/folders/bf/42lp61cd7kj2tvpg1m33jryh0000gn/T/hni-benchmark-vNoSEj/fixtures/npm",
+    "pnpm": "/var/folders/bf/42lp61cd7kj2tvpg1m33jryh0000gn/T/hni-benchmark-vNoSEj/fixtures/pnpm",
+    "yarn": "/var/folders/bf/42lp61cd7kj2tvpg1m33jryh0000gn/T/hni-benchmark-vNoSEj/fixtures/yarn",
+    "bun": "/var/folders/bf/42lp61cd7kj2tvpg1m33jryh0000gn/T/hni-benchmark-vNoSEj/fixtures/bun",
+    "deno": "/var/folders/bf/42lp61cd7kj2tvpg1m33jryh0000gn/T/hni-benchmark-vNoSEj/fixtures/deno"
+  },
+  "summary": {
+    "total_cases": 14,
+    "executed_cases": 14,
+    "skipped_cases": 0,
+    "geometric_mean_relative_to_first": {
+      "hni": 5.436618375323668
+    },
+    "per_group_geometric_mean_relative_to_first": {
+      "noop": {
+        "hni": 4.252191820465373
+      },
+      "hooks": {
+        "hni": 2.836517983483648
+      },
+      "exec": {
+        "hni": 16.66874811860946
+      }
+    },
+    "track": "direct"
+  },
+  "skipped": [],
+  "results": [
+    {
+      "id": "npm_direct_noop",
+      "group": "noop",
+      "case": "task noop (npm)",
+      "raw_json": "benchmark/results/raw/direct/2026-04-26T19-42-40-141Z-npm_direct_noop.json",
+      "participants": {
+        "direct": {
+          "mean": 170.80902068,
+          "median": 170.63575388,
+          "p95": 174.92600488000002,
+          "min": 166.84579588,
+          "max": 174.92600488000002,
+          "stddev": 2.242247414188857,
+          "samples": 10
+        },
+        "hni": {
+          "mean": 28.31748328000001,
+          "median": 28.765795880000002,
+          "p95": 30.491337880000003,
+          "min": 26.072670880000004,
+          "max": 30.491337880000003,
+          "stddev": 1.5261077017564946,
+          "samples": 10
+        }
+      },
+      "baseline": "direct",
+      "relative_to_first_mean": {
+        "hni": 6.031928013907878
+      },
+      "relative_to_first_median": {
+        "hni": 5.931897542200039
+      }
+    },
+    {
+      "id": "npm_direct_hooks",
+      "group": "hooks",
+      "case": "task hooks (npm)",
+      "raw_json": "benchmark/results/raw/direct/2026-04-26T19-42-40-141Z-npm_direct_hooks.json",
+      "participants": {
+        "direct": {
+          "mean": 324.62292352000003,
+          "median": 324.22294442,
+          "p95": 328.47786092,
+          "min": 322.31381892,
+          "max": 328.47786092,
+          "stddev": 1.7957893372704656,
+          "samples": 10
+        },
+        "hni": {
+          "mean": 80.61486512000002,
+          "median": 79.12888192,
+          "p95": 95.80236092000001,
+          "min": 77.29694392000002,
+          "max": 95.80236092000001,
+          "stddev": 5.433332238300049,
+          "samples": 10
+        }
+      },
+      "baseline": "direct",
+      "relative_to_first_mean": {
+        "hni": 4.02683702362808
+      },
+      "relative_to_first_median": {
+        "hni": 4.097403331792205
+      }
+    },
+    {
+      "id": "npm_direct_exec_hello",
+      "group": "exec",
+      "case": "exec hello --flag (npm)",
+      "raw_json": "benchmark/results/raw/direct/2026-04-26T19-42-40-141Z-npm_direct_exec_hello.json",
+      "participants": {
+        "direct": {
+          "mean": 209.12972172000002,
+          "median": 209.38476762000002,
+          "p95": 211.99701712,
+          "min": 206.78410112,
+          "max": 211.99701712,
+          "stddev": 1.9369885475854458,
+          "samples": 10
+        },
+        "hni": {
+          "mean": 5.085900619999999,
+          "median": 5.05524662,
+          "p95": 5.378392120000001,
+          "min": 4.92060112,
+          "max": 5.378392120000001,
+          "stddev": 0.1547150258652989,
+          "samples": 10
+        }
+      },
+      "baseline": "direct",
+      "relative_to_first_mean": {
+        "hni": 41.11950612987008
+      },
+      "relative_to_first_median": {
+        "hni": 41.41929827747949
+      }
+    },
+    {
+      "id": "pnpm_direct_noop",
+      "group": "noop",
+      "case": "task noop (pnpm)",
+      "raw_json": "benchmark/results/raw/direct/2026-04-26T19-42-40-141Z-pnpm_direct_noop.json",
+      "participants": {
+        "direct": {
+          "mean": 377.3609067,
+          "median": 377.6196488,
+          "p95": 380.5896893,
+          "min": 374.2410233,
+          "max": 380.5896893,
+          "stddev": 2.213055272790293,
+          "samples": 10
+        },
+        "hni": {
+          "mean": 29.3378525,
+          "median": 29.2793573,
+          "p95": 30.9306893,
+          "min": 27.542398300000002,
+          "max": 30.9306893,
+          "stddev": 1.1631949696044366,
+          "samples": 10
+        }
+      },
+      "baseline": "direct",
+      "relative_to_first_mean": {
+        "hni": 12.86259472127348
+      },
+      "relative_to_first_median": {
+        "hni": 12.8971290227057
+      }
+    },
+    {
+      "id": "pnpm_direct_hooks",
+      "group": "hooks",
+      "case": "task hooks (pnpm)",
+      "raw_json": "benchmark/results/raw/direct/2026-04-26T19-42-40-141Z-pnpm_direct_hooks.json",
+      "participants": {
+        "direct": {
+          "mean": 497.2425589799999,
+          "median": 500.9518176800001,
+          "p95": 510.15952517999995,
+          "min": 480.15252518000005,
+          "max": 510.15952517999995,
+          "stddev": 9.924977962276692,
+          "samples": 10
+        },
+        "hni": {
+          "mean": 79.94124678,
+          "median": 79.77140018,
+          "p95": 83.45752618,
+          "min": 77.67615118000002,
+          "max": 83.45752618,
+          "stddev": 1.7324872811688452,
+          "samples": 10
+        }
+      },
+      "baseline": "direct",
+      "relative_to_first_mean": {
+        "hni": 6.220100123637325
+      },
+      "relative_to_first_median": {
+        "hni": 6.27984235640378
+      }
+    },
+    {
+      "id": "pnpm_direct_exec_hello",
+      "group": "exec",
+      "case": "exec hello --flag (pnpm)",
+      "raw_json": "benchmark/results/raw/direct/2026-04-26T19-42-40-141Z-pnpm_direct_exec_hello.json",
+      "participants": {
+        "direct": {
+          "mean": 296.23082158000005,
+          "median": 296.10745068000006,
+          "p95": 300.63090918,
+          "min": 293.71086718000004,
+          "max": 300.63090918,
+          "stddev": 1.9205081299892754,
+          "samples": 10
+        },
+        "hni": {
+          "mean": 5.653513380000001,
+          "median": 5.590304680000001,
+          "p95": 6.136201180000001,
+          "min": 5.321034180000001,
+          "max": 6.136201180000001,
+          "stddev": 0.2789900891576218,
+          "samples": 10
+        }
+      },
+      "baseline": "direct",
+      "relative_to_first_mean": {
+        "hni": 52.3976511009867
+      },
+      "relative_to_first_median": {
+        "hni": 52.96803441489705
+      }
+    },
+    {
+      "id": "yarn_direct_noop",
+      "group": "noop",
+      "case": "task noop (yarn)",
+      "raw_json": "benchmark/results/raw/direct/2026-04-26T19-42-40-141Z-yarn_direct_noop.json",
+      "participants": {
+        "direct": {
+          "mean": 272.15401834000005,
+          "median": 272.50798934000005,
+          "p95": 277.66230134000006,
+          "min": 267.73305134000003,
+          "max": 277.66230134000006,
+          "stddev": 3.0412677739379252,
+          "samples": 10
+        },
+        "hni": {
+          "mean": 28.41229754,
+          "median": 28.263322340000002,
+          "p95": 30.45284334,
+          "min": 26.254718340000004,
+          "max": 30.45284334,
+          "stddev": 1.2731683280345922,
+          "samples": 10
+        }
+      },
+      "baseline": "direct",
+      "relative_to_first_mean": {
+        "hni": 9.57874026051045
+      },
+      "relative_to_first_median": {
+        "hni": 9.641753579490898
+      }
+    },
+    {
+      "id": "yarn_direct_hooks",
+      "group": "hooks",
+      "case": "task hooks (yarn)",
+      "raw_json": "benchmark/results/raw/direct/2026-04-26T19-42-40-141Z-yarn_direct_hooks.json",
+      "participants": {
+        "direct": {
+          "mean": 347.74886893999997,
+          "median": 348.96778554,
+          "p95": 358.52409804,
+          "min": 324.59397304,
+          "max": 358.52409804,
+          "stddev": 9.1920662462003,
+          "samples": 10
+        },
+        "hni": {
+          "mean": 81.23672764000001,
+          "median": 79.99824454000002,
+          "p95": 99.19914004,
+          "min": 76.78118204,
+          "max": 99.19914004,
+          "stddev": 6.5281189641439115,
+          "samples": 10
+        }
+      },
+      "baseline": "direct",
+      "relative_to_first_mean": {
+        "hni": 4.280685338299773
+      },
+      "relative_to_first_median": {
+        "hni": 4.362193039942423
+      }
+    },
+    {
+      "id": "yarn_direct_exec_hello",
+      "group": "exec",
+      "case": "exec hello --flag (yarn)",
+      "raw_json": "benchmark/results/raw/direct/2026-04-26T19-42-40-141Z-yarn_direct_exec_hello.json",
+      "participants": {
+        "direct": {
+          "mean": 95.73505012000001,
+          "median": 95.94057082000002,
+          "p95": 97.41540482,
+          "min": 92.52515382000001,
+          "max": 97.41540482,
+          "stddev": 1.5370061684207212,
+          "samples": 10
+        },
+        "hni": {
+          "mean": 5.6376791200000005,
+          "median": 5.57675832,
+          "p95": 6.014528820000001,
+          "min": 5.22523782,
+          "max": 6.014528820000001,
+          "stddev": 0.29408749041816734,
+          "samples": 10
+        }
+      },
+      "baseline": "direct",
+      "relative_to_first_mean": {
+        "hni": 16.981287526701237
+      },
+      "relative_to_first_median": {
+        "hni": 17.203645077450663
+      }
+    },
+    {
+      "id": "bun_direct_noop",
+      "group": "noop",
+      "case": "task noop (bun)",
+      "raw_json": "benchmark/results/raw/direct/2026-04-26T19-42-40-141Z-bun_direct_noop.json",
+      "participants": {
+        "direct": {
+          "mean": 38.75247764,
+          "median": 38.60164024,
+          "p95": 40.77243174,
+          "min": 37.75893174,
+          "max": 40.77243174,
+          "stddev": 0.9655829603132049,
+          "samples": 10
+        },
+        "hni": {
+          "mean": 28.92485674,
+          "median": 29.000535740000004,
+          "p95": 30.40847374,
+          "min": 27.250265740000003,
+          "max": 30.40847374,
+          "stddev": 0.865202569890234,
+          "samples": 10
+        }
+      },
+      "baseline": "direct",
+      "relative_to_first_mean": {
+        "hni": 1.3397638573749424
+      },
+      "relative_to_first_median": {
+        "hni": 1.3310664529123626
+      }
+    },
+    {
+      "id": "bun_direct_hooks",
+      "group": "hooks",
+      "case": "task hooks (bun)",
+      "raw_json": "benchmark/results/raw/direct/2026-04-26T19-42-40-141Z-bun_direct_hooks.json",
+      "participants": {
+        "direct": {
+          "mean": 97.31009592000001,
+          "median": 97.06469592,
+          "p95": 100.78836292000001,
+          "min": 95.06290392000001,
+          "max": 100.78836292000001,
+          "stddev": 1.738975950972808,
+          "samples": 10
+        },
+        "hni": {
+          "mean": 79.35402082000002,
+          "median": 79.56544592,
+          "p95": 81.50340392000001,
+          "min": 76.44436292,
+          "max": 81.50340392000001,
+          "stddev": 1.6427123643670987,
+          "samples": 10
+        }
+      },
+      "baseline": "direct",
+      "relative_to_first_mean": {
+        "hni": 1.2262780753193343
+      },
+      "relative_to_first_median": {
+        "hni": 1.2199352972595017
+      }
+    },
+    {
+      "id": "bun_direct_exec_hello",
+      "group": "exec",
+      "case": "exec hello --flag (bun)",
+      "raw_json": "benchmark/results/raw/direct/2026-04-26T19-42-40-141Z-bun_direct_exec_hello.json",
+      "participants": {
+        "direct": {
+          "mean": 11.93393262,
+          "median": 11.50956992,
+          "p95": 14.21734142,
+          "min": 11.221591420000001,
+          "max": 14.21734142,
+          "stddev": 0.9783860975405476,
+          "samples": 10
+        },
+        "hni": {
+          "mean": 5.65590322,
+          "median": 5.64423642,
+          "p95": 6.222382420000001,
+          "min": 5.22546642,
+          "max": 6.222382420000001,
+          "stddev": 0.3766683797231842,
+          "samples": 10
+        }
+      },
+      "baseline": "direct",
+      "relative_to_first_mean": {
+        "hni": 2.1099959026526625
+      },
+      "relative_to_first_median": {
+        "hni": 2.0391721861998118
+      }
+    },
+    {
+      "id": "deno_direct_noop",
+      "group": "noop",
+      "case": "task noop (deno)",
+      "raw_json": "benchmark/results/raw/direct/2026-04-26T19-42-40-141Z-deno_direct_noop.json",
+      "participants": {
+        "direct": {
+          "mean": 33.258510140000006,
+          "median": 33.17395544,
+          "p95": 33.82370644,
+          "min": 32.57041444,
+          "max": 33.82370644,
+          "stddev": 0.5007181616312169,
+          "samples": 10
+        },
+        "hni": {
+          "mean": 23.820997440000003,
+          "median": 23.81558094,
+          "p95": 24.565664440000003,
+          "min": 23.26149744,
+          "max": 24.565664440000003,
+          "stddev": 0.36997192361373143,
+          "samples": 10
+        }
+      },
+      "baseline": "direct",
+      "relative_to_first_mean": {
+        "hni": 1.3961846150133335
+      },
+      "relative_to_first_median": {
+        "hni": 1.392951762276012
+      }
+    },
+    {
+      "id": "deno_direct_hooks",
+      "group": "hooks",
+      "case": "task hooks (deno)",
+      "raw_json": "benchmark/results/raw/direct/2026-04-26T19-42-40-141Z-deno_direct_hooks.json",
+      "participants": {
+        "direct": {
+          "mean": 33.27465328000001,
+          "median": 33.30837888000001,
+          "p95": 33.718856880000004,
+          "min": 32.72310688,
+          "max": 33.718856880000004,
+          "stddev": 0.3644808827296395,
+          "samples": 10
+        },
+        "hni": {
+          "mean": 23.825911780000006,
+          "median": 23.93498238,
+          "p95": 24.277107880000003,
+          "min": 23.20506588,
+          "max": 24.277107880000003,
+          "stddev": 0.37642540633303306,
+          "samples": 10
+        }
+      },
+      "baseline": "direct",
+      "relative_to_first_mean": {
+        "hni": 1.3965741830678433
+      },
+      "relative_to_first_median": {
+        "hni": 1.3916191101035607
+      }
+    }
+  ]
+}

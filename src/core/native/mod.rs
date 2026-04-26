@@ -10,7 +10,7 @@ use std::path::Path;
 use anyhow::Result;
 
 use crate::core::{
-    resolve::{ProjectState, ResolveContext},
+    resolve::{LocalBinProjectState, ProjectState, ResolveContext},
     types::{NativeDenoTaskExecution, PackageManager, ResolvedExecution},
 };
 
@@ -69,14 +69,14 @@ pub fn attempt_nlx(
     crate::core::profile::measure("native.materialize", || into_attempt(decision, ctx.cwd()))
 }
 
-pub(crate) fn attempt_nlx_from_state(
+pub(crate) fn attempt_nlx_from_local_bin_state(
     pm: Option<PackageManager>,
     args: &[String],
     ctx: &ResolveContext,
-    state: &ProjectState,
+    state: &LocalBinProjectState,
 ) -> Result<NativeAttempt> {
     let decision = crate::core::profile::measure("native.plan_nlx", || {
-        eligibility::plan_nlx_from_state(pm, args, ctx, state)
+        eligibility::plan_nlx_from_local_bin_state(pm, args, state)
     })?;
     crate::core::profile::measure("native.materialize", || into_attempt(decision, ctx.cwd()))
 }

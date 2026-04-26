@@ -43,6 +43,12 @@ impl ResolveContext {
         })
     }
 
+    pub(crate) fn local_bin_project_state(&self) -> LocalBinProjectState {
+        crate::core::profile::measure("local_bin.scan_project", || {
+            LocalBinProjectState::scan(&self.cwd, &self.config)
+        })
+    }
+
     pub fn detect(&self) -> Result<crate::core::types::DetectionResult> {
         crate::core::profile::measure("detect.total", || detect(&self.cwd, &self.config))
     }
@@ -68,6 +74,14 @@ pub(crate) struct ProjectState {
 pub(crate) struct AncestorState {
     dir: PathBuf,
     manifest: Option<PackageJson>,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct LocalBinProjectState {
+    ancestors: Vec<PathBuf>,
+    bin_dirs: Vec<PathBuf>,
+    detection: DetectionResult,
+    has_yarn_pnp_loader: bool,
 }
 
 impl ProjectState {
@@ -206,5 +220,119 @@ impl ProjectState {
         }
 
         Ok(None)
+    }
+}
+
+impl LocalBinProjectState {
+    pub(crate) fn scan(cwd: &Path, config: &HniConfig) -> Self {
+        let mut ancestors = Vec::new();
+        let mut bin_dirs = Vec::new();
+        let mut has_lock = false;
+        let mut resolved_detection = None;
+        let mut has_yarn_pnp_loader = false;
+
+        for dir in cwd.ancestors() {
+            let dir = dir.to_path_buf();
+            let should_detect = resolved_detection.is_none() || !has_lock;
+            let lockfile_pm = should_detect
+                .then(|| detect_lockfile_in_dir(&dir))
+                .flatten();
+            has_lock |= lockfile_pm.is_some();
+
+            if should_detect && resolved_detection.is_none() {
+                resolved_detection = lockfile_pm
+                    .map(|pm| DetectionResult {
+                        agent: Some(pm),
+                        has_lock,
+                        version_hint: None,
+                        source: DetectionSource::Lockfile,
+                    })
+                    .or_else(|| {
+                        detect_install_metadata_in_dir(&dir).map(|pm| DetectionResult {
+                            agent: Some(pm),
+                            has_lock,
+                            version_hint: None,
+                            source: DetectionSource::InstallMetadata,
+                        })
+                    });
+            }
+
+            for candidate in [
+                dir.join("node_modules").join(".bin"),
+                dir.join("node_modules")
+                    .join(".pnpm")
+                    .join("node_modules")
+                    .join(".bin"),
+            ] {
+                if candidate.is_dir() {
+                    bin_dirs.push(candidate);
+                }
+            }
+
+            has_yarn_pnp_loader |= dir.join(".pnp.cjs").exists() || dir.join(".pnp.js").exists();
+            ancestors.push(dir);
+
+            if has_lock && resolved_detection.is_some() {
+                break;
+            }
+        }
+
+        let mut detection =
+            resolved_detection.unwrap_or_else(|| config_only_detection(config, has_lock));
+        detection.has_lock = has_lock;
+
+        Self {
+            ancestors,
+            bin_dirs,
+            detection,
+            has_yarn_pnp_loader,
+        }
+    }
+
+    pub(crate) fn bin_dirs(&self) -> &[PathBuf] {
+        &self.bin_dirs
+    }
+
+    pub(crate) fn has_yarn_pnp_loader(&self) -> bool {
+        self.has_yarn_pnp_loader
+    }
+
+    pub(crate) fn detection(&self) -> DetectionResult {
+        self.detection.clone()
+    }
+
+    pub(crate) fn resolve_declared_package_bin(&self, bin_name: &str) -> Result<Option<PathBuf>> {
+        for dir in &self.ancestors {
+            let Some(manifest) = read_package_json(dir)? else {
+                continue;
+            };
+            let Some(relative) = manifest.bin_command_path(bin_name) else {
+                continue;
+            };
+            let candidate = dir.join(relative);
+            if candidate.is_file() {
+                return Ok(Some(candidate));
+            }
+        }
+
+        Ok(None)
+    }
+}
+
+fn config_only_detection(config: &HniConfig, has_lock: bool) -> DetectionResult {
+    if let Some(agent) = config.default_package_manager {
+        return DetectionResult {
+            agent: Some(agent),
+            has_lock,
+            version_hint: None,
+            source: DetectionSource::Config,
+        };
+    }
+
+    DetectionResult {
+        agent: None,
+        has_lock,
+        version_hint: None,
+        source: DetectionSource::None,
     }
 }

@@ -3,7 +3,7 @@ use anyhow::Result;
 use crate::core::{
     deno::{find_nearest_deno_project, plan_native_deno_task},
     package::{node_modules_bin_dirs, resolve_local_bin},
-    resolve::{ProjectState, ResolveContext},
+    resolve::{LocalBinProjectState, ProjectState, ResolveContext},
     types::{NativeLocalBinExecution, NativeScriptExecution, NativeScriptStep, PackageManager},
 };
 
@@ -167,6 +167,41 @@ pub(super) fn plan_nlx_from_state(
     let bin_paths = state.bin_dirs().to_vec();
     let bin_path = match resolve_local_bin(bin_name, &bin_paths) {
         Some(bin_path) => Some(bin_path),
+        None => state.resolve_declared_package_bin(bin_name)?,
+    };
+    let Some(bin_path) = bin_path else {
+        return Ok(NativeDecision::Ineligible(FallbackReason::MissingLocalBin));
+    };
+
+    Ok(NativeDecision::Eligible(NativePlan::LocalBin(
+        NativeLocalBinExecution {
+            bin_name: bin_name.clone(),
+            launcher: resolve_local_bin_launcher(&bin_path)?,
+            forwarded_args: args.iter().skip(1).cloned().collect(),
+            bin_paths,
+        },
+    )))
+}
+
+pub(super) fn plan_nlx_from_local_bin_state(
+    pm: Option<PackageManager>,
+    args: &[String],
+    state: &LocalBinProjectState,
+) -> Result<NativeDecision> {
+    let Some(bin_name) = args.first() else {
+        return Ok(NativeDecision::Ineligible(
+            FallbackReason::MissingLocalBinCommand,
+        ));
+    };
+
+    if pm == Some(PackageManager::YarnBerry) && state.has_yarn_pnp_loader() {
+        return Ok(NativeDecision::Ineligible(FallbackReason::YarnBerryPnp));
+    }
+
+    let bin_paths = state.bin_dirs().to_vec();
+    let bin_path = match resolve_local_bin(bin_name, &bin_paths) {
+        Some(bin_path) => Some(bin_path),
+        None if pm == Some(PackageManager::Deno) => None,
         None => state.resolve_declared_package_bin(bin_name)?,
     };
     let Some(bin_path) = bin_path else {
