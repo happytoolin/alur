@@ -1,0 +1,12 @@
+{
+  "name": "fixture-dev-engines-yarn-berry",
+  "devEngines": {
+    "packageManager": {
+      "name": "yarn",
+      "version": "3"
+    }
+  },
+  "scripts": {
+    "dev": "node -e \"\""
+  }
+}

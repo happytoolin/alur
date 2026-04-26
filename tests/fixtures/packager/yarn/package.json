@@ -1,0 +1,7 @@
+{
+  "name": "fixture-packager-yarn",
+  "packageManager": "yarn@1",
+  "scripts": {
+    "dev": "node -e \"\""
+  }
+}

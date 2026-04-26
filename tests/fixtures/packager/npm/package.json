@@ -1,0 +1,7 @@
+{
+  "name": "fixture-packager-npm",
+  "packageManager": "npm@7",
+  "scripts": {
+    "dev": "node -e \"\""
+  }
+}

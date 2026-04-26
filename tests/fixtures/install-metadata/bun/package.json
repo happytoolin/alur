@@ -1,0 +1,6 @@
+{
+  "name": "fixture-install-metadata-bun",
+  "scripts": {
+    "dev": "node -e \"\""
+  }
+}

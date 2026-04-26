@@ -1,0 +1,11 @@
+{
+  "name": "fixture-dev-engines-unknown",
+  "devEngines": {
+    "packageManager": {
+      "name": "future-package-manager"
+    }
+  },
+  "scripts": {
+    "dev": "node -e \"\""
+  }
+}

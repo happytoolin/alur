@@ -1,0 +1,6 @@
+{
+  "name": "fixture-install-metadata-yarn-berry-pnp-v2",
+  "scripts": {
+    "dev": "node -e \"\""
+  }
+}

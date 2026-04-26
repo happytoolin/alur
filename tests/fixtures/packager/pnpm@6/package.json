@@ -1,0 +1,7 @@
+{
+  "name": "fixture-packager-pnpm-6",
+  "packageManager": "pnpm@6",
+  "scripts": {
+    "dev": "node -e \"\""
+  }
+}

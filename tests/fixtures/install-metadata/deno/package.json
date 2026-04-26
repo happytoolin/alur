@@ -1,0 +1,6 @@
+{
+  "name": "fixture-install-metadata-deno",
+  "scripts": {
+    "dev": "deno eval \"\""
+  }
+}

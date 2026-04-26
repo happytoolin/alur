@@ -1,0 +1,7 @@
+{
+  "name": "fixture-packager-yarn-berry",
+  "packageManager": "yarn@3",
+  "scripts": {
+    "dev": "node -e \"\""
+  }
+}

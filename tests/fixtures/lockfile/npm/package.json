@@ -1,0 +1,6 @@
+{
+  "name": "fixture-lockfile-npm",
+  "scripts": {
+    "dev": "node -e \"\""
+  }
+}

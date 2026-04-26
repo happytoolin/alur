@@ -1,0 +1,6 @@
+{
+  "name": "fixture-install-metadata-yarn",
+  "scripts": {
+    "dev": "node -e \"\""
+  }
+}

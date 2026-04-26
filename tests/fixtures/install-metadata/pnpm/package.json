@@ -1,0 +1,6 @@
+{
+  "name": "fixture-install-metadata-pnpm",
+  "scripts": {
+    "dev": "node -e \"\""
+  }
+}

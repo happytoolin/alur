@@ -1,0 +1,6 @@
+{
+  "name": "fixture-lockfile-yarn-berry",
+  "scripts": {
+    "dev": "node -e \"\""
+  }
+}

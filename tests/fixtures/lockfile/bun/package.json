@@ -1,0 +1,6 @@
+{
+  "name": "fixture-lockfile-bun",
+  "scripts": {
+    "dev": "node -e \"\""
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "name": "fixture-install-metadata-unknown",
+  "packageManager": "future-package-manager",
+  "scripts": {
+    "dev": "node -e \"\""
+  }
+}

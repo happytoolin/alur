@@ -1,0 +1,6 @@
+{
+  "name": "fixture-lockfile-yarn",
+  "scripts": {
+    "dev": "node -e \"\""
+  }
+}

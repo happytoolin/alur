@@ -1,0 +1,12 @@
+{
+  "name": "fixture-dev-engines-yarn",
+  "devEngines": {
+    "packageManager": {
+      "name": "yarn",
+      "version": "1"
+    }
+  },
+  "scripts": {
+    "dev": "node -e \"\""
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "name": "fixture-packager-unknown",
+  "packageManager": "future-package-manager",
+  "scripts": {
+    "dev": "node -e \"\""
+  }
+}

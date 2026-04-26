@@ -1,0 +1,6 @@
+{
+  "name": "fixture-lockfile-unknown",
+  "scripts": {
+    "dev": "node -e \"\""
+  }
+}

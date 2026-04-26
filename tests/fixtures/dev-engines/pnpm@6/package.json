@@ -1,0 +1,12 @@
+{
+  "name": "fixture-dev-engines-pnpm-6",
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": "6"
+    }
+  },
+  "scripts": {
+    "dev": "node -e \"\""
+  }
+}

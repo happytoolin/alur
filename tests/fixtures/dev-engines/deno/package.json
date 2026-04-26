@@ -1,0 +1,12 @@
+{
+  "name": "fixture-dev-engines-deno",
+  "devEngines": {
+    "packageManager": {
+      "name": "deno",
+      "version": "2"
+    }
+  },
+  "scripts": {
+    "dev": "deno eval \"\""
+  }
+}

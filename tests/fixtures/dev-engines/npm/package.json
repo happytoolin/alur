@@ -1,0 +1,12 @@
+{
+  "name": "fixture-dev-engines-npm",
+  "devEngines": {
+    "packageManager": {
+      "name": "npm",
+      "version": "7"
+    }
+  },
+  "scripts": {
+    "dev": "node -e \"\""
+  }
+}

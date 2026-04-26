@@ -1,0 +1,7 @@
+{
+  "name": "fixture-packager-deno",
+  "packageManager": "deno@2",
+  "scripts": {
+    "dev": "deno eval \"\""
+  }
+}
