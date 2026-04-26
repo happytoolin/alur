@@ -11,7 +11,6 @@ use serde::Deserialize;
 
 use super::{
     package::node_modules_bin_dirs,
-    pkg_json::{PackageJson, read_package_json},
     types::{NativeDenoTaskExecution, NativeDenoTaskStage, NativeDenoTaskStep},
 };
 
@@ -20,7 +19,6 @@ pub(crate) struct DenoProject {
     pub root: PathBuf,
     pub config_path: Option<PathBuf>,
     pub deno_tasks: IndexMap<String, DenoTaskDefinition>,
-    pub package_json: Option<PackageJson>,
     pub has_workspace: bool,
 }
 
@@ -34,8 +32,7 @@ pub(crate) struct DenoTaskDefinition {
 pub(crate) fn find_nearest_deno_project(cwd: &Path) -> Result<Option<DenoProject>> {
     for dir in cwd.ancestors() {
         let deno = read_deno_config(dir)?;
-        let package_json = read_package_json(dir)?;
-        if deno.is_none() && package_json.is_none() {
+        if deno.is_none() {
             continue;
         }
 
@@ -47,7 +44,6 @@ pub(crate) fn find_nearest_deno_project(cwd: &Path) -> Result<Option<DenoProject
             root: dir.to_path_buf(),
             config_path,
             deno_tasks,
-            package_json,
             has_workspace,
         }));
     }
@@ -78,27 +74,7 @@ pub(crate) fn plan_native_deno_task(
         });
     }
 
-    if let Some(package_json) = &project.package_json
-        && let Some(stages) = build_package_json_stages(package_json, selection, forwarded_args)
-    {
-        return Ok(NativeDenoTaskExecution {
-            project_root: project.root.clone(),
-            config_path: project.config_path.clone(),
-            selection: selection.to_string(),
-            stages,
-            forwarded_args: forwarded_args.to_vec(),
-            bin_paths: node_modules_bin_dirs(&project.root),
-        });
-    }
-
-    if has_if_present
-        && (project.config_path.is_some()
-            || project
-                .package_json
-                .as_ref()
-                .and_then(|package_json| package_json.scripts.as_ref())
-                .is_some())
-    {
+    if has_if_present && project.config_path.is_some() {
         return Ok(NativeDenoTaskExecution {
             project_root: project.root.clone(),
             config_path: project.config_path.clone(),
@@ -112,46 +88,6 @@ pub(crate) fn plan_native_deno_task(
     Err(format!(
         "task '{selection}' was not found in the nearest deno project"
     ))
-}
-
-fn build_package_json_stages(
-    package_json: &PackageJson,
-    selection: &str,
-    forwarded_args: &[String],
-) -> Option<Vec<NativeDenoTaskStage>> {
-    let scripts = package_json.scripts.as_ref()?;
-    let main = scripts.get(selection)?;
-    let mut stages = Vec::new();
-
-    if let Some(pre) = scripts.get(&format!("pre{selection}")) {
-        stages.push(NativeDenoTaskStage {
-            steps: vec![NativeDenoTaskStep {
-                task_name: format!("pre{selection}"),
-                command: pre.clone(),
-                forward_args: false,
-            }],
-        });
-    }
-
-    stages.push(NativeDenoTaskStage {
-        steps: vec![NativeDenoTaskStep {
-            task_name: selection.to_string(),
-            command: main.clone(),
-            forward_args: !forwarded_args.is_empty(),
-        }],
-    });
-
-    if let Some(post) = scripts.get(&format!("post{selection}")) {
-        stages.push(NativeDenoTaskStage {
-            steps: vec![NativeDenoTaskStep {
-                task_name: format!("post{selection}"),
-                command: post.clone(),
-                forward_args: false,
-            }],
-        });
-    }
-
-    Some(stages)
 }
 
 fn build_deno_task_stages(
@@ -483,7 +419,7 @@ mod tests {
     }
 
     #[test]
-    fn selects_nearest_project_with_deno_or_package_json() {
+    fn selects_nearest_project_with_deno_config() {
         let dir = tempfile::tempdir().unwrap();
         let root = dir.path().join("root");
         let nested = root.join("app").join("src");

@@ -38,7 +38,7 @@ fn fast_mode_matrix_covers_supported_and_fallback_package_managers() {
                 local_bins: true,
                 yarn_pnp: false,
                 expected_nr: "hni fast:run-script dev",
-                expected_nlx: "hni fast:run-local-bin hello --flag",
+                expected_nlx: "pnpm dlx hello --flag",
             },
             PmCase {
                 label: "yarn-classic",
@@ -47,7 +47,7 @@ fn fast_mode_matrix_covers_supported_and_fallback_package_managers() {
                 local_bins: true,
                 yarn_pnp: false,
                 expected_nr: "hni fast:run-script dev",
-                expected_nlx: "hni fast:run-local-bin hello --flag",
+                expected_nlx: "npx hello --flag",
             },
             PmCase {
                 label: "yarn-berry-node-modules",
@@ -56,7 +56,7 @@ fn fast_mode_matrix_covers_supported_and_fallback_package_managers() {
                 local_bins: true,
                 yarn_pnp: false,
                 expected_nr: "hni fast:run-script dev",
-                expected_nlx: "hni fast:run-local-bin hello --flag",
+                expected_nlx: "yarn dlx hello --flag",
             },
             PmCase {
                 label: "yarn-berry-pnp",
@@ -74,7 +74,7 @@ fn fast_mode_matrix_covers_supported_and_fallback_package_managers() {
                 local_bins: true,
                 yarn_pnp: false,
                 expected_nr: "hni fast:run-script dev",
-                expected_nlx: "hni fast:run-local-bin hello --flag",
+                expected_nlx: "bun x hello --flag",
             },
             PmCase {
                 label: "deno",
@@ -82,7 +82,7 @@ fn fast_mode_matrix_covers_supported_and_fallback_package_managers() {
                 lockfile: "deno.lock",
                 local_bins: false,
                 yarn_pnp: false,
-                expected_nr: "hni fast:run-deno-task dev",
+                expected_nr: "deno task dev",
                 expected_nlx: "deno run npm:hello --flag",
             },
         ];

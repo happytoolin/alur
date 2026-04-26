@@ -151,6 +151,51 @@ fn native_nr_preserves_shell_glob_expansion() {
 }
 
 #[test]
+fn native_nr_exposes_supported_shared_npm_env() {
+    support::with_env_lock(|| {
+        let work = tempfile::tempdir().unwrap();
+        let project = work.path().join("project");
+        let fake_node = work.path().join("fake-node");
+        fs::create_dir_all(&project).unwrap();
+        fs::write(project.join("package-lock.json"), "lock").unwrap();
+        fs::write(
+            project.join("package.json"),
+            r#"{"name":"x","scripts":{"dev":"printf '%s\n' \"$npm_package_json\" \"$npm_lifecycle_event\" \"$npm_lifecycle_script\" \"$npm_execpath\" \"$npm_node_execpath\" \"$npm_command\" \"$npm_config_user_agent\" \"$INIT_CWD\" > env.txt"}}"#,
+        )
+        .unwrap();
+        fs::write(&fake_node, "#!/bin/sh\nexit 0\n").unwrap();
+        make_executable(&fake_node);
+
+        let output = run_hni(
+            vec!["nr", "-C", project.to_str().unwrap(), "--fast", "dev"],
+            &[
+                ("HNI_SKIP_PM_CHECK", "1"),
+                ("HNI_REAL_NODE", fake_node.to_str().unwrap()),
+                ("npm_config_user_agent", "hni-tests/1.0.0"),
+            ],
+        );
+
+        assert!(output.status.success(), "{output:?}");
+        let lines = fs::read_to_string(project.join("env.txt"))
+            .unwrap()
+            .lines()
+            .map(str::to_string)
+            .collect::<Vec<_>>();
+        let package_json = project.join("package.json").to_string_lossy().to_string();
+        let fake_node = fake_node.to_string_lossy().to_string();
+        let project = project.to_string_lossy().to_string();
+
+        assert!(lines.contains(&package_json));
+        assert!(lines.contains(&"dev".to_string()));
+        assert!(lines.contains(&fake_node));
+        assert!(lines.contains(&"run-script".to_string()));
+        assert!(lines.contains(&"hni-tests/1.0.0".to_string()));
+        assert!(lines.contains(&project));
+        assert!(lines.iter().any(|line| !line.is_empty()));
+    });
+}
+
+#[test]
 fn node_run_prefers_builtin_node_run_when_supported() {
     support::with_env_lock(|| {
         let work = tempfile::tempdir().unwrap();

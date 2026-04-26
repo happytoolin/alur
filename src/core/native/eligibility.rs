@@ -2,7 +2,7 @@ use anyhow::Result;
 
 use crate::core::{
     deno::{find_nearest_deno_project, plan_native_deno_task},
-    package::{node_modules_bin_dirs, resolve_local_bin},
+    package::resolve_local_bin,
     resolve::ResolveContext,
     types::{NativeLocalBinExecution, NativeScriptExecution, NativeScriptStep, PackageManager},
 };
@@ -12,7 +12,8 @@ use super::{
     plan::{FallbackReason, NativeDecision, NativePlan},
 };
 
-const UNSUPPORTED_SCRIPT_PATTERNS: &[&str] = &["npm_package_", "npm_config_"];
+const SUPPORTED_NPM_PACKAGE_ENV_SUFFIXES: &[&str] = &["json"];
+const SUPPORTED_NPM_CONFIG_ENV_SUFFIXES: &[&str] = &["user_agent"];
 
 pub(super) fn plan_nr(
     pm: Option<PackageManager>,
@@ -32,7 +33,7 @@ pub(super) fn plan_nr(
         return Ok(
             match plan_native_deno_task(&project, &selection, &forwarded_args, has_if_present) {
                 Ok(exec) => NativeDecision::Eligible(NativePlan::DenoTask(exec)),
-                Err(_) => NativeDecision::Ineligible(FallbackReason::DenoScriptExecution),
+                Err(reason) => NativeDecision::Ineligible(FallbackReason::DenoTask(reason)),
             },
         );
     }
@@ -109,20 +110,10 @@ pub(super) fn plan_nlx(
         ));
     };
 
-    if pm == Some(PackageManager::Deno) {
-        let bin_paths = node_modules_bin_dirs(ctx.cwd());
-        let Some(bin_path) = resolve_local_bin(bin_name, &bin_paths) else {
-            return Ok(NativeDecision::Ineligible(FallbackReason::RemoteDenoExec));
-        };
-
-        return Ok(NativeDecision::Eligible(NativePlan::LocalBin(
-            NativeLocalBinExecution {
-                bin_name: bin_name.clone(),
-                launcher: resolve_local_bin_launcher(&bin_path)?,
-                forwarded_args: args.iter().skip(1).cloned().collect(),
-                bin_paths,
-            },
-        )));
+    if !matches!(pm, None | Some(PackageManager::Npm)) {
+        return Ok(NativeDecision::Ineligible(
+            FallbackReason::PackageManagerExec,
+        ));
     }
 
     let state = ctx.project_state()?;
@@ -183,8 +174,39 @@ fn push_step(
 }
 
 fn unsupported_pattern(script: &str) -> Option<&'static str> {
-    UNSUPPORTED_SCRIPT_PATTERNS
-        .iter()
-        .find(|pattern| script.contains(**pattern))
-        .copied()
+    if contains_unsupported_prefixed_env(script, "npm_package_", SUPPORTED_NPM_PACKAGE_ENV_SUFFIXES)
+    {
+        return Some("npm_package_");
+    }
+
+    if contains_unsupported_prefixed_env(script, "npm_config_", SUPPORTED_NPM_CONFIG_ENV_SUFFIXES) {
+        return Some("npm_config_");
+    }
+
+    None
+}
+
+fn contains_unsupported_prefixed_env(
+    script: &str,
+    prefix: &str,
+    supported_suffixes: &[&str],
+) -> bool {
+    let mut search_from = 0;
+    while let Some(offset) = script[search_from..].find(prefix) {
+        let prefix_start = search_from + offset + prefix.len();
+        let rest = &script[prefix_start..];
+        let supported = supported_suffixes.iter().any(|suffix| {
+            rest.starts_with(suffix)
+                && rest[suffix.len()..]
+                    .chars()
+                    .next()
+                    .is_none_or(|ch| !matches!(ch, 'a'..='z' | 'A'..='Z' | '0'..='9' | '_'))
+        });
+        if !supported {
+            return true;
+        }
+        search_from = prefix_start;
+    }
+
+    false
 }

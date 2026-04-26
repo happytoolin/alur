@@ -11,7 +11,7 @@ pub(super) fn native_script_env(
     exec: &NativeScriptExecution,
     invocation_cwd: &std::path::Path,
 ) -> Result<Vec<(String, String)>> {
-    let mut envs = Vec::with_capacity(4);
+    let mut envs = Vec::with_capacity(7);
     envs.push((
         "INIT_CWD".to_string(),
         invocation_cwd.to_string_lossy().to_string(),
@@ -33,6 +33,12 @@ pub(super) fn native_script_env(
             "npm_node_execpath".to_string(),
             real_node.to_string_lossy().to_string(),
         ));
+    }
+
+    envs.push(("npm_command".to_string(), "run-script".to_string()));
+
+    if let Ok(user_agent) = env::var("npm_config_user_agent") {
+        envs.push(("npm_config_user_agent".to_string(), user_agent));
     }
 
     let merged_path = merged_path_with_bins(&exec.bin_paths)?;

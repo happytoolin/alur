@@ -2,7 +2,7 @@ use std::fs;
 
 use hni::core::{
     config::HniConfig,
-    detect::{DetectOptions, DetectStrategy, detect, detect_user_agent, detect_with_options},
+    detect::{detect, detect_user_agent},
     types::{DetectionResult, DetectionSource, PackageManager},
 };
 
@@ -79,7 +79,6 @@ fn packager_fixtures_match_hni_semantics() {
                 has_lock: false,
             },
         ],
-        None,
     );
 }
 
@@ -145,15 +144,6 @@ fn dev_engines_fixtures_match_hni_semantics() {
                 has_lock: false,
             },
         ],
-        Some(DetectOptions {
-            strategies: vec![
-                DetectStrategy::DevEnginesField,
-                DetectStrategy::Lockfile,
-                DetectStrategy::PackageManagerField,
-                DetectStrategy::InstallMetadata,
-            ],
-            stop_at: None,
-        }),
     );
 }
 
@@ -212,7 +202,6 @@ fn lockfile_fixtures_match_hni_semantics() {
                 has_lock: true,
             },
         ],
-        None,
     );
 }
 
@@ -225,7 +214,7 @@ fn install_metadata_fixtures_match_hni_semantics() {
                 name: "bun",
                 agent: PackageManager::Bun,
                 version: None,
-                source: DetectionSource::InstallMetadata,
+                source: DetectionSource::Lockfile,
                 has_lock: true,
             },
             FixtureExpectation {
@@ -278,49 +267,13 @@ fn install_metadata_fixtures_match_hni_semantics() {
                 has_lock: false,
             },
         ],
-        Some(DetectOptions {
-            strategies: vec![
-                DetectStrategy::InstallMetadata,
-                DetectStrategy::Lockfile,
-                DetectStrategy::PackageManagerField,
-                DetectStrategy::DevEnginesField,
-            ],
-            stop_at: None,
-        }),
     );
 }
 
 #[test]
 fn unknown_fixture_variants_fall_back_to_local_defaults() {
-    for (category, options) in [
-        ("packager", None),
-        (
-            "dev-engines",
-            Some(DetectOptions {
-                strategies: vec![
-                    DetectStrategy::DevEnginesField,
-                    DetectStrategy::Lockfile,
-                    DetectStrategy::PackageManagerField,
-                    DetectStrategy::InstallMetadata,
-                ],
-                stop_at: None,
-            }),
-        ),
-        ("lockfile", None),
-        (
-            "install-metadata",
-            Some(DetectOptions {
-                strategies: vec![
-                    DetectStrategy::InstallMetadata,
-                    DetectStrategy::Lockfile,
-                    DetectStrategy::PackageManagerField,
-                    DetectStrategy::DevEnginesField,
-                ],
-                stop_at: None,
-            }),
-        ),
-    ] {
-        let detected = detect_fixture(category, "unknown", options.as_ref());
+    for category in ["packager", "dev-engines", "lockfile", "install-metadata"] {
+        let detected = detect_fixture(category, "unknown");
         assert_eq!(detected.version_hint, None, "fixture {category}/unknown");
         assert!(!detected.has_lock, "fixture {category}/unknown");
 
@@ -336,27 +289,6 @@ fn unknown_fixture_variants_fall_back_to_local_defaults() {
             assert_eq!(detected.source, DetectionSource::None);
         }
     }
-}
-
-#[test]
-fn stop_at_limits_ancestor_detection() {
-    let root = tempfile::tempdir().unwrap();
-    let stop = root.path().join("mid");
-    let nested = stop.join("deep");
-    fs::create_dir_all(&nested).unwrap();
-    fs::write(root.path().join("package-lock.json"), "lock").unwrap();
-
-    let detected = detect_with_options(
-        &nested,
-        &HniConfig::default(),
-        &DetectOptions {
-            stop_at: Some(stop.clone()),
-            ..DetectOptions::default()
-        },
-    )
-    .unwrap();
-
-    assert_ne!(detected.source, DetectionSource::Lockfile);
 }
 
 #[test]
@@ -406,9 +338,9 @@ fn user_agent_detection_matches_supported_managers() {
     });
 }
 
-fn run_fixture_cases(category: &str, cases: &[FixtureExpectation], options: Option<DetectOptions>) {
+fn run_fixture_cases(category: &str, cases: &[FixtureExpectation]) {
     for case in cases {
-        let detected = detect_fixture(category, case.name, options.as_ref());
+        let detected = detect_fixture(category, case.name);
         assert_eq!(
             detected.agent,
             Some(case.agent),
@@ -434,14 +366,10 @@ fn run_fixture_cases(category: &str, cases: &[FixtureExpectation], options: Opti
     }
 }
 
-fn detect_fixture(category: &str, name: &str, options: Option<&DetectOptions>) -> DetectionResult {
+fn detect_fixture(category: &str, name: &str) -> DetectionResult {
     let dir = tempfile::tempdir().unwrap();
     support::copy_fixture_into(category, name, dir.path());
-
-    match options {
-        Some(options) => detect_with_options(dir.path(), &HniConfig::default(), options).unwrap(),
-        None => detect(dir.path(), &HniConfig::default()).unwrap(),
-    }
+    detect(dir.path(), &HniConfig::default()).unwrap()
 }
 
 fn write_package_json(dir: &std::path::Path, raw: &str) {

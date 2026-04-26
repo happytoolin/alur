@@ -7,10 +7,9 @@ use anyhow::Result;
 
 use crate::core::{
     config::HniConfig,
-    detect::{DetectOptions, detect_with_options},
+    detect::detect,
     package::NearestPackage,
     pkg_json::{PackageJson, package_json_path, read_package_json},
-    types::DetectionResult,
 };
 
 #[derive(Debug)]
@@ -19,7 +18,6 @@ pub struct ResolveContext {
     pub config: HniConfig,
     verify_package_manager_availability: bool,
     project_state: OnceLock<ProjectState>,
-    detection: OnceLock<DetectionResult>,
 }
 
 impl ResolveContext {
@@ -37,7 +35,6 @@ impl ResolveContext {
             config,
             verify_package_manager_availability,
             project_state: OnceLock::new(),
-            detection: OnceLock::new(),
         }
     }
 
@@ -54,14 +51,8 @@ impl ResolveContext {
             .expect("project state should be initialized"))
     }
 
-    pub fn detect(&self) -> Result<DetectionResult> {
-        if let Some(detection) = self.detection.get() {
-            return Ok(detection.clone());
-        }
-
-        let detection = detect_with_options(&self.cwd, &self.config, &DetectOptions::default())?;
-        let _ = self.detection.set(detection.clone());
-        Ok(detection)
+    pub fn detect(&self) -> Result<crate::core::types::DetectionResult> {
+        detect(&self.cwd, &self.config)
     }
 
     pub fn cwd(&self) -> &Path {

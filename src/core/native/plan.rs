@@ -15,8 +15,9 @@ pub(super) enum NativePlan {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) enum FallbackReason {
-    DenoScriptExecution,
+    DenoTask(String),
     MissingNearestDenoProject,
+    PackageManagerExec,
     MissingNearestPackage,
     YarnBerryPnp,
     MissingScript(String),
@@ -26,15 +27,20 @@ pub(super) enum FallbackReason {
     },
     MissingLocalBin,
     MissingLocalBinCommand,
-    RemoteDenoExec,
 }
 
 impl fmt::Display for FallbackReason {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::DenoScriptExecution => write!(f, "deno script execution stays package-manager"),
+            Self::DenoTask(reason) => write!(f, "{reason}"),
             Self::MissingNearestDenoProject => {
                 write!(f, "fast deno execution requires a nearest deno project")
+            }
+            Self::PackageManagerExec => {
+                write!(
+                    f,
+                    "fast local binary execution stays in package-manager exec mode"
+                )
             }
             Self::MissingNearestPackage => {
                 write!(f, "fast script execution requires a nearest package.json")
@@ -60,9 +66,6 @@ impl fmt::Display for FallbackReason {
             ),
             Self::MissingLocalBinCommand => {
                 write!(f, "fast local bin execution requires a command")
-            }
-            Self::RemoteDenoExec => {
-                write!(f, "remote deno exec stays in package-manager mode")
             }
         }
     }

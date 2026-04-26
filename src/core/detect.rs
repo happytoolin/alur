@@ -1,7 +1,4 @@
-use std::{
-    env,
-    path::{Path, PathBuf},
-};
+use std::{env, path::Path};
 
 use anyhow::{Result, anyhow};
 
@@ -31,55 +28,9 @@ const INSTALL_METADATA: &[(&str, PackageManager)] = &[
     ("node_modules/.package-lock.json", PackageManager::Npm),
     (".pnp.cjs", PackageManager::YarnBerry),
     (".pnp.js", PackageManager::YarnBerry),
-    ("bun.lock", PackageManager::Bun),
-    ("bun.lockb", PackageManager::Bun),
 ];
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum DetectStrategy {
-    PackageManagerField,
-    Lockfile,
-    DevEnginesField,
-    InstallMetadata,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct DetectOptions {
-    pub strategies: Vec<DetectStrategy>,
-    pub stop_at: Option<PathBuf>,
-}
-
-impl Default for DetectOptions {
-    fn default() -> Self {
-        Self {
-            strategies: vec![
-                DetectStrategy::PackageManagerField,
-                DetectStrategy::Lockfile,
-                DetectStrategy::DevEnginesField,
-                DetectStrategy::InstallMetadata,
-            ],
-            stop_at: None,
-        }
-    }
-}
-
 pub fn detect(cwd: &Path, config: &HniConfig) -> Result<DetectionResult> {
-    detect_with_options(cwd, config, &DetectOptions::default())
-}
-
-pub fn detect_with_options(
-    cwd: &Path,
-    config: &HniConfig,
-    options: &DetectOptions,
-) -> Result<DetectionResult> {
-    let stop_at = resolve_stop_at(cwd, options);
-    let should_read_manifest = options.strategies.iter().any(|strategy| {
-        matches!(
-            strategy,
-            DetectStrategy::PackageManagerField | DetectStrategy::DevEnginesField
-        )
-    });
-
     let mut has_lock = false;
     let mut resolved = None;
 
@@ -88,44 +39,27 @@ pub fn detect_with_options(
         has_lock |= lockfile_pm.is_some();
 
         if resolved.is_none() {
-            let manifest = if should_read_manifest {
-                read_package_json(dir)?
-            } else {
-                None
-            };
-            for strategy in &options.strategies {
-                let candidate = match strategy {
-                    DetectStrategy::PackageManagerField => {
-                        manifest.as_ref().and_then(detect_package_manager_field)
-                    }
-                    DetectStrategy::Lockfile => lockfile_pm.map(|pm| DetectionResult {
+            let manifest = read_package_json(dir)?;
+            resolved = manifest
+                .as_ref()
+                .and_then(detect_package_manager_field)
+                .or_else(|| {
+                    lockfile_pm.map(|pm| DetectionResult {
                         agent: Some(pm),
                         has_lock,
                         version_hint: None,
                         source: DetectionSource::Lockfile,
-                    }),
-                    DetectStrategy::DevEnginesField => {
-                        manifest.as_ref().and_then(detect_dev_engines_field)
-                    }
-                    DetectStrategy::InstallMetadata => {
-                        detect_install_metadata_in_dir(dir).map(|pm| DetectionResult {
-                            agent: Some(pm),
-                            has_lock,
-                            version_hint: None,
-                            source: DetectionSource::InstallMetadata,
-                        })
-                    }
-                };
-
-                if let Some(candidate) = candidate {
-                    resolved = Some(candidate);
-                    break;
-                }
-            }
-        }
-
-        if stop_at.as_ref().is_some_and(|stop| dir == stop) {
-            break;
+                    })
+                })
+                .or_else(|| manifest.as_ref().and_then(detect_dev_engines_field))
+                .or_else(|| {
+                    detect_install_metadata_in_dir(dir).map(|pm| DetectionResult {
+                        agent: Some(pm),
+                        has_lock,
+                        version_hint: None,
+                        source: DetectionSource::InstallMetadata,
+                    })
+                });
         }
 
         if resolved.is_some() && has_lock {
@@ -139,16 +73,6 @@ pub fn detect_with_options(
     }
 
     Ok(fallback_detection(config, has_lock))
-}
-
-fn resolve_stop_at(cwd: &Path, options: &DetectOptions) -> Option<PathBuf> {
-    options.stop_at.as_ref().map(|path| {
-        if path.is_absolute() {
-            path.clone()
-        } else {
-            cwd.join(path)
-        }
-    })
 }
 
 fn fallback_detection(config: &HniConfig, has_lock: bool) -> DetectionResult {
@@ -353,7 +277,7 @@ fn parse_major(version: &str) -> Option<u64> {
 mod tests {
     use super::*;
     use crate::core::{config::HniConfig, types::DetectionSource};
-    use std::{fs, path::Path};
+    use std::fs;
     use tempfile::tempdir;
 
     #[test]
@@ -438,52 +362,6 @@ mod tests {
     }
 
     #[test]
-    fn detect_with_options_respects_stop_at() {
-        let root = tempdir().unwrap();
-        let stop_at = root.path().join("no-files");
-        let nested = stop_at.join("nested");
-        fs::create_dir_all(&nested).unwrap();
-        fs::write(root.path().join("package-lock.json"), "lock").unwrap();
-
-        let detected = detect_with_options(
-            &nested,
-            &HniConfig::default(),
-            &DetectOptions {
-                stop_at: Some(stop_at.clone()),
-                ..DetectOptions::default()
-            },
-        )
-        .unwrap();
-
-        assert_ne!(detected.source, DetectionSource::Lockfile);
-    }
-
-    #[test]
-    fn detect_with_options_does_not_parse_manifests_for_lockfile_only() {
-        let root = tempdir().unwrap();
-        let nested = root.path().join("nested");
-        fs::create_dir_all(&nested).unwrap();
-        fs::write(root.path().join("package-lock.json"), "lock").unwrap();
-        write_raw(
-            root.path().join("package.json").as_path(),
-            r#"{"devEngines": "#,
-        );
-
-        let detected = detect_with_options(
-            &nested,
-            &HniConfig::default(),
-            &DetectOptions {
-                strategies: vec![DetectStrategy::Lockfile],
-                stop_at: None,
-            },
-        )
-        .unwrap();
-
-        assert_eq!(detected.agent, Some(PackageManager::Npm));
-        assert_eq!(detected.source, DetectionSource::Lockfile);
-    }
-
-    #[test]
     fn pnpm_workspace_manifest_is_not_a_lockfile() {
         let dir = tempdir().unwrap();
         fs::write(
@@ -496,27 +374,11 @@ mod tests {
     }
 
     #[test]
-    fn detect_with_options_does_not_scan_past_stop_at() {
-        let root = tempdir().unwrap();
-        let stop_at = root.path().join("mid");
-        let nested = stop_at.join("deep");
-        fs::create_dir_all(&nested).unwrap();
-        write_raw(
-            root.path().join("package.json").as_path(),
-            r#"{"devEngines": "#,
-        );
+    fn install_metadata_does_not_treat_bun_lockfiles_as_metadata() {
+        let dir = tempdir().unwrap();
+        fs::write(dir.path().join("bun.lockb"), "").unwrap();
 
-        let detected = detect_with_options(
-            &nested,
-            &HniConfig::default(),
-            &DetectOptions {
-                stop_at: Some(stop_at.clone()),
-                ..DetectOptions::default()
-            },
-        )
-        .unwrap();
-
-        assert_ne!(detected.source, DetectionSource::PackageManagerField);
+        assert_eq!(detect_install_metadata_in_dir(dir.path()), None);
     }
 
     #[test]
@@ -546,9 +408,5 @@ mod tests {
             parse_user_agent("yarn/4.2.0 npm/? node/v20.0.0 darwin x64"),
             Some(PackageManager::Yarn)
         );
-    }
-
-    fn write_raw(path: &Path, raw: &str) {
-        fs::write(path, raw).unwrap();
     }
 }

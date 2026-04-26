@@ -313,7 +313,7 @@ fn deno_mixed_project_prefers_deno_task_over_package_json_script() {
 }
 
 #[test]
-fn deno_package_json_fallback_runs_pre_and_post() {
+fn deno_package_json_only_match_delegates_to_deno() {
     support::with_env_lock(|| {
         let work = tempfile::tempdir().unwrap();
         fs::write(
@@ -328,17 +328,22 @@ fn deno_package_json_fallback_runs_pre_and_post() {
         .unwrap();
 
         let output = run_hni(
-            vec!["nr", "-C", work.path().to_str().unwrap(), "--fast", "dev"],
+            vec![
+                "nr",
+                "-C",
+                work.path().to_str().unwrap(),
+                "--fast",
+                "--debug-resolved",
+                "dev",
+            ],
             &[("HNI_SKIP_PM_CHECK", "1")],
         );
 
         assert!(output.status.success(), "{output:?}");
-        let lines = fs::read_to_string(work.path().join("order.txt"))
-            .unwrap()
-            .lines()
-            .map(str::to_string)
-            .collect::<Vec<_>>();
-        assert_eq!(lines, vec!["pre", "main", "post"]);
+        assert_eq!(
+            String::from_utf8_lossy(&output.stdout).trim(),
+            "deno task dev"
+        );
     });
 }
 
@@ -404,7 +409,7 @@ fn deno_cycle_and_workspace_fall_back_to_pm_mode() {
 }
 
 #[test]
-fn deno_nlx_native_handles_local_bins_and_delegates_remote() {
+fn deno_nlx_fast_delegates_local_and_remote_exec() {
     support::with_env_lock(|| {
         let work = tempfile::tempdir().unwrap();
         let bin_dir = work.path().join("node_modules").join(".bin");
@@ -432,7 +437,7 @@ fn deno_nlx_native_handles_local_bins_and_delegates_remote() {
         assert!(local.status.success(), "{local:?}");
         assert_eq!(
             String::from_utf8_lossy(&local.stdout).trim(),
-            "hni fast:run-local-bin hello --flag"
+            "deno run npm:hello --flag"
         );
 
         let remote = run_hni(
