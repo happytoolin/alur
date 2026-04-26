@@ -7,14 +7,6 @@ use super::{
     project::{ProjectDiscovery, ScanMode},
     types::{DetectionResult, PackageManager},
 };
-#[cfg(test)]
-use super::{
-    project::{
-        detect_dev_engines_field, detect_install_metadata_in_dir, detect_lockfile_in_dir,
-        detect_package_manager_field, parse_package_manager_field,
-    },
-    types::DetectionSource,
-};
 
 pub fn detect(cwd: &Path, config: &HniConfig) -> Result<DetectionResult> {
     Ok(ProjectDiscovery::scan(cwd, config, ScanMode::Full)?.detection)
@@ -74,7 +66,13 @@ fn parse_user_agent(value: &str) -> Option<PackageManager> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::{config::HniConfig, types::DetectionSource};
+    use crate::core::{
+        config::HniConfig,
+        project::{
+            detect_install_metadata_in_dir, detect_lockfile_in_dir, parse_package_manager_field,
+        },
+        types::DetectionSource,
+    };
     use std::fs;
     use tempfile::tempdir;
 
