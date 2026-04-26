@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::core::types::{NativeLocalBinExecution, NativeScriptExecution};
+use crate::core::types::{NativeDenoTaskExecution, NativeLocalBinExecution, NativeScriptExecution};
 
 pub(super) enum NativeDecision {
     Eligible(NativePlan),
@@ -9,12 +9,15 @@ pub(super) enum NativeDecision {
 
 pub(super) enum NativePlan {
     Script(NativeScriptExecution),
+    DenoTask(NativeDenoTaskExecution),
     LocalBin(NativeLocalBinExecution),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) enum FallbackReason {
-    DenoScriptExecution,
+    DenoTask(String),
+    MissingNearestDenoProject,
+    PackageManagerExec,
     MissingNearestPackage,
     YarnBerryPnp,
     MissingScript(String),
@@ -29,9 +32,18 @@ pub(super) enum FallbackReason {
 impl fmt::Display for FallbackReason {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::DenoScriptExecution => write!(f, "deno script execution stays delegated"),
+            Self::DenoTask(reason) => write!(f, "{reason}"),
+            Self::MissingNearestDenoProject => {
+                write!(f, "fast deno execution requires a nearest deno project")
+            }
+            Self::PackageManagerExec => {
+                write!(
+                    f,
+                    "fast local binary execution stays in package-manager exec mode"
+                )
+            }
             Self::MissingNearestPackage => {
-                write!(f, "native script execution requires a nearest package.json")
+                write!(f, "fast script execution requires a nearest package.json")
             }
             Self::YarnBerryPnp => write!(
                 f,
@@ -46,14 +58,14 @@ impl fmt::Display for FallbackReason {
                 pattern,
             } => write!(
                 f,
-                "script '{event_name}' uses unsupported native environment expansion ({pattern})"
+                "script '{event_name}' uses unsupported fast environment expansion ({pattern})"
             ),
             Self::MissingLocalBin => write!(
                 f,
                 "local binary not found in node_modules/.bin or package.json bin entries; falling back to package-manager exec"
             ),
             Self::MissingLocalBinCommand => {
-                write!(f, "native local bin execution requires a command")
+                write!(f, "fast local bin execution requires a command")
             }
         }
     }

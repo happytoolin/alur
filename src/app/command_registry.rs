@@ -50,13 +50,13 @@ const COMMAND_SPECS: &[CommandSpec] = &[
         invocation: InvocationKind::Nr,
         help_topic: HelpTopic::Nr,
         about: "run package scripts",
-        long_about: "Runs scripts through the fast/native ladder by default, then falls back to node or the detected package manager when needed.",
+        long_about: "Runs scripts in fast mode by default, then falls back to node or the detected package manager when needed.",
         examples: "Examples:\n\
              \n\
              nr                   Run 'start'\n\
              nr dev               Run dev script\n\
-             nr --fast dev        Force the fast/native ladder\n\
-             nr --no-native dev   Force package-manager execution\n\
+             nr --fast dev        Force fast mode\n\
+             nr --pm dev          Force package-manager mode\n\
              nr test -- --watch   Pass extra args to script\n\
              nr --if-present lint Skip failure if script is missing",
         handler: commands::handle_nr,
@@ -76,17 +76,17 @@ const COMMAND_SPECS: &[CommandSpec] = &[
         handler: commands::handle_nlx,
     },
     CommandSpec {
-        name: "nu",
-        invocation: InvocationKind::Nu,
-        help_topic: HelpTopic::Nu,
+        name: "nru",
+        invocation: InvocationKind::Nru,
+        help_topic: HelpTopic::Nru,
         about: "upgrade dependencies",
         long_about: "Upgrades dependencies using package-manager-specific update commands.",
         examples: "Examples:\n\
              \n\
-             nu\n\
-             nu react react-dom\n\
-             nu --interactive      Interactive mode when supported",
-        handler: commands::handle_nu,
+             nru\n\
+             nru react react-dom\n\
+             nru --interactive      Interactive mode when supported",
+        handler: commands::handle_nru,
     },
     CommandSpec {
         name: "nun",

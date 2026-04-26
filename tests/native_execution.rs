@@ -31,7 +31,7 @@ fn native_nr_runs_hooks_from_nearest_package_and_forwards_args() {
                 "nr",
                 "-C",
                 pkg.to_str().unwrap(),
-                "--native",
+                "--fast",
                 "dev",
                 "--",
                 "alpha",
@@ -71,7 +71,7 @@ fn native_nlx_runs_local_bin_directly() {
                 "nlx",
                 "-C",
                 project.to_str().unwrap(),
-                "--native",
+                "--fast",
                 "hello",
                 "world",
             ],
@@ -104,7 +104,7 @@ fn native_explain_reports_fallback_reason() {
                 "nr",
                 "-C",
                 project.to_str().unwrap(),
-                "--native",
+                "--fast",
                 "--explain",
                 "dev",
             ],
@@ -115,8 +115,8 @@ fn native_explain_reports_fallback_reason() {
         let stdout = String::from_utf8_lossy(&output.stdout);
         assert!(stdout.contains("fast_mode: true"));
         assert!(stdout.contains("execution_mode: package-manager"));
-        assert!(stdout.contains("native_status: fallback"));
-        assert!(stdout.contains("native_fallback_reason:"));
+        assert!(stdout.contains("fast_status: fallback"));
+        assert!(stdout.contains("fast_fallback_reason:"));
         assert!(stdout.contains("resolved: npm run dev"));
     });
 }
@@ -138,7 +138,7 @@ fn native_nr_preserves_shell_glob_expansion() {
         fs::write(src_dir.join("b.js"), "").unwrap();
 
         let output = run_hni(
-            vec!["nr", "-C", project.to_str().unwrap(), "--native", "show"],
+            vec!["nr", "-C", project.to_str().unwrap(), "--fast", "show"],
             &[("HNI_SKIP_PM_CHECK", "1")],
         );
 
@@ -147,6 +147,51 @@ fn native_nr_preserves_shell_glob_expansion() {
             String::from_utf8_lossy(&output.stdout),
             "src/a.js\nsrc/b.js\n"
         );
+    });
+}
+
+#[test]
+fn native_nr_exposes_supported_shared_npm_env() {
+    support::with_env_lock(|| {
+        let work = tempfile::tempdir().unwrap();
+        let project = work.path().join("project");
+        let fake_node = work.path().join("fake-node");
+        fs::create_dir_all(&project).unwrap();
+        fs::write(project.join("package-lock.json"), "lock").unwrap();
+        fs::write(
+            project.join("package.json"),
+            r#"{"name":"x","scripts":{"dev":"printf '%s\n' \"$npm_package_json\" \"$npm_lifecycle_event\" \"$npm_lifecycle_script\" \"$npm_execpath\" \"$npm_node_execpath\" \"$npm_command\" \"$npm_config_user_agent\" \"$INIT_CWD\" > env.txt"}}"#,
+        )
+        .unwrap();
+        fs::write(&fake_node, "#!/bin/sh\nexit 0\n").unwrap();
+        make_executable(&fake_node);
+
+        let output = run_hni(
+            vec!["nr", "-C", project.to_str().unwrap(), "--fast", "dev"],
+            &[
+                ("HNI_SKIP_PM_CHECK", "1"),
+                ("HNI_REAL_NODE", fake_node.to_str().unwrap()),
+                ("npm_config_user_agent", "hni-tests/1.0.0"),
+            ],
+        );
+
+        assert!(output.status.success(), "{output:?}");
+        let lines = fs::read_to_string(project.join("env.txt"))
+            .unwrap()
+            .lines()
+            .map(str::to_string)
+            .collect::<Vec<_>>();
+        let package_json = project.join("package.json").to_string_lossy().to_string();
+        let fake_node = fake_node.to_string_lossy().to_string();
+        let project = project.to_string_lossy().to_string();
+
+        assert!(lines.contains(&package_json));
+        assert!(lines.contains(&"dev".to_string()));
+        assert!(lines.contains(&fake_node));
+        assert!(lines.contains(&"run-script".to_string()));
+        assert!(lines.contains(&"hni-tests/1.0.0".to_string()));
+        assert!(lines.contains(&project));
+        assert!(lines.iter().any(|line| !line.is_empty()));
     });
 }
 
@@ -176,7 +221,7 @@ fn node_run_prefers_builtin_node_run_when_supported() {
                 "node",
                 "-C",
                 project.to_str().unwrap(),
-                "--native",
+                "--fast",
                 "--debug-resolved",
                 "run",
                 "dev",
@@ -219,7 +264,7 @@ fn node_run_falls_back_to_native_when_node_run_is_unsafe() {
                 "node",
                 "-C",
                 project.to_str().unwrap(),
-                "--native",
+                "--fast",
                 "--debug-resolved",
                 "run",
                 "dev",
@@ -232,7 +277,7 @@ fn node_run_falls_back_to_native_when_node_run_is_unsafe() {
         assert!(run_output.status.success(), "{run_output:?}");
         assert_eq!(
             String::from_utf8_lossy(&run_output.stdout).trim(),
-            "hni native:run-script dev"
+            "hni fast:run-script dev"
         );
     });
 }
@@ -262,7 +307,7 @@ fn node_run_falls_back_to_native_when_script_uses_lifecycle_env() {
                 "node",
                 "-C",
                 project.to_str().unwrap(),
-                "--native",
+                "--fast",
                 "--debug-resolved",
                 "run",
                 "dev",
@@ -275,7 +320,7 @@ fn node_run_falls_back_to_native_when_script_uses_lifecycle_env() {
         assert!(run_output.status.success(), "{run_output:?}");
         assert_eq!(
             String::from_utf8_lossy(&run_output.stdout).trim(),
-            "hni native:run-script dev"
+            "hni fast:run-script dev"
         );
     });
 }
@@ -299,7 +344,7 @@ fn node_exec_inherits_native_resolution() {
                 "node",
                 "-C",
                 project.to_str().unwrap(),
-                "--native",
+                "--fast",
                 "--debug-resolved",
                 "exec",
                 "hello",
@@ -310,7 +355,7 @@ fn node_exec_inherits_native_resolution() {
         assert!(exec_output.status.success(), "{exec_output:?}");
         assert_eq!(
             String::from_utf8_lossy(&exec_output.stdout).trim(),
-            "hni native:run-local-bin hello world"
+            "hni fast:run-local-bin hello world"
         );
     });
 }

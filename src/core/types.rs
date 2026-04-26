@@ -8,7 +8,7 @@ pub enum HelpTopic {
     Ni,
     Nr,
     Nlx,
-    Nu,
+    Nru,
     Nun,
     Nci,
     Na,
@@ -24,7 +24,7 @@ pub enum InvocationKind {
     Ni,
     Nr,
     Nlx,
-    Nu,
+    Nru,
     Nun,
     Nci,
     Na,
@@ -54,8 +54,8 @@ pub struct ResolvedExecution {
     pub passthrough: bool,
     pub mode: ExecutionMode,
     pub strategy: ExecutionStrategy,
-    pub native_requested: bool,
-    pub native_fallback_reason: Option<String>,
+    pub fast_requested: bool,
+    pub fast_fallback_reason: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -63,7 +63,7 @@ pub enum ExecutionMode {
     PackageManager,
     NodeRun,
     PassthroughNode,
-    Native,
+    Fast,
     Internal,
 }
 
@@ -76,6 +76,7 @@ pub enum ExecutionStrategy {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum NativeExecution {
     RunScript(NativeScriptExecution),
+    RunDenoTask(NativeDenoTaskExecution),
     RunLocalBin(NativeLocalBinExecution),
 }
 
@@ -92,6 +93,28 @@ pub struct NativeScriptExecution {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NativeScriptStep {
     pub event_name: String,
+    pub command: String,
+    pub forward_args: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NativeDenoTaskExecution {
+    pub project_root: PathBuf,
+    pub config_path: Option<PathBuf>,
+    pub selection: String,
+    pub stages: Vec<NativeDenoTaskStage>,
+    pub forwarded_args: Vec<String>,
+    pub bin_paths: Vec<PathBuf>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NativeDenoTaskStage {
+    pub steps: Vec<NativeDenoTaskStep>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NativeDenoTaskStep {
+    pub task_name: String,
     pub command: String,
     pub forward_args: bool,
 }
@@ -156,8 +179,8 @@ impl ResolvedExecution {
             passthrough,
             mode,
             strategy: ExecutionStrategy::External,
-            native_requested: false,
-            native_fallback_reason: None,
+            fast_requested: false,
+            fast_fallback_reason: None,
         }
     }
 
@@ -175,8 +198,8 @@ impl ResolvedExecution {
             passthrough,
             mode: ExecutionMode::PackageManager,
             strategy: ExecutionStrategy::External,
-            native_requested: true,
-            native_fallback_reason: Some(reason.into()),
+            fast_requested: true,
+            fast_fallback_reason: Some(reason.into()),
         }
     }
 
@@ -191,10 +214,28 @@ impl ResolvedExecution {
             args: exec.forwarded_args.clone(),
             cwd,
             passthrough: false,
-            mode: ExecutionMode::Native,
+            mode: ExecutionMode::Fast,
             strategy: ExecutionStrategy::Native(NativeExecution::RunScript(exec)),
-            native_requested: true,
-            native_fallback_reason: None,
+            fast_requested: true,
+            fast_fallback_reason: None,
+        }
+    }
+
+    pub fn native_deno_task(
+        selection: impl Into<String>,
+        cwd: PathBuf,
+        exec: NativeDenoTaskExecution,
+    ) -> Self {
+        let selection = selection.into();
+        Self {
+            program: selection.clone(),
+            args: exec.forwarded_args.clone(),
+            cwd,
+            passthrough: false,
+            mode: ExecutionMode::Fast,
+            strategy: ExecutionStrategy::Native(NativeExecution::RunDenoTask(exec)),
+            fast_requested: true,
+            fast_fallback_reason: None,
         }
     }
 
@@ -208,10 +249,10 @@ impl ResolvedExecution {
             args: exec.forwarded_args.clone(),
             cwd,
             passthrough: false,
-            mode: ExecutionMode::Native,
+            mode: ExecutionMode::Fast,
             strategy: ExecutionStrategy::Native(NativeExecution::RunLocalBin(exec)),
-            native_requested: true,
-            native_fallback_reason: None,
+            fast_requested: true,
+            fast_fallback_reason: None,
         }
     }
 
@@ -224,7 +265,7 @@ impl ResolvedExecution {
             ExecutionMode::PackageManager => "package-manager",
             ExecutionMode::NodeRun => "node-run",
             ExecutionMode::PassthroughNode => "passthrough-node",
-            ExecutionMode::Native => "native",
+            ExecutionMode::Fast => "fast",
             ExecutionMode::Internal => "internal",
         }
     }
@@ -291,6 +332,8 @@ impl PackageManager {
 pub enum DetectionSource {
     PackageManagerField,
     Lockfile,
+    DevEnginesField,
+    InstallMetadata,
     Config,
     Fallback,
     None,

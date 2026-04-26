@@ -21,7 +21,7 @@ fn config_loads_and_env_overrides() {
 
         support::set_var("HNI_CONFIG_FILE", &cfg_path);
         support::set_var("HNI_GLOBAL_PACKAGE_MANAGER", "npm");
-        support::set_var("HNI_FAST_MODE", "false");
+        support::set_var("HNI_FAST", "false");
 
         let cfg = HniConfig::load().unwrap();
         assert_eq!(cfg.default_package_manager, Some(PackageManager::Pnpm));
@@ -30,7 +30,7 @@ fn config_loads_and_env_overrides() {
 
         support::remove_var("HNI_CONFIG_FILE");
         support::remove_var("HNI_GLOBAL_PACKAGE_MANAGER");
-        support::remove_var("HNI_FAST_MODE");
+        support::remove_var("HNI_FAST");
     });
 }
 
@@ -87,7 +87,7 @@ fn ignores_legacy_ni_environment_variables() {
         support::set_var("NI_USE_SFW", "true");
         support::set_var("NI_AUTO_INSTALL", "true");
 
-        let cfg = HniConfig::load().unwrap();
+        let cfg = support::with_var_removed("HNI_FAST", HniConfig::load).unwrap();
 
         support::remove_var("NI_DEFAULT_AGENT");
         support::remove_var("NI_GLOBAL_AGENT");
@@ -113,7 +113,7 @@ fn ignores_legacy_nirc_fallback() {
         .unwrap();
 
         support::set_var("HOME", &home);
-        let cfg = HniConfig::load().unwrap();
+        let cfg = support::with_var_removed("HNI_FAST", HniConfig::load).unwrap();
         support::remove_var("HOME");
 
         assert_eq!(cfg.default_package_manager, None);

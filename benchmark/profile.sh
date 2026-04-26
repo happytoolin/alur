@@ -56,6 +56,6 @@ export HNI_SKIP_PM_CHECK=true
 
 ITERATIONS="${HNI_PROFILE_ITERATIONS:-4000}"
 
-profile_case delegated-pnpm-resolve internal profile-loop --iterations "$ITERATIONS" nr noop -C "$FIXTURE" --no-native
-profile_case native-pnpm-resolve internal profile-loop --iterations "$ITERATIONS" nr noop -C "$FIXTURE" --native
-profile_case native-pnpm-hooks-resolve internal profile-loop --iterations "$ITERATIONS" nr hooks -C "$FIXTURE" --native
+profile_case pm-pnpm-resolve internal profile-loop --iterations "$ITERATIONS" nr noop -C "$FIXTURE" --pm
+profile_case fast-pnpm-resolve internal profile-loop --iterations "$ITERATIONS" nr noop -C "$FIXTURE" --fast
+profile_case fast-pnpm-hooks-resolve internal profile-loop --iterations "$ITERATIONS" nr hooks -C "$FIXTURE" --fast

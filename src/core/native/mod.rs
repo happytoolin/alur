@@ -11,7 +11,7 @@ use anyhow::Result;
 
 use crate::core::{
     resolve::ResolveContext,
-    types::{PackageManager, ResolvedExecution},
+    types::{NativeDenoTaskExecution, PackageManager, ResolvedExecution},
 };
 
 use plan::{NativeDecision, NativePlan};
@@ -61,6 +61,13 @@ pub fn run_script(
     exec::run_script(exec, invocation_cwd)
 }
 
+pub fn run_deno_task(
+    exec: &NativeDenoTaskExecution,
+    invocation_cwd: &Path,
+) -> Result<std::process::ExitCode> {
+    exec::run_deno_task(exec, invocation_cwd)
+}
+
 pub fn run_local_bin(
     exec: &crate::core::types::NativeLocalBinExecution,
     cwd: &Path,
@@ -77,6 +84,9 @@ fn into_attempt(decision: NativeDecision, cwd: &Path) -> Result<NativeAttempt> {
         NativeDecision::Eligible(plan) => NativeAttempt::Eligible(Box::new(match plan {
             NativePlan::Script(exec) => {
                 ResolvedExecution::native_script(exec.script_name.clone(), cwd.to_path_buf(), exec)
+            }
+            NativePlan::DenoTask(exec) => {
+                ResolvedExecution::native_deno_task(exec.selection.clone(), cwd.to_path_buf(), exec)
             }
             NativePlan::LocalBin(exec) => {
                 ResolvedExecution::native_local_bin(exec.bin_name.clone(), cwd.to_path_buf(), exec)

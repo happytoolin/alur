@@ -47,12 +47,6 @@ impl Manager {
 }
 
 #[derive(Clone, Copy, Debug)]
-enum CommandFamily {
-    Nr,
-    Nlx,
-}
-
-#[derive(Clone, Copy, Debug)]
 enum Classification {
     Equivalence,
     Fallback,
@@ -64,7 +58,6 @@ struct NativeRegressionCase {
     upstream_file: &'static str,
     upstream_test: &'static str,
     manager: Manager,
-    family: CommandFamily,
     classification: Classification,
     setup: fn(&Path),
     subject: &'static str,
@@ -114,7 +107,7 @@ fn native_regression_cases_match_or_fallback_to_the_package_manager() {
                 Classification::Equivalence => {
                     let stdout = String::from_utf8_lossy(&run.debug_output.stdout);
                     assert!(
-                        stdout.starts_with("hni native:"),
+                        stdout.starts_with("hni fast:"),
                         "equivalence case '{}' did not resolve natively: {stdout}",
                         case.name,
                     );
@@ -125,7 +118,7 @@ fn native_regression_cases_match_or_fallback_to_the_package_manager() {
                         .expect("fallback cases should capture explain output");
                     let stdout = String::from_utf8_lossy(&explain.stdout);
                     assert!(
-                        stdout.contains("native_status: fallback"),
+                        stdout.contains("fast_status: fallback"),
                         "fallback case '{}' did not report fallback: {stdout}",
                         case.name
                     );
@@ -150,7 +143,6 @@ fn native_regression_cases() -> Vec<NativeRegressionCase> {
             upstream_file: "https://github.com/npm/run-script/blob/main/test/run-script-pkg.js",
             upstream_test: "stdio inherit args and no pkgid / run-script-pkg",
             manager: Manager::Npm,
-            family: CommandFamily::Nr,
             classification: Classification::Equivalence,
             setup: setup_hooked_script_fixture_npm,
             subject: "dev",
@@ -163,33 +155,18 @@ fn native_regression_cases() -> Vec<NativeRegressionCase> {
             upstream_file: "https://github.com/npm/run-script/blob/main/lib/package-envs.js",
             upstream_test: "package env expansion remains package-manager-owned",
             manager: Manager::Npm,
-            family: CommandFamily::Nr,
             classification: Classification::Fallback,
             setup: setup_env_expansion_fixture_npm,
             subject: "dev",
             forwarded_args: &[],
-            fallback_reason_fragment: Some("unsupported native environment expansion"),
+            fallback_reason_fragment: Some("unsupported fast environment expansion"),
             assert_state: assert_env_expansion_fixture,
-        },
-        NativeRegressionCase {
-            name: "pnpm-local-bin-exec",
-            upstream_file: "https://github.com/pnpm/pnpm/blob/main/exec/lifecycle/test/index.ts",
-            upstream_test: "runLifecycleHook() escapes the args passed to the script",
-            manager: Manager::Pnpm,
-            family: CommandFamily::Nlx,
-            classification: Classification::Equivalence,
-            setup: setup_local_bin_fixture_pnpm,
-            subject: "hello",
-            forwarded_args: &["world", "again"],
-            fallback_reason_fragment: None,
-            assert_state: assert_local_bin_fixture,
         },
         NativeRegressionCase {
             name: "pnpm-script-arg-newline-escaping",
             upstream_file: "https://github.com/pnpm/pnpm/blob/main/exec/lifecycle/test/index.ts",
             upstream_test: "runLifecycleHook() passes newline correctly",
             manager: Manager::Pnpm,
-            family: CommandFamily::Nr,
             classification: Classification::Equivalence,
             setup: setup_pnpm_newline_args_fixture,
             subject: "echo",
@@ -202,7 +179,6 @@ fn native_regression_cases() -> Vec<NativeRegressionCase> {
             upstream_file: "https://github.com/yarnpkg/berry/blob/master/packages/acceptance-tests/pkg-tests-specs/sources/commands/run.test.js",
             upstream_test: "it should prefer scripts over binaries",
             manager: Manager::Yarn,
-            family: CommandFamily::Nr,
             classification: Classification::Equivalence,
             setup: setup_yarn_script_precedence_fixture,
             subject: "hello",
@@ -215,7 +191,6 @@ fn native_regression_cases() -> Vec<NativeRegressionCase> {
             upstream_file: "https://github.com/yarnpkg/berry/blob/master/packages/acceptance-tests/pkg-tests-specs/sources/commands/run.test.js",
             upstream_test: "it shouldn't require the \"--\" flag to stop interpreting options after \"run\" commands (scripts)",
             manager: Manager::Yarn,
-            family: CommandFamily::Nr,
             classification: Classification::Equivalence,
             setup: setup_yarn_option_forwarding_fixture,
             subject: "hello",
@@ -228,7 +203,6 @@ fn native_regression_cases() -> Vec<NativeRegressionCase> {
             upstream_file: "https://github.com/oven-sh/bun/blob/main/test/cli/install/bun-run.test.ts",
             upstream_test: "exit code message works above 128 / exit signal works",
             manager: Manager::Bun,
-            family: CommandFamily::Nr,
             classification: Classification::Equivalence,
             setup: setup_bun_exit_code_fixture,
             subject: "dev",
@@ -241,7 +215,6 @@ fn native_regression_cases() -> Vec<NativeRegressionCase> {
             upstream_file: "https://github.com/oven-sh/bun/blob/main/test/cli/install/bun-run.test.ts",
             upstream_test: "should not passthrough script arguments to pre- or post- scripts",
             manager: Manager::Bun,
-            family: CommandFamily::Nr,
             classification: Classification::Equivalence,
             setup: setup_bun_prepost_fixture,
             subject: "myscript",
@@ -292,8 +265,8 @@ fn run_case(case: NativeRegressionCase) -> CaseRun {
 }
 
 fn oracle_args(case: NativeRegressionCase) -> Vec<String> {
-    match (case.manager, case.family) {
-        (Manager::Npm, CommandFamily::Nr) => {
+    match case.manager {
+        Manager::Npm => {
             let mut args = vec!["run".to_string(), case.subject.to_string()];
             if !case.forwarded_args.is_empty() {
                 args.push("--".to_string());
@@ -301,34 +274,8 @@ fn oracle_args(case: NativeRegressionCase) -> Vec<String> {
             }
             args
         }
-        (Manager::Pnpm, CommandFamily::Nr)
-        | (Manager::Yarn, CommandFamily::Nr)
-        | (Manager::Bun, CommandFamily::Nr) => {
+        Manager::Pnpm | Manager::Yarn | Manager::Bun => {
             let mut args = vec!["run".to_string(), case.subject.to_string()];
-            args.extend(case.forwarded_args.iter().map(|arg| arg.to_string()));
-            args
-        }
-        (Manager::Npm, CommandFamily::Nlx) => {
-            let mut args = vec![
-                "exec".to_string(),
-                "--".to_string(),
-                case.subject.to_string(),
-            ];
-            args.extend(case.forwarded_args.iter().map(|arg| arg.to_string()));
-            args
-        }
-        (Manager::Pnpm, CommandFamily::Nlx) => {
-            let mut args = vec!["exec".to_string(), case.subject.to_string()];
-            args.extend(case.forwarded_args.iter().map(|arg| arg.to_string()));
-            args
-        }
-        (Manager::Yarn, CommandFamily::Nlx) => {
-            let mut args = vec!["run".to_string(), case.subject.to_string()];
-            args.extend(case.forwarded_args.iter().map(|arg| arg.to_string()));
-            args
-        }
-        (Manager::Bun, CommandFamily::Nlx) => {
-            let mut args = vec!["x".to_string(), case.subject.to_string()];
             args.extend(case.forwarded_args.iter().map(|arg| arg.to_string()));
             args
         }
@@ -337,13 +284,10 @@ fn oracle_args(case: NativeRegressionCase) -> Vec<String> {
 
 fn hni_args(case: NativeRegressionCase, cwd: &Path) -> Vec<String> {
     let mut args = vec![
-        match case.family {
-            CommandFamily::Nr => "nr".to_string(),
-            CommandFamily::Nlx => "nlx".to_string(),
-        },
+        "nr".to_string(),
         "-C".to_string(),
         cwd.to_string_lossy().to_string(),
-        "--native".to_string(),
+        "--fast".to_string(),
         case.subject.to_string(),
     ];
     args.extend(case.forwarded_args.iter().map(|arg| arg.to_string()));
@@ -352,13 +296,10 @@ fn hni_args(case: NativeRegressionCase, cwd: &Path) -> Vec<String> {
 
 fn hni_explain_args(case: NativeRegressionCase, cwd: &Path) -> Vec<String> {
     let mut args = vec![
-        match case.family {
-            CommandFamily::Nr => "nr".to_string(),
-            CommandFamily::Nlx => "nlx".to_string(),
-        },
+        "nr".to_string(),
         "-C".to_string(),
         cwd.to_string_lossy().to_string(),
-        "--native".to_string(),
+        "--fast".to_string(),
         "--explain".to_string(),
         case.subject.to_string(),
     ];
@@ -368,13 +309,10 @@ fn hni_explain_args(case: NativeRegressionCase, cwd: &Path) -> Vec<String> {
 
 fn hni_debug_args(case: NativeRegressionCase, cwd: &Path) -> Vec<String> {
     let mut args = vec![
-        match case.family {
-            CommandFamily::Nr => "nr".to_string(),
-            CommandFamily::Nlx => "nlx".to_string(),
-        },
+        "nr".to_string(),
         "-C".to_string(),
         cwd.to_string_lossy().to_string(),
-        "--native".to_string(),
+        "--fast".to_string(),
         "--debug-resolved".to_string(),
         case.subject.to_string(),
     ];
@@ -414,28 +352,6 @@ fn setup_env_expansion_fixture_npm(root: &Path) {
         r#"{"name":"envy","packageManager":"npm@11.6.2","scripts":{"dev":"printf '%s' \"$npm_package_name\" > env.txt"}}"#,
     )
     .unwrap();
-}
-
-fn setup_local_bin_fixture_pnpm(root: &Path) {
-    init_project(root, Manager::Pnpm, "pnpm-local-bin");
-    fs::write(
-        root.join("package.json"),
-        format!(
-            r#"{{"name":"pnpm-local-bin","packageManager":"{}"}}"#,
-            Manager::Pnpm.package_manager()
-        ),
-    )
-    .unwrap();
-
-    let bin_dir = root.join("node_modules").join(".bin");
-    fs::create_dir_all(&bin_dir).unwrap();
-    let bin = bin_dir.join("hello");
-    fs::write(
-        &bin,
-        "#!/bin/sh\nprintf '%s' \"$*\" > bin-args.txt\nprintf 'bin' > bin-source.txt\n",
-    )
-    .unwrap();
-    make_executable(&bin);
 }
 
 fn setup_yarn_script_precedence_fixture(root: &Path) {
@@ -545,17 +461,6 @@ fn assert_hooked_script_fixture(root: &Path) {
 
 fn assert_env_expansion_fixture(root: &Path) {
     assert_eq!(fs::read_to_string(root.join("env.txt")).unwrap(), "envy");
-}
-
-fn assert_local_bin_fixture(root: &Path) {
-    assert_eq!(
-        fs::read_to_string(root.join("bin-args.txt")).unwrap(),
-        "world again"
-    );
-    assert_eq!(
-        fs::read_to_string(root.join("bin-source.txt")).unwrap(),
-        "bin"
-    );
 }
 
 fn assert_yarn_script_precedence_fixture(root: &Path) {

@@ -129,6 +129,8 @@ fn detection_source_label(value: DetectionSource) -> &'static str {
     match value {
         DetectionSource::PackageManagerField => "packageManager field",
         DetectionSource::Lockfile => "lockfile",
+        DetectionSource::DevEnginesField => "devEngines.packageManager field",
+        DetectionSource::InstallMetadata => "install metadata",
         DetectionSource::Config => "config defaultPackageManager",
         DetectionSource::Fallback => "fallback (npm in PATH)",
         DetectionSource::None => "none",

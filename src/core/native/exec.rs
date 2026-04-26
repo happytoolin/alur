@@ -1,20 +1,25 @@
 use std::{
+    collections::HashMap,
+    ffi::OsString,
     path::Path,
     process::{Command, ExitCode},
 };
 
 use anyhow::{Context, Result};
+use deno_task_shell::{KillSignal, execute, parser::parse};
+use tokio::{runtime::Builder, task::LocalSet};
 
 use crate::{
     core::{
         shell::{configure_command, shell_command, shell_escape},
         types::{
-            ExecutionStrategy, NativeExecution, NativeLocalBinExecution, NativeLocalBinLauncher,
+            ExecutionStrategy, NativeDenoTaskExecution, NativeDenoTaskStage, NativeDenoTaskStep,
+            NativeExecution, NativeLocalBinExecution, NativeLocalBinLauncher,
             NativeScriptExecution, ResolvedExecution,
         },
         util::exit_code_from_status,
     },
-    platform::node::resolve_real_node_path,
+    platform::node::{REAL_NODE_ENV, resolve_real_node_path},
 };
 
 use super::env::{apply_native_environment, native_script_env};
@@ -65,21 +70,57 @@ pub(super) fn run_local_bin(exec: &NativeLocalBinExecution, cwd: &Path) -> Resul
     Ok(exit_code_from_status(status.code()))
 }
 
+pub(super) fn run_deno_task(
+    exec: &NativeDenoTaskExecution,
+    invocation_cwd: &Path,
+) -> Result<ExitCode> {
+    let envs = deno_task_env(exec, invocation_cwd)?;
+
+    for stage in &exec.stages {
+        for step in &stage.steps {
+            print_deno_task_line(step, &exec.forwarded_args);
+        }
+
+        let Some(command) = stage_command(stage, &exec.forwarded_args) else {
+            continue;
+        };
+
+        let exit_code = execute_deno_shell_command(&command, &exec.project_root, &envs)?;
+        if exit_code != 0 {
+            return Ok(exit_code_from_status(Some(exit_code)));
+        }
+    }
+
+    Ok(ExitCode::SUCCESS)
+}
+
 pub(super) fn format_debug(exec: &ResolvedExecution) -> String {
     match &exec.strategy {
         ExecutionStrategy::Native(NativeExecution::RunScript(native)) => {
             let mut rendered = vec![
                 "hni".to_string(),
-                "native:run-script".to_string(),
+                "fast:run-script".to_string(),
                 native.script_name.clone(),
             ];
             rendered.extend(native.forwarded_args.clone());
             join_rendered(rendered)
         }
+        ExecutionStrategy::Native(NativeExecution::RunDenoTask(native)) => {
+            let mut rendered = vec![
+                "hni".to_string(),
+                "fast:run-deno-task".to_string(),
+                native.selection.clone(),
+            ];
+            if !native.forwarded_args.is_empty() {
+                rendered.push("--".to_string());
+                rendered.extend(native.forwarded_args.clone());
+            }
+            join_rendered(rendered)
+        }
         ExecutionStrategy::Native(NativeExecution::RunLocalBin(native)) => {
             let mut rendered = vec![
                 "hni".to_string(),
-                "native:run-local-bin".to_string(),
+                "fast:run-local-bin".to_string(),
                 native.bin_name.clone(),
             ];
             rendered.extend(native.forwarded_args.clone());
@@ -95,6 +136,112 @@ fn join_rendered(rendered: Vec<String>) -> String {
         .map(|part| shell_escape(part))
         .collect::<Vec<_>>()
         .join(" ")
+}
+
+fn deno_task_env(
+    exec: &NativeDenoTaskExecution,
+    invocation_cwd: &Path,
+) -> Result<HashMap<OsString, OsString>> {
+    let mut envs = std::env::vars_os().collect::<HashMap<_, _>>();
+    envs.insert(
+        OsString::from("INIT_CWD"),
+        invocation_cwd.as_os_str().to_os_string(),
+    );
+    envs.insert(
+        OsString::from("PATH"),
+        OsString::from(super::env::merged_path_with_bins(&exec.bin_paths)?),
+    );
+
+    if let Ok(real_node) = resolve_real_node_path() {
+        envs.insert(OsString::from(REAL_NODE_ENV), real_node.into_os_string());
+    }
+
+    Ok(envs)
+}
+
+fn stage_command(stage: &NativeDenoTaskStage, forwarded_args: &[String]) -> Option<String> {
+    if stage.steps.is_empty() {
+        return None;
+    }
+
+    let commands = stage
+        .steps
+        .iter()
+        .map(|step| {
+            let command = deno_task_command_string(
+                &step.command,
+                if step.forward_args {
+                    forwarded_args
+                } else {
+                    &[]
+                },
+            );
+            if stage.steps.len() == 1 {
+                command
+            } else {
+                format!("({command})")
+            }
+        })
+        .collect::<Vec<_>>();
+
+    Some(if commands.len() == 1 {
+        commands[0].clone()
+    } else {
+        commands.join(" & ")
+    })
+}
+
+fn deno_task_command_string(command: &str, forwarded_args: &[String]) -> String {
+    if forwarded_args.is_empty() {
+        return command.to_string();
+    }
+
+    format!(
+        "{command} -- {}",
+        forwarded_args
+            .iter()
+            .map(|arg| shell_escape(arg))
+            .collect::<Vec<_>>()
+            .join(" ")
+    )
+}
+
+fn print_deno_task_line(step: &NativeDenoTaskStep, forwarded_args: &[String]) {
+    if step.forward_args && !forwarded_args.is_empty() {
+        println!(
+            "Task {} {} -- {}",
+            step.task_name,
+            step.command,
+            forwarded_args
+                .iter()
+                .map(|arg| shell_escape(arg))
+                .collect::<Vec<_>>()
+                .join(" ")
+        );
+    } else {
+        println!("Task {} {}", step.task_name, step.command);
+    }
+}
+
+fn execute_deno_shell_command(
+    command: &str,
+    cwd: &Path,
+    envs: &HashMap<OsString, OsString>,
+) -> Result<i32> {
+    let parsed = parse(command).context("failed to parse deno task command")?;
+    let runtime = Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .context("failed to build tokio runtime")?;
+    let local_set = LocalSet::new();
+
+    Ok(runtime.block_on(local_set.run_until(execute(
+        parsed,
+        envs.clone(),
+        cwd.to_path_buf(),
+        Default::default(),
+        KillSignal::default(),
+    ))))
 }
 
 fn spawn_local_bin_command(exec: &NativeLocalBinExecution) -> Result<Command> {

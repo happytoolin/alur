@@ -18,31 +18,25 @@ fmt-check:
 lint:
     cargo clippy --all-targets --all-features -- -D warnings
 
-test:
-    HNI_FAST_MODE=false cargo test --all-targets --all-features
+[parallel]
+test: test-pm test-fast
 
-test-native:
-    HNI_FAST_MODE=true cargo test --all-targets --all-features
+test-pm:
+    HNI_FAST=false cargo test --all-targets --all-features
+
+test-fast:
+    HNI_FAST=true cargo test --all-targets --all-features
 
 test-all:
     node ./scripts/test-modes.mjs all
 
-ci: fmt-check lint test test-native
+ci: fmt-check lint test
 
-bench:
-    ./benchmark/run.sh
-
-bench-compare:
-    ./benchmark/run.sh --track=compare
-
-bench-native:
-    ./benchmark/run.sh --track=native
-
-bench-runtime:
-    ./benchmark/run.sh --track=runtime
-
-bench-direct:
-    ./benchmark/run.sh --track=direct
+bench *args:
+    ./benchmark/run.sh {{args}}
 
 bench-profile:
     ./benchmark/profile.sh
+
+[parallel]
+tidy: fmt lint

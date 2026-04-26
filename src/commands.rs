@@ -33,8 +33,8 @@ pub fn handle_nlx(args: Vec<String>, ctx: &ResolveContext) -> Result<Option<Reso
     Ok(Some(resolve::resolve_nlx(args, ctx)?))
 }
 
-pub fn handle_nu(args: Vec<String>, ctx: &ResolveContext) -> Result<Option<ResolvedExecution>> {
-    Ok(Some(resolve::resolve_nu(args, ctx)?))
+pub fn handle_nru(args: Vec<String>, ctx: &ResolveContext) -> Result<Option<ResolvedExecution>> {
+    Ok(Some(resolve::resolve_nru(args, ctx)?))
 }
 
 pub fn handle_nun(

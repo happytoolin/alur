@@ -7,16 +7,18 @@ It replaces the older benchmark trees, which are preserved under [`benchmark/old
 ## Tracks
 
 - `compare`: `@antfu/ni` vs `hni` for a very small CLI/startup-oriented set
-- `native`: `hni` delegated mode vs `hni` native mode
+- `fast`: `hni` pm mode vs `hni` fast mode
 - `runtime`: `hni` vs `bun` vs `deno` for a few comparable task-running cases
-- `direct`: package-manager-native commands (`npm run`, `pnpm run`, `yarn run`, `bun run`, `deno task`) plus local-bin exec flows (`npx`, `pnpm exec`, `yarn <bin>`, `bun x`) vs `hni` native mode
+- `direct`: package-manager-native commands (`npm run`, `pnpm run`, `yarn run`, `bun run`, `deno task`) plus local-bin exec flows (`npx`, `pnpm exec`, `yarn <bin>`, `bun x`) vs `hni` fast mode
+- `fixtures`: direct package-manager invocation vs `hni` pm mode vs `hni` fast mode across the runnable fixture corpus in `tests/fixtures`
 
 All timing uses `hyperfine`.
 
 Defaults:
 
-- `500` measured runs per case
-- `50` warmups per case
+- `fast` track only
+- `50` measured runs per case
+- `2` warmups per case
 
 ## Requirements
 
@@ -42,7 +44,7 @@ cargo install flamegraph
 
 ## Run
 
-Build release binary and run all tracks:
+Build release binary and run the default local benchmark:
 
 ```bash
 ./benchmark/run.sh
@@ -52,12 +54,19 @@ Run one track:
 
 ```bash
 ./benchmark/run.sh --track=compare
-./benchmark/run.sh --track=native
+./benchmark/run.sh --track=fast
 ./benchmark/run.sh --track=runtime
 ./benchmark/run.sh --track=direct
+./benchmark/run.sh --track=fixtures
 ```
 
-Smaller local run:
+Full release-style run:
+
+```bash
+./benchmark/run.sh --track=all --runs=500 --warmups=50
+```
+
+Tiny smoke run:
 
 ```bash
 ./benchmark/run.sh --runs=3 --warmups=1 --no-build
@@ -73,7 +82,7 @@ Formats:
 
 ## Profiling
 
-Generate flamegraphs for the default `pnpm` native/delegated cases:
+Generate flamegraphs for the default `pnpm` fast/pm cases:
 
 ```bash
 ./benchmark/profile.sh
@@ -93,7 +102,8 @@ This writes SVGs into [`benchmark/profiles/`](profiles/).
 ## Notes
 
 - `compare` is intentionally tiny and presentational.
-- `native` is the engineering benchmark for native-mode wins and regressions.
+- `fast` is the engineering benchmark for fast-mode wins and regressions.
 - `runtime` keeps `bun` and `deno` separate from the Antfu comparison so the story stays fair.
-- `direct` measures the end-user value prop directly: whether `hni --native` beats invoking the package manager the way most users normally would.
+- `direct` measures the end-user value prop directly: whether `hni --fast` beats invoking the package manager the way most users normally would.
+- `fixtures` uses the checked-in runnable detector fixtures and keeps detailed per-fixture output in the track artifact while the top-level snapshot stays summary-only.
 - Full all-track runs prune older generated top-level result artifacts so the repo only keeps the current tracked snapshot instead of every intermediate run.

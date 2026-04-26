@@ -96,7 +96,7 @@ fn deprecated_question_mark_debug_alias_still_works_with_warning() {
 }
 
 #[test]
-fn native_cli_flags_override_environment_setting() {
+fn fast_and_pm_cli_flags_override_environment_setting() {
     support::with_env_lock(|| {
         let work = tempfile::tempdir().unwrap();
         let project = work.path().join("npm");
@@ -109,37 +109,37 @@ fn native_cli_flags_override_environment_setting() {
         .unwrap();
         fs::write(project.join("node_modules").join(".bin").join("vite"), "").unwrap();
 
-        let force_native = run_hni(
+        let force_fast = run_hni(
             vec![
                 "nr",
                 "-C",
                 project.to_str().unwrap(),
-                "--native",
+                "--fast",
                 "--debug-resolved",
                 "dev",
             ],
-            &[("HNI_SKIP_PM_CHECK", "1"), ("HNI_FAST_MODE", "false")],
+            &[("HNI_SKIP_PM_CHECK", "1"), ("HNI_FAST", "false")],
         );
-        assert!(force_native.status.success());
+        assert!(force_fast.status.success());
         assert_eq!(
-            String::from_utf8_lossy(&force_native.stdout).trim(),
-            "hni native:run-script dev"
+            String::from_utf8_lossy(&force_fast.stdout).trim(),
+            "hni fast:run-script dev"
         );
 
-        let disable_native = run_hni(
+        let force_pm = run_hni(
             vec![
                 "nr",
                 "-C",
                 project.to_str().unwrap(),
-                "--no-native",
+                "--pm",
                 "--debug-resolved",
                 "dev",
             ],
-            &[("HNI_SKIP_PM_CHECK", "1"), ("HNI_FAST_MODE", "true")],
+            &[("HNI_SKIP_PM_CHECK", "1"), ("HNI_FAST", "true")],
         );
-        assert!(disable_native.status.success());
+        assert!(force_pm.status.success());
         assert_eq!(
-            String::from_utf8_lossy(&disable_native.stdout).trim(),
+            String::from_utf8_lossy(&force_pm.stdout).trim(),
             "npm run dev"
         );
     });
@@ -162,43 +162,45 @@ fn default_fast_mode_resolves_nr_and_nlx_natively() {
         fs::write(bin_dir.join("hello"), "#!/bin/sh\nexit 0\n").unwrap();
         make_executable(&bin_dir.join("hello"));
 
-        let nr = run_hni(
-            vec![
-                "nr",
-                "-C",
-                project.to_str().unwrap(),
-                "--debug-resolved",
-                "dev",
-            ],
-            &[("HNI_SKIP_PM_CHECK", "1")],
-        );
-        assert!(nr.status.success(), "{nr:?}");
-        assert_eq!(
-            String::from_utf8_lossy(&nr.stdout).trim(),
-            "hni native:run-script dev"
-        );
+        support::with_var_removed("HNI_FAST", || {
+            let nr = run_hni(
+                vec![
+                    "nr",
+                    "-C",
+                    project.to_str().unwrap(),
+                    "--debug-resolved",
+                    "dev",
+                ],
+                &[("HNI_SKIP_PM_CHECK", "1")],
+            );
+            assert!(nr.status.success(), "{nr:?}");
+            assert_eq!(
+                String::from_utf8_lossy(&nr.stdout).trim(),
+                "hni fast:run-script dev"
+            );
 
-        let nlx = run_hni(
-            vec![
-                "nlx",
-                "-C",
-                project.to_str().unwrap(),
-                "--debug-resolved",
-                "hello",
-                "world",
-            ],
-            &[("HNI_SKIP_PM_CHECK", "1")],
-        );
-        assert!(nlx.status.success(), "{nlx:?}");
-        assert_eq!(
-            String::from_utf8_lossy(&nlx.stdout).trim(),
-            "hni native:run-local-bin hello world"
-        );
+            let nlx = run_hni(
+                vec![
+                    "nlx",
+                    "-C",
+                    project.to_str().unwrap(),
+                    "--debug-resolved",
+                    "hello",
+                    "world",
+                ],
+                &[("HNI_SKIP_PM_CHECK", "1")],
+            );
+            assert!(nlx.status.success(), "{nlx:?}");
+            assert_eq!(
+                String::from_utf8_lossy(&nlx.stdout).trim(),
+                "hni fast:run-local-bin hello world"
+            );
+        });
     });
 }
 
 #[test]
-fn fast_flag_is_an_alias_for_native() {
+fn fast_flag_enables_fast_mode() {
     support::with_env_lock(|| {
         let work = tempfile::tempdir().unwrap();
         let project = work.path().join("npm");
@@ -220,12 +222,12 @@ fn fast_flag_is_an_alias_for_native() {
                 "--debug-resolved",
                 "dev",
             ],
-            &[("HNI_SKIP_PM_CHECK", "1"), ("HNI_FAST_MODE", "false")],
+            &[("HNI_SKIP_PM_CHECK", "1"), ("HNI_FAST", "false")],
         );
         assert!(output.status.success(), "{output:?}");
         assert_eq!(
             String::from_utf8_lossy(&output.stdout).trim(),
-            "hni native:run-script dev"
+            "hni fast:run-script dev"
         );
     });
 }

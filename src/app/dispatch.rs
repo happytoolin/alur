@@ -38,8 +38,8 @@ pub fn run_from_env() -> Result<ExitCode> {
     }
 
     let mut config = HniConfig::load()?;
-    if let Some(native_override) = parsed.native_override {
-        config.fast_mode = native_override;
+    if let Some(fast_override) = parsed.fast_override {
+        config.fast_mode = fast_override;
     }
     let verify_package_manager_availability =
         matches!(&parsed.command, ParsedCommand::Execute { .. })
@@ -121,19 +121,16 @@ fn print_explain(
     println!("fast_mode: {}", config.fast_mode);
     println!("execution_mode: {}", resolved.execution_mode_name());
     if config.fast_mode {
-        let native_status = if resolved.native_fallback_reason.is_some() {
+        let fast_status = if resolved.fast_fallback_reason.is_some() {
             "fallback"
-        } else if matches!(
-            resolved.mode,
-            ExecutionMode::Native | ExecutionMode::NodeRun
-        ) {
+        } else if matches!(resolved.mode, ExecutionMode::Fast | ExecutionMode::NodeRun) {
             "eligible"
         } else {
             "not-applicable"
         };
-        println!("native_status: {}", native_status);
-        if let Some(reason) = &resolved.native_fallback_reason {
-            println!("native_fallback_reason: {reason}");
+        println!("fast_status: {}", fast_status);
+        if let Some(reason) = &resolved.fast_fallback_reason {
+            println!("fast_fallback_reason: {reason}");
         }
     }
     println!(

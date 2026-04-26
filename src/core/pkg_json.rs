@@ -12,6 +12,8 @@ pub struct PackageJson {
     pub name: Option<String>,
     #[serde(rename = "packageManager")]
     pub package_manager: Option<String>,
+    #[serde(rename = "devEngines")]
+    pub dev_engines: Option<DevEngines>,
     #[serde(default)]
     pub bin: PackageBin,
     pub scripts: Option<BTreeMap<String, String>>,
@@ -24,6 +26,25 @@ pub struct PackageJson {
     pub peer_dependencies: Option<BTreeMap<String, String>>,
     #[serde(rename = "optionalDependencies")]
     pub optional_dependencies: Option<BTreeMap<String, String>>,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct DevEngines {
+    #[serde(rename = "packageManager")]
+    pub package_manager: Option<DeclaredPackageManagerSpec>,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct DeclaredPackageManager {
+    pub name: Option<String>,
+    pub version: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(untagged)]
+pub enum DeclaredPackageManagerSpec {
+    Single(DeclaredPackageManager),
+    Multiple(Vec<DeclaredPackageManager>),
 }
 
 #[derive(Debug, Clone, Deserialize, Default)]

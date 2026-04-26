@@ -21,7 +21,7 @@ Fast package manager routing for `npm`, `yarn`, `pnpm`, `bun`, and `deno`.
 One install gives you:
 
 - `hni`
-- `ni`, `nr`, `nlx`, `nu`, `nun`, `nci`, `na`, `np`, `ns`
+- `ni`, `nr`, `nlx`, `nru`, `nun`, `nci`, `na`, `np`, `ns`
 - `node` shim via `hni init <shell>` (shell plugin only)
 
 ## Install
@@ -33,7 +33,7 @@ npm install -g @happytoolin/hni
 hni --version
 ```
 
-This installs `hni` and the `ni`-family aliases (`ni`, `nr`, `nlx`, `nu`, `nun`, `nci`, `na`, `np`, `ns`) onto your global npm bin path.
+This installs `hni` and the `ni`-family aliases (`ni`, `nr`, `nlx`, `nru`, `nun`, `nci`, `na`, `np`, `ns`) onto your global npm bin path.
 The `node` shim is only enabled through `hni init <shell>`.
 Under the hood, npm resolves a platform-specific optional dependency package that contains the native `hni` binary.
 
@@ -126,14 +126,15 @@ nlx eslint .
 nlx create-vite@latest
 ```
 
-### `nu`
+### `nru`
 
 Upgrade dependencies.
+Named `nru` to avoid shadowing Nushell's `nu` binary.
 
 ```bash
-nu
-nu react react-dom
-nu --interactive
+nru
+nru react react-dom
+nru --interactive
 ```
 
 ### `nun`
@@ -288,22 +289,24 @@ Environment overrides:
 - `HNI_CONFIG_FILE`
 - `HNI_DEFAULT_PACKAGE_MANAGER`
 - `HNI_GLOBAL_PACKAGE_MANAGER`
-- `HNI_FAST_MODE`
+- `HNI_FAST`
 
 ## How It Works
 
 `hni` detects the package manager from:
 
 1. `packageManager` in `package.json`
-2. lockfiles such as `pnpm-lock.yaml`, `yarn.lock`, `package-lock.json`, `bun.lockb`, or `deno.lock`
-3. config defaults if detection is unavailable
+2. lockfiles such as `pnpm-lock.yaml`, `pnpm-workspace.yaml`, `yarn.lock`, `package-lock.json`, `bun.lockb`, or `deno.lock`
+3. `devEngines.packageManager` in `package.json`
+4. install metadata such as `.pnp.cjs`, `node_modules/.pnpm`, or `node_modules/.package-lock.json`
+5. config defaults if detection is unavailable
 
-Then it maps the command family to the right native command:
+Then it maps the command family to the right underlying command:
 
 - `ni` -> install or add
 - `nr` -> run or task
 - `nlx` -> `npx` / `pnpm dlx` / `yarn dlx` / `bun x`
-- `nu` -> update / upgrade
+- `nru` -> update / upgrade
 - `nci` -> frozen install when lockfiles exist
 
 ## Troubleshooting
@@ -336,30 +339,32 @@ If you use [`just`](https://github.com/casey/just), the common local commands ar
 ```bash
 just build-release
 just test
-just test-native
+just test-fast
 just ci
 just bench
 ```
 
-Run all benchmark tracks with:
+Run the default local benchmark with:
 
 ```bash
 ./benchmark/run.sh
 just bench
 ```
 
-Run individual tracks with:
+Pass options through either entrypoint:
 
 ```bash
-just bench-compare
-just bench-native
-just bench-runtime
-just bench-direct
-
 ./benchmark/run.sh --track=compare
-./benchmark/run.sh --track=native
+./benchmark/run.sh --track=fast
 ./benchmark/run.sh --track=runtime
 ./benchmark/run.sh --track=direct
+just bench --track=direct --runs=3 --warmups=1 --no-build
+```
+
+Run the full release-style matrix with:
+
+```bash
+./benchmark/run.sh --track=all --runs=500 --warmups=50
 ```
 
 Generate flamegraphs with:
@@ -372,41 +377,36 @@ Tracked benchmark docs:
 
 - current snapshot: [`benchmark/LATEST.md`](benchmark/LATEST.md)
 - lightweight history: [`benchmark/HISTORY.md`](benchmark/HISTORY.md)
-- native compatibility: [`docs/native-compat.md`](docs/native-compat.md)
+- fast-mode compatibility: [`docs/fast-compat.md`](docs/fast-compat.md)
 
 ### Representative Results
 
-The current tracked snapshot is from March 22, 2026 and was generated with `50` warmups and `500` measured runs per case.
+The tracked snapshot in [`benchmark/LATEST.md`](benchmark/LATEST.md) was generated from the default `fast` track with `2` warmups and `50` measured runs per case.
 
-If you only want the headline, it is this: `hni --native` is meaningfully faster than normal package-manager usage on npm, pnpm, and yarn, still ahead on bun, and much less dramatic on deno.
+If you only want the headline, it is this: `hni --fast` averaged `3.21x` faster than pm mode inside `hni`.
 
-The clearest story is the `direct` track, which compares what people normally type against `hni --native`. In the current snapshot, `hni` averages `4.90x` faster overall there.
+The `fast` track compares pm mode versus fast mode across npm, pnpm, yarn, bun, deno, and local-bin execution.
 
 A few representative wins:
 
-| Case | Direct | `hni` native | Relative |
+| Case | pm | fast | Relative |
 | --- | ---: | ---: | ---: |
-| `task noop (npm)` | 207.83 ms | 36.63 ms | 5.67x |
-| `task noop (pnpm)` | 418.28 ms | 32.26 ms | 12.97x |
-| `task noop (yarn)` | 279.87 ms | 32.17 ms | 8.70x |
-| `exec hello --flag (npm)` | 249.48 ms | 10.25 ms | 24.35x |
-| `exec hello --flag (pnpm)` | 311.16 ms | 7.30 ms | 42.65x |
-| `exec hello --flag (yarn)` | 104.92 ms | 7.48 ms | 14.02x |
-| `exec hello --flag (bun)` | 15.07 ms | 7.46 ms | 2.02x |
+| `nr noop (npm)` | 277.68 ms | 50.09 ms | 5.54x |
+| `nr noop (pnpm)` | 428.50 ms | 32.10 ms | 13.35x |
+| `nr noop (yarn)` | 303.21 ms | 42.39 ms | 7.15x |
+| `nr hooks (npm)` | 548.99 ms | 82.75 ms | 6.63x |
+| `nr hooks (pnpm)` | 739.70 ms | 113.99 ms | 6.49x |
+| `nlx hello --flag (npm local bin)` | 324.59 ms | 8.64 ms | 37.56x |
 
-The internal `native` track tells the same story from another angle: native mode averages `4.38x` faster than delegated mode inside `hni`. The local-bin case is especially strong in the current snapshot: `nlx hello --flag (npm local bin)` lands at `7.75 ms` natively versus `334.43 ms` in delegated mode.
-
-The Antfu comparison is smaller and more lightweight, but still points the same way. On that track, `hni` averages `1.66x` faster overall, with `ni --version` coming in at `129.05 ms` for `hni` versus `334.60 ms` for Antfu's `ni`.
-
-The main caveat is still Deno. In the direct task-style cases, `hni` is basically at parity there rather than dramatically ahead. In the separate runtime-style comparison, `hni` beats bun on both cases, while deno still wins the hooked-task case.
+Bun is the main caveat: `node run noop (bun)` is slower in fast mode in the current snapshot, while the plain `nr` bun cases are close to parity.
 
 ### Methodology
 
-All timing uses `hyperfine` against the release binary. The suite looks at four angles:
+All timing uses `hyperfine` against the release binary. The suite can look at four angles:
 
-- `direct`: normal package-manager usage versus `hni --native`
-- `native`: delegated mode versus native mode inside `hni`
+- `direct`: normal package-manager usage versus `hni --fast`
+- `fast`: pm mode versus fast mode inside `hni`
 - `compare`: a small CLI-focused comparison against Antfu's `ni`
 - `runtime`: a side-by-side look at `hni`, bun, and deno on a couple of task-style cases
 
-The repo keeps the curated snapshot files rather than every intermediate result. For the full current matrix, use [`benchmark/LATEST.md`](benchmark/LATEST.md).
+The repo keeps the curated snapshot files rather than every intermediate result. For the current tracked result, use [`benchmark/LATEST.md`](benchmark/LATEST.md).

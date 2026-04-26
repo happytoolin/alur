@@ -8,7 +8,7 @@ use std::{
 mod support;
 
 #[test]
-fn compare_delegated_mode_with_installed_antfu_when_available() {
+fn compare_pm_mode_with_installed_antfu_when_available() {
     if std::env::var("HNI_ENABLE_PARITY_REFERENCE").ok().as_deref() != Some("1") {
         return;
     }
@@ -46,7 +46,7 @@ fn compare_delegated_mode_with_installed_antfu_when_available() {
         create_alias(&our_bin, &our_alias_dir, "nlx");
         create_alias(&our_bin, &our_alias_dir, "nun");
         create_alias(&our_bin, &our_alias_dir, "nci");
-        create_alias(&our_bin, &our_alias_dir, "nu");
+        create_alias(&our_bin, &our_alias_dir, "nru");
 
         let mut executed_fixtures = BTreeSet::new();
 
@@ -79,7 +79,7 @@ fn compare_delegated_mode_with_installed_antfu_when_available() {
                     &our_bin_path,
                     &fixture.path,
                     &case.args,
-                    &[("HNI_SKIP_PM_CHECK", "1"), ("HNI_FAST_MODE", "false")],
+                    &[("HNI_SKIP_PM_CHECK", "1"), ("HNI_FAST", "false")],
                 );
 
                 assert_eq!(
@@ -192,7 +192,7 @@ fn build_fixtures(root: &Path, cmds: &AntfuBins) -> Vec<Fixture> {
         },
         Case {
             antfu_bin: cmds.nup.clone(),
-            our_bin: "nu".into(),
+            our_bin: "nru".into(),
             args: vec![],
         },
     ];
@@ -238,7 +238,7 @@ fn build_fixtures(root: &Path, cmds: &AntfuBins) -> Vec<Fixture> {
     let mut pnpm_cases = base_cases.clone();
     pnpm_cases.push(Case {
         antfu_bin: cmds.nup.clone(),
-        our_bin: "nu".into(),
+        our_bin: "nru".into(),
         args: vec!["-i".into()],
     });
     fixtures.push(Fixture {
@@ -295,7 +295,7 @@ fn build_fixtures(root: &Path, cmds: &AntfuBins) -> Vec<Fixture> {
     let mut deno_cases = base_cases;
     deno_cases.push(Case {
         antfu_bin: cmds.nup.clone(),
-        our_bin: "nu".into(),
+        our_bin: "nru".into(),
         args: vec!["-i".into()],
     });
     fixtures.push(Fixture {

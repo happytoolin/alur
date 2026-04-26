@@ -7,9 +7,11 @@ import path from 'node:path'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 
-const DEFAULT_RUNS = 500
-const DEFAULT_WARMUPS = 50
-const TRACKS = ['compare', 'native', 'runtime', 'direct']
+const DEFAULT_RUNS = 50
+const DEFAULT_WARMUPS = 2
+const DEFAULT_TRACK = 'fast'
+const TRACKS = ['compare', 'fast', 'runtime', 'direct', 'fixtures']
+const SUMMARY_ONLY_TRACKS = new Set(['fixtures'])
 
 const PMS = [
   {
@@ -57,7 +59,7 @@ function parseArgs(argv) {
     runs: DEFAULT_RUNS,
     warmups: DEFAULT_WARMUPS,
     build: true,
-    track: 'all',
+    track: DEFAULT_TRACK,
     format: 'table',
   }
 
@@ -335,7 +337,7 @@ function compareCases() {
   ]
 }
 
-function nativeCases(fixturePaths) {
+function fastCases(fixturePaths) {
   const cases = []
 
   for (const pm of PMS) {
@@ -346,8 +348,8 @@ function nativeCases(fixturePaths) {
           group: 'nr',
           case: `nr noop (${pm.label})`,
           commands: [
-            { name: 'delegated', bin: 'nr', args: ['-C', fixturePaths[pm.fixtureKey], 'noop'], env: { HNI_FAST_MODE: 'false' } },
-            { name: 'native', bin: 'nr', args: ['-C', fixturePaths[pm.fixtureKey], 'noop'], env: { HNI_FAST_MODE: 'true' } },
+            { name: 'pm', bin: 'nr', args: ['-C', fixturePaths[pm.fixtureKey], 'noop'], env: { HNI_FAST: 'false' } },
+            { name: 'fast', bin: 'nr', args: ['-C', fixturePaths[pm.fixtureKey], 'noop'], env: { HNI_FAST: 'true' } },
           ],
           requiredBins: pm.requiredBins,
         },
@@ -356,8 +358,8 @@ function nativeCases(fixturePaths) {
           group: 'nr',
           case: `nr hooks (${pm.label})`,
           commands: [
-            { name: 'delegated', bin: 'nr', args: ['-C', fixturePaths[pm.fixtureKey], 'hooks'], env: { HNI_FAST_MODE: 'false' } },
-            { name: 'native', bin: 'nr', args: ['-C', fixturePaths[pm.fixtureKey], 'hooks'], env: { HNI_FAST_MODE: 'true' } },
+            { name: 'pm', bin: 'nr', args: ['-C', fixturePaths[pm.fixtureKey], 'hooks'], env: { HNI_FAST: 'false' } },
+            { name: 'fast', bin: 'nr', args: ['-C', fixturePaths[pm.fixtureKey], 'hooks'], env: { HNI_FAST: 'true' } },
           ],
           requiredBins: pm.requiredBins,
         },
@@ -366,8 +368,8 @@ function nativeCases(fixturePaths) {
           group: 'node-run',
           case: `node run noop (${pm.label})`,
           commands: [
-            { name: 'delegated', bin: 'node', args: ['-C', fixturePaths[pm.fixtureKey], 'run', 'noop'], env: { HNI_FAST_MODE: 'false' } },
-            { name: 'native', bin: 'node', args: ['-C', fixturePaths[pm.fixtureKey], 'run', 'noop'], env: { HNI_FAST_MODE: 'true' } },
+            { name: 'pm', bin: 'node', args: ['-C', fixturePaths[pm.fixtureKey], 'run', 'noop'], env: { HNI_FAST: 'false' } },
+            { name: 'fast', bin: 'node', args: ['-C', fixturePaths[pm.fixtureKey], 'run', 'noop'], env: { HNI_FAST: 'true' } },
           ],
           requiredBins: pm.requiredBins,
         },
@@ -381,8 +383,8 @@ function nativeCases(fixturePaths) {
         group: 'nr',
         case: `nr noop (${pm.label})`,
         commands: [
-          { name: 'delegated', bin: 'nr', args: ['-C', fixturePaths[pm.fixtureKey], 'noop'], env: { HNI_FAST_MODE: 'false' } },
-          { name: 'native', bin: 'nr', args: ['-C', fixturePaths[pm.fixtureKey], 'noop'], env: { HNI_FAST_MODE: 'true' } },
+          { name: 'pm', bin: 'nr', args: ['-C', fixturePaths[pm.fixtureKey], 'noop'], env: { HNI_FAST: 'false' } },
+          { name: 'fast', bin: 'nr', args: ['-C', fixturePaths[pm.fixtureKey], 'noop'], env: { HNI_FAST: 'true' } },
         ],
         requiredBins: pm.requiredBins,
       },
@@ -391,8 +393,8 @@ function nativeCases(fixturePaths) {
         group: 'nr',
         case: `nr hooks (${pm.label})`,
         commands: [
-          { name: 'delegated', bin: 'nr', args: ['-C', fixturePaths[pm.fixtureKey], 'hooks'], env: { HNI_FAST_MODE: 'false' } },
-          { name: 'native', bin: 'nr', args: ['-C', fixturePaths[pm.fixtureKey], 'hooks'], env: { HNI_FAST_MODE: 'true' } },
+          { name: 'pm', bin: 'nr', args: ['-C', fixturePaths[pm.fixtureKey], 'hooks'], env: { HNI_FAST: 'false' } },
+          { name: 'fast', bin: 'nr', args: ['-C', fixturePaths[pm.fixtureKey], 'hooks'], env: { HNI_FAST: 'true' } },
         ],
         requiredBins: pm.requiredBins,
       },
@@ -401,8 +403,8 @@ function nativeCases(fixturePaths) {
         group: 'node-run',
         case: `node run noop (${pm.label})`,
         commands: [
-          { name: 'delegated', bin: 'node', args: ['-C', fixturePaths[pm.fixtureKey], 'run', 'noop'], env: { HNI_FAST_MODE: 'false' } },
-          { name: 'native', bin: 'node', args: ['-C', fixturePaths[pm.fixtureKey], 'run', 'noop'], env: { HNI_FAST_MODE: 'true' } },
+          { name: 'pm', bin: 'node', args: ['-C', fixturePaths[pm.fixtureKey], 'run', 'noop'], env: { HNI_FAST: 'false' } },
+          { name: 'fast', bin: 'node', args: ['-C', fixturePaths[pm.fixtureKey], 'run', 'noop'], env: { HNI_FAST: 'true' } },
         ],
         requiredBins: pm.requiredBins,
       },
@@ -414,8 +416,8 @@ function nativeCases(fixturePaths) {
     group: 'nlx',
     case: 'nlx hello --flag (npm local bin)',
     commands: [
-      { name: 'delegated', bin: 'nlx', args: ['-C', fixturePaths.npm, 'hello', '--flag'], env: { HNI_FAST_MODE: 'false' } },
-      { name: 'native', bin: 'nlx', args: ['-C', fixturePaths.npm, 'hello', '--flag'], env: { HNI_FAST_MODE: 'true' } },
+      { name: 'pm', bin: 'nlx', args: ['-C', fixturePaths.npm, 'hello', '--flag'], env: { HNI_FAST: 'false' } },
+      { name: 'fast', bin: 'nlx', args: ['-C', fixturePaths.npm, 'hello', '--flag'], env: { HNI_FAST: 'true' } },
     ],
     requiredBins: ['npm'],
   })
@@ -435,7 +437,7 @@ function runtimeCases(fixturePaths) {
           kind: 'exec',
           bin: 'nr',
           args: ['-C', fixturePaths.pnpm, 'noop'],
-          env: { HNI_FAST_MODE: 'true' },
+          env: { HNI_FAST: 'true' },
         },
         {
           name: 'bun',
@@ -460,7 +462,7 @@ function runtimeCases(fixturePaths) {
           kind: 'exec',
           bin: 'nr',
           args: ['-C', fixturePaths.pnpm, 'hooks'],
-          env: { HNI_FAST_MODE: 'true' },
+          env: { HNI_FAST: 'true' },
         },
         {
           name: 'bun',
@@ -493,7 +495,7 @@ function directCases(fixturePaths) {
             kind: 'exec',
             bin: 'nr',
             args: ['-C', fixture, 'noop'],
-            env: { HNI_FAST_MODE: 'true' },
+            env: { HNI_FAST: 'true' },
           },
         ],
         requiredBins: pm.requiredBins,
@@ -509,7 +511,7 @@ function directCases(fixturePaths) {
             kind: 'exec',
             bin: 'nr',
             args: ['-C', fixture, 'hooks'],
-            env: { HNI_FAST_MODE: 'true' },
+            env: { HNI_FAST: 'true' },
           },
         ],
         requiredBins: pm.requiredBins,
@@ -529,7 +531,7 @@ function directCases(fixturePaths) {
             kind: 'exec',
             bin: 'nlx',
             args: ['-C', fixture, 'hello', '--flag'],
-            env: { HNI_FAST_MODE: 'true' },
+            env: { HNI_FAST: 'true' },
           },
         ],
         requiredBins: pm.requiredBins,
@@ -656,12 +658,33 @@ function runHyperfineCase({ repoRoot, caseDef, runs, warmups, rawOutputPath, com
     id: caseDef.id,
     group: caseDef.group,
     case: caseDef.case,
-    raw_json: rawOutputPath,
+    raw_json: relativePath(repoRoot, rawOutputPath),
     participants,
     baseline,
     relative_to_first_mean: relativeToFirstMean,
     relative_to_first_median: relativeToFirstMedian,
   }
+}
+
+function validateBenchmarkCommands(repoRoot, commands) {
+  for (const command of commands) {
+    const result = spawnSync('sh', ['-lc', command.command], {
+      cwd: repoRoot,
+      encoding: 'utf8',
+    })
+    if (result.status === 0) {
+      continue
+    }
+
+    const detail = [result.stderr, result.stdout]
+      .map((value) => value.trim())
+      .find((value) => value.length > 0)
+      ?.split('\n')[0]
+
+    return `preflight failed for ${command.name}${detail ? `: ${detail}` : ''}`
+  }
+
+  return null
 }
 
 function summarizeTrack(track, results, skipped) {
@@ -733,26 +756,79 @@ function printTrackSummary(payload, format) {
       )
     }
   } else {
-    const competitor = Object.keys(payload.summary.geometric_mean_relative_to_first)[0]
-    const baselineLabel = payload.results[0] ? payload.results[0].baseline : 'baseline'
-    lines.push(
-      'case'.padEnd(34) +
-        `${baselineLabel} (ms)`.padStart(16) +
-        `${competitor} (ms)`.padStart(16) +
-        'relative'.padStart(12),
-    )
-    lines.push('-'.repeat(78))
-    for (const row of payload.results) {
+    const baselineLabel = payload.results[0]?.baseline ?? 'baseline'
+    const participantNames = payload.results[0]
+      ? Object.keys(payload.results[0].participants)
+      : [baselineLabel]
+    const competitors = participantNames.filter((name) => name !== baselineLabel)
+
+    if (competitors.length <= 1) {
+      const competitor = competitors[0] ?? 'other'
       lines.push(
-        row.case.padEnd(34) +
-          row.participants[baselineLabel].mean.toFixed(2).padStart(16) +
-          row.participants[competitor].mean.toFixed(2).padStart(16) +
-          `${row.relative_to_first_mean[competitor].toFixed(2)}x`.padStart(12),
+        'case'.padEnd(34) +
+          `${baselineLabel} (ms)`.padStart(16) +
+          `${competitor} (ms)`.padStart(16) +
+          'relative'.padStart(12),
       )
+      lines.push('-'.repeat(78))
+      for (const row of payload.results) {
+        lines.push(
+          row.case.padEnd(34) +
+            row.participants[baselineLabel].mean.toFixed(2).padStart(16) +
+            row.participants[competitor].mean.toFixed(2).padStart(16) +
+            `${row.relative_to_first_mean[competitor].toFixed(2)}x`.padStart(12),
+        )
+      }
+    } else {
+      const widths = {
+        case: 32,
+        metric: 14,
+        relative: 12,
+      }
+      const separator = '  '
+      const summaryWidth =
+        widths.case +
+        participantNames.length * widths.metric +
+        competitors.length * widths.relative +
+        (participantNames.length + competitors.length) * separator.length
+      lines.push(
+        'case'.padEnd(widths.case) +
+          participantNames
+            .map((name) => `${name} (ms)`.padStart(widths.metric))
+            .join(separator) +
+          separator +
+          competitors
+            .map((name) => `${name} rel`.padStart(widths.relative))
+            .join(separator),
+      )
+      lines.push('-'.repeat(summaryWidth))
+      for (const row of payload.results) {
+        lines.push(
+          row.case.padEnd(widths.case) +
+            participantNames
+              .map((name) => row.participants[name].mean.toFixed(2).padStart(widths.metric))
+              .join(separator) +
+            separator +
+            competitors
+              .map((name) => `${row.relative_to_first_mean[name].toFixed(2)}x`.padStart(widths.relative))
+              .join(separator),
+        )
+      }
     }
   }
 
-  lines.push('-'.repeat(payload.track === 'runtime' ? 64 : 78))
+  const participantCount = payload.results[0]
+    ? Object.keys(payload.results[0].participants).length
+    : 0
+  lines.push(
+    '-'.repeat(
+      payload.track === 'runtime'
+        ? 64
+        : participantCount > 2
+          ? 32 + participantCount * 14 + (participantCount - 1) * 12 + participantCount * 2
+          : 78,
+    ),
+  )
   for (const [name, value] of Object.entries(payload.summary.geometric_mean_relative_to_first)) {
     lines.push(`geometric mean relative to ${payload.results[0]?.baseline ?? 'baseline'} (${name}): ${value.toFixed(2)}x`)
   }
@@ -813,17 +889,46 @@ function trackTable(payload) {
   }
 
   const baseline = payload.results[0]?.baseline ?? 'baseline'
-  const competitor = Object.keys(payload.summary.geometric_mean_relative_to_first)[0] ?? 'other'
+  const participantNames = payload.results[0]
+    ? Object.keys(payload.results[0].participants)
+    : [baseline]
+  const competitors = participantNames.filter((name) => name !== baseline)
+
+  if (competitors.length <= 1) {
+    const competitor = competitors[0] ?? 'other'
+    const lines = [
+      `| Case | ${baseline} | ${competitor} | Relative |`,
+      '| --- | ---: | ---: | ---: |',
+    ]
+
+    for (const row of payload.results) {
+      lines.push(
+        `| ${row.case} | ${formatMs(row.participants[baseline].mean)} | ${formatMs(
+          row.participants[competitor].mean,
+        )} | ${formatRatio(row.relative_to_first_mean[competitor])} |`,
+      )
+    }
+
+    return lines.join('\n')
+  }
+
+  const headers = [
+    '| Case |',
+    ...participantNames.map((name) => ` ${name} |`),
+    ...competitors.map((name) => ` ${name} vs ${baseline} |`),
+  ]
   const lines = [
-    `| Case | ${baseline} | ${competitor} | Relative |`,
-    '| --- | ---: | ---: | ---: |',
+    headers.join(''),
+    ['| --- |', ...participantNames.map(() => ' ---: |'), ...competitors.map(() => ' ---: |')].join(''),
   ]
 
   for (const row of payload.results) {
     lines.push(
-      `| ${row.case} | ${formatMs(row.participants[baseline].mean)} | ${formatMs(
-        row.participants[competitor].mean,
-      )} | ${formatRatio(row.relative_to_first_mean[competitor])} |`,
+      [
+        `| ${row.case} |`,
+        ...participantNames.map((name) => ` ${formatMs(row.participants[name].mean)} |`),
+        ...competitors.map((name) => ` ${formatRatio(row.relative_to_first_mean[name])} |`),
+      ].join(''),
     )
   }
 
@@ -890,6 +995,10 @@ function combinedMarkdown(combined, combinedArtifacts, fromDir) {
         relativePath(fromDir, artifacts.jsonPath),
       )} · ${markdownLink(path.basename(artifacts.markdownPath), relativePath(fromDir, artifacts.markdownPath))}`,
     )
+    if (SUMMARY_ONLY_TRACKS.has(track)) {
+      lines.push('')
+      lines.push('Detailed per-case results are kept in the track artifact.')
+    }
     lines.push('')
   }
 
@@ -924,6 +1033,46 @@ function latestMarkdown(combined, combinedArtifacts, benchmarkDir) {
       )} · ${markdownLink(path.basename(artifacts.jsonPath), relativePath(benchmarkDir, artifacts.jsonPath))}`,
     )
     lines.push('')
+    if (SUMMARY_ONLY_TRACKS.has(track)) {
+      lines.push('Detailed per-case results are kept in the track artifact.')
+      lines.push('')
+    } else {
+      lines.push(trackTable(payload))
+      lines.push('')
+    }
+  }
+
+  return `${lines.join('\n')}\n`
+}
+
+function latestTrackMarkdown(payload, artifactPaths, benchmarkDir) {
+  const lines = [
+    '# Latest Benchmark Snapshot',
+    '',
+    `Updated: ${payload.timestamp}`,
+    '',
+    'This file is the small release-friendly benchmark snapshot. Raw JSON stays in `benchmark/results/`.',
+    '',
+    `Report: ${markdownLink(
+      path.basename(artifactPaths.markdownPath),
+      relativePath(benchmarkDir, artifactPaths.markdownPath),
+    )}`,
+    '',
+    `## ${payload.track[0].toUpperCase()}${payload.track.slice(1)}`,
+    '',
+    trackOverviewLine(payload),
+    '',
+    `Artifacts: ${markdownLink(
+      path.basename(artifactPaths.markdownPath),
+      relativePath(benchmarkDir, artifactPaths.markdownPath),
+    )} · ${markdownLink(path.basename(artifactPaths.jsonPath), relativePath(benchmarkDir, artifactPaths.jsonPath))}`,
+    '',
+  ]
+
+  if (SUMMARY_ONLY_TRACKS.has(payload.track)) {
+    lines.push('Detailed per-case results are kept in the track artifact.')
+    lines.push('')
+  } else {
     lines.push(trackTable(payload))
     lines.push('')
   }
@@ -957,6 +1106,23 @@ function historyMarkdown(resultsDir, benchmarkDir) {
       )} | ${markdownLink(jsonFile, relativePath(benchmarkDir, path.join(resultsDir, jsonFile)))} |`,
     )
   }
+
+  return `${lines.join('\n')}\n`
+}
+
+function historyTrackMarkdown(payload, artifactPaths, benchmarkDir) {
+  const lines = [
+    '# Benchmark History',
+    '',
+    'The repo intentionally keeps only the latest tracked benchmark report. Use `benchmark/LATEST.md` for the release-facing snapshot.',
+    '',
+    '| Run | Track | Report | JSON |',
+    '| --- | --- | --- | --- |',
+    `| ${payload.timestamp} | ${payload.track} | ${markdownLink(
+      path.basename(artifactPaths.markdownPath),
+      relativePath(benchmarkDir, artifactPaths.markdownPath),
+    )} | ${markdownLink(path.basename(artifactPaths.jsonPath), relativePath(benchmarkDir, artifactPaths.jsonPath))} |`,
+  ]
 
   return `${lines.join('\n')}\n`
 }
@@ -1011,6 +1177,129 @@ function prepareFixtures(tempRoot) {
   return fixturePaths
 }
 
+function prepareFixtureBenchmarkDirs(tempRoot, repoRoot) {
+  const sourceRoot = path.join(repoRoot, 'tests', 'fixtures')
+  const copiedRoot = path.join(tempRoot, 'fixtures-benchmark')
+  ensureDir(copiedRoot)
+
+  for (const category of fs.readdirSync(sourceRoot).sort()) {
+    const sourceCategory = path.join(sourceRoot, category)
+    if (!fs.statSync(sourceCategory).isDirectory()) continue
+
+    for (const name of fs.readdirSync(sourceCategory).sort()) {
+      const sourceFixture = path.join(sourceCategory, name)
+      if (!fs.statSync(sourceFixture).isDirectory()) continue
+
+      const targetFixture = path.join(copiedRoot, category, name)
+      ensureDir(path.dirname(targetFixture))
+      fs.cpSync(sourceFixture, targetFixture, { recursive: true })
+    }
+  }
+
+  return copiedRoot
+}
+
+function inferFixturePmId(name) {
+  if (name === 'unknown') return null
+  if (name.startsWith('npm')) return 'npm'
+  if (name.startsWith('pnpm')) return 'pnpm'
+  if (name.startsWith('yarn')) return 'yarn'
+  if (name === 'bun') return 'bun'
+  if (name === 'deno') return 'deno'
+  return null
+}
+
+function requiredBinsForPmId(pmId) {
+  return PMS.find((pm) => pm.id === pmId)?.requiredBins ?? []
+}
+
+function fixtureDirectCommand(pmId, fixturePath) {
+  if (pmId === 'deno') {
+    return `deno task --cwd ${shellQuote(fixturePath)} --quiet dev`
+  }
+
+  if (pmId === 'bun') {
+    return `cd ${shellQuote(fixturePath)} && bun run --silent dev`
+  }
+
+  if (pmId === 'yarn') {
+    return `cd ${shellQuote(fixturePath)} && yarn run --silent dev`
+  }
+
+  return `cd ${shellQuote(fixturePath)} && ${pmId} run --silent dev`
+}
+
+function fixtureDirectEnv(pmId) {
+  if (pmId === 'npm') {
+    return { npm_config_yes: 'true' }
+  }
+
+  return {}
+}
+
+function fixtureHniEnv(pmId, fastEnabled) {
+  return {
+    HNI_FAST: fastEnabled ? 'true' : 'false',
+    ...(pmId === 'npm' ? { npm_config_yes: 'true' } : {}),
+  }
+}
+
+function fixtureCases(fixturesRoot) {
+  const cases = []
+
+  for (const category of fs.readdirSync(fixturesRoot).sort()) {
+    const categoryRoot = path.join(fixturesRoot, category)
+    if (!fs.statSync(categoryRoot).isDirectory()) continue
+
+    for (const name of fs.readdirSync(categoryRoot).sort()) {
+      const fixturePath = path.join(categoryRoot, name)
+      if (!fs.statSync(fixturePath).isDirectory()) continue
+
+      const pmId = inferFixturePmId(name)
+      if (!pmId) {
+        cases.push({
+          id: `fixtures_${category}_${name}`.replaceAll(/[^a-zA-Z0-9_]+/g, '_'),
+          group: category,
+          case: `${category}/${name}`,
+          commands: [],
+          requiredBins: [],
+          skipReason: 'unknown fixture has no benchmark package-manager baseline',
+        })
+        continue
+      }
+
+      cases.push({
+        id: `fixtures_${category}_${name}`.replaceAll(/[^a-zA-Z0-9_]+/g, '_'),
+        group: category,
+        case: `${category}/${name}`,
+        commands: [
+          {
+            name: 'direct',
+            kind: 'shell',
+            command: fixtureDirectCommand(pmId, fixturePath),
+            env: fixtureDirectEnv(pmId),
+          },
+          {
+            name: 'pm',
+            bin: 'nr',
+            args: ['-C', fixturePath, 'dev'],
+            env: fixtureHniEnv(pmId, false),
+          },
+          {
+            name: 'fast',
+            bin: 'nr',
+            args: ['-C', fixturePath, 'dev'],
+            env: fixtureHniEnv(pmId, true),
+          },
+        ],
+        requiredBins: requiredBinsForPmId(pmId),
+      })
+    }
+  }
+
+  return cases
+}
+
 function prepareAliasDir(tempRoot, ourBin) {
   const aliasDir = path.join(tempRoot, 'bin')
   ensureDir(aliasDir)
@@ -1020,11 +1309,12 @@ function prepareAliasDir(tempRoot, ourBin) {
   return aliasDir
 }
 
-function resolveTrackCases(track, fixturePaths) {
+function resolveTrackCases(track, fixturePaths, fixtureBenchmarkRoot) {
   if (track === 'compare') return compareCases()
-  if (track === 'native') return nativeCases(fixturePaths)
+  if (track === 'fast') return fastCases(fixturePaths)
   if (track === 'runtime') return runtimeCases(fixturePaths)
   if (track === 'direct') return directCases(fixturePaths)
+  if (track === 'fixtures') return fixtureCases(fixtureBenchmarkRoot)
   throw new Error(`unsupported track: ${track}`)
 }
 
@@ -1059,6 +1349,15 @@ function filterRunnableCases(cases, availableBins, antfuBinDir) {
   const runnable = []
 
   for (const caseDef of cases) {
+    if (caseDef.skipReason) {
+      skipped.push({
+        id: caseDef.id,
+        case: caseDef.case,
+        reason: caseDef.skipReason,
+      })
+      continue
+    }
+
     const missing = caseDef.requiredBins.filter((bin) => !availableBins[bin])
     if (missing.length > 0) {
       skipped.push({
@@ -1141,6 +1440,18 @@ function writeHistorySnapshot(resultsDir, benchmarkDir) {
   return output
 }
 
+function writeLatestTrackSnapshot(benchmarkDir, payload, artifactPaths) {
+  const output = path.join(benchmarkDir, 'LATEST.md')
+  fs.writeFileSync(output, latestTrackMarkdown(payload, artifactPaths, benchmarkDir), 'utf8')
+  return output
+}
+
+function writeHistoryTrackSnapshot(benchmarkDir, payload, artifactPaths) {
+  const output = path.join(benchmarkDir, 'HISTORY.md')
+  fs.writeFileSync(output, historyTrackMarkdown(payload, artifactPaths, benchmarkDir), 'utf8')
+  return output
+}
+
 function main() {
   const args = parseArgs(process.argv.slice(2))
   const scriptDir = path.dirname(fileURLToPath(import.meta.url))
@@ -1179,6 +1490,7 @@ function main() {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'hni-benchmark-'))
   try {
     const fixturePaths = prepareFixtures(tempRoot)
+    const fixtureBenchmarkRoot = prepareFixtureBenchmarkDirs(tempRoot, repoRoot)
     const aliasDir = prepareAliasDir(tempRoot, ourBin)
     const availableBins = availableBinaries()
     const baseEnv = {
@@ -1193,8 +1505,9 @@ function main() {
       const trackRawDir = path.join(rawDir, track)
       ensureDir(trackRawDir)
 
-      const cases = resolveTrackCases(track, fixturePaths)
-      const { runnable, skipped } = filterRunnableCases(cases, availableBins, antfuBinDir)
+      const cases = resolveTrackCases(track, fixturePaths, fixtureBenchmarkRoot)
+      const { runnable, skipped: initiallySkipped } = filterRunnableCases(cases, availableBins, antfuBinDir)
+      const skipped = [...initiallySkipped]
       const results = []
       const stamp = new Date().toISOString().replace(/[:.]/g, '-')
 
@@ -1213,6 +1526,19 @@ function main() {
           antfuBinDir,
           fixturePaths,
         })
+
+        if (track === 'fixtures') {
+          const preflightFailure = validateBenchmarkCommands(repoRoot, commands)
+          if (preflightFailure) {
+            skipped.push({
+              id: caseDef.id,
+              case: caseDef.case,
+              reason: preflightFailure,
+            })
+            continue
+          }
+        }
+
         const rawOutputPath = path.join(trackRawDir, `${stamp}-${caseDef.id}.json`)
         results.push(
           runHyperfineCase({
@@ -1230,10 +1556,10 @@ function main() {
         track,
         args,
         repoRoot,
-        fixtures: fixturePaths,
+        fixtures: track === 'fixtures' ? { root: fixtureBenchmarkRoot } : fixturePaths,
         binaries: {
-          hni: ourBin,
-          antfu_prefix: needsCompare ? antfuPrefix : null,
+          hni: relativePath(repoRoot, ourBin),
+          antfu_prefix: needsCompare ? relativePath(repoRoot, antfuPrefix) : null,
           hyperfine: ensureBinary('hyperfine'),
         },
         skipped,
@@ -1249,6 +1575,23 @@ function main() {
       trackArtifacts[track] = trackArtifact
       process.stdout.write(`JSON written to ${trackJson}\n`)
       process.stdout.write(`Markdown written to ${trackMarkdownPath}\n`)
+    }
+
+    if (selectedTracks.length === 1) {
+      const track = selectedTracks[0]
+      const latestPath = writeLatestTrackSnapshot(
+        benchmarkDir,
+        trackPayloads[track],
+        trackArtifacts[track],
+      )
+      const historyPath = writeHistoryTrackSnapshot(
+        benchmarkDir,
+        trackPayloads[track],
+        trackArtifacts[track],
+      )
+      process.stdout.write(`Latest snapshot written to ${latestPath}\n`)
+      process.stdout.write(`History written to ${historyPath}\n`)
+      return
     }
 
     const combined = {

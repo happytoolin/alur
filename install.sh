@@ -7,7 +7,7 @@ FALLBACK_DOWNLOAD_ROOT="https://github.com/${REPO}"
 INSTALL_DIR="${HNI_INSTALL_DIR:-$HOME/.local/bin}"
 VERSION="${HNI_VERSION:-latest}"
 
-ALIASES=(ni nr nlx nu nun nci na np ns)
+ALIASES=(ni nr nlx nru nun nci na np ns)
 
 log() {
   printf '[hni] %s\n' "$*"
