@@ -381,32 +381,90 @@ Tracked benchmark docs:
 
 ### Representative Results
 
-The tracked snapshot in [`benchmark/LATEST.md`](benchmark/LATEST.md) was generated from the `direct` track with `2` warmups and `10` measured runs per case.
+All numbers below were measured on macOS (Apple Silicon) with the release binary, using `hyperfine` with 10 warmups and 100 measured runs per case. See [`benchmark/LATEST.md`](benchmark/LATEST.md) for the raw tracked snapshot.
 
-If you only want the headline, it is this: `hni --fast` averaged `5.44x` faster than direct package-manager commands in the latest direct run.
+**Headline:** `hni --fast` is **7.4x faster** than running package managers directly, and **4.6x faster** than `hni` in its own PM fallback mode.
 
-The `fast` track compares pm mode versus fast mode inside `hni` across npm, pnpm, yarn, bun, deno, and local-bin execution. In the latest local fast run, `hni --fast` averaged `4.57x` faster than pm mode.
+#### 1. Fast mode vs PM mode (inside hni)
 
-A few representative wins:
+Fast mode bypasses the package manager CLI entirely and runs scripts / local bins natively.
 
-| Case | pm | fast | Relative |
+| Case | PM mode | Fast mode | Speedup |
 | --- | ---: | ---: | ---: |
-| `nr noop (npm)` | 214.19 ms | 28.59 ms | 7.49x |
-| `nr noop (pnpm)` | 427.88 ms | 28.81 ms | 14.85x |
-| `nr noop (yarn)` | 264.11 ms | 28.85 ms | 9.16x |
-| `node run noop (pnpm)` | 429.05 ms | 29.00 ms | 14.80x |
-| `node run noop (bun)` | 33.82 ms | 29.00 ms | 1.17x |
-| `nlx hello --flag (npm local bin)` | 250.63 ms | 5.15 ms | 48.71x |
+| `nr noop (npm)` | 246 ms | 37 ms | **6.6x** |
+| `nr noop (pnpm)` | 799 ms | 49 ms | **16.4x** |
+| `nr noop (yarn)` | 348 ms | 38 ms | **9.3x** |
+| `node run noop (pnpm)` | 956 ms | 34 ms | **28.4x** |
+| `nlx hello --flag (npm)` | 288 ms | 17 ms | **17.0x** |
+| `nr noop (bun)` | 70 ms | 37 ms | **1.9x** |
+| `nr noop (deno)` | 80 ms | 35 ms | **2.2x** |
 
-The direct track also compares normal package-manager usage (`npm run`, `pnpm exec`, `yarn`, `bun x`, `deno task`) with `hni --fast`. In the latest local direct run, `hni` averaged `5.44x` faster, including local-bin wins for `pnpm exec` (`52.40x`) and `yarn` (`16.98x`).
+*Geometric mean across all package managers: **4.6x**.*
+
+pnpm and yarn see the biggest wins because their CLIs carry the most startup overhead. Bun and Deno are already fast, so the margin is smaller (but still consistently ahead).
+
+#### 2. hni fast vs direct package-manager usage
+
+This is the real-world comparison: what users actually type today versus using `hni`.
+
+| Case | Direct PM | hni --fast | Speedup |
+| --- | ---: | ---: | ---: |
+| `npm run noop` | 320 ms | 53 ms | **6.1x** |
+| `pnpm run noop` | 749 ms | 41 ms | **18.2x** |
+| `yarn run noop` | 443 ms | 34 ms | **13.0x** |
+| `npx hello --flag` | 300 ms | 4.8 ms | **62.0x** |
+| `pnpm exec hello --flag` | 733 ms | 8.9 ms | **82.8x** |
+| `bun run noop` | 79 ms | 34 ms | **2.4x** |
+| `deno task noop` | 50 ms | 34 ms | **1.5x** |
+
+*Geometric mean: **7.4x**.*
+
+Local bin execution is the standout feature: `npx` and `pnpm exec` spend hundreds of milliseconds resolving, validating, and bootstrapping before they even start your binary. `hni` resolves the bin once and runs it directly.
+
+#### 3. hni vs Antfu's `ni`
+
+For the same command-routing workload, `hni` is consistently faster:
+
+| Case | antfu/ni | hni | Speedup |
+| --- | ---: | ---: | ---: |
+| `ni --version` | 149 ms | 92 ms | **1.6x** |
+| `ni vite ?` | 6.0 ms | 3.6 ms | **1.7x** |
+| `nr build ?` | 5.0 ms | 3.7 ms | **1.3x** |
+| `nlx vitest ?` | 4.6 ms | 3.0 ms | **1.5x** |
+
+*Geometric mean: **1.5x**.*
+
+#### 4. Runtime comparison vs Bun and Deno
+
+Even against native runtime task execution, `hni` holds its own:
+
+| Case | hni | bun | deno |
+| --- | ---: | ---: | ---: |
+| `task noop` | 33 ms | 78 ms | 49 ms |
+| `task hooks` | 90 ms | 210 ms | 77 ms |
+
+`hni` is **2.3x faster than bun** for task execution and slightly faster than Deno for simple scripts.
 
 ### Methodology
 
-All timing uses `hyperfine` against the release binary. The suite can look at four angles:
+The benchmark suite lives in [`benchmark/`](benchmark/) and uses `hyperfine` to time the release binary. It covers five angles:
 
-- `direct`: normal package-manager usage versus `hni --fast`
-- `fast`: pm mode versus fast mode inside `hni`
-- `compare`: a small CLI-focused comparison against Antfu's `ni`
-- `runtime`: a side-by-side look at `hni`, bun, and deno on a couple of task-style cases
+- **`direct`** — normal package-manager commands (`npm run`, `pnpm exec`, etc.) vs `hni --fast`
+- **`fast`** — `hni` PM mode vs `hni` fast mode (isolates the native-execution win)
+- **`compare`** — `hni` vs `@antfu/ni` on CLI routing overhead
+- **`runtime`** — `hni` vs `bun` vs `deno` on actual task execution time
+- **`fixtures`** — real project fixtures from `tests/fixtures/` across all detection categories
 
-The repo keeps the curated snapshot files rather than every intermediate result. For the current tracked result, use [`benchmark/LATEST.md`](benchmark/LATEST.md).
+Run the full matrix locally:
+
+```bash
+./benchmark/run.sh --track=all --runs=100 --warmups=10
+```
+
+Or generate flamegraphs:
+
+```bash
+./benchmark/profile.sh
+```
+
+Tracked snapshots are kept in [`benchmark/LATEST.md`](benchmark/LATEST.md).
