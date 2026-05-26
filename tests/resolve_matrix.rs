@@ -818,7 +818,13 @@ fn nlx_fast_mode_uses_declared_package_bin_when_present() {
         match &resolved.strategy {
             ExecutionStrategy::Native(NativeExecution::RunLocalBin(exec)) => {
                 assert_eq!(exec.bin_name, "hello");
-                assert!(exec.resolved_path().ends_with("bin/hello.js"));
+                let expected_suffix =
+                    std::path::Path::new("bin").join("hello.js");
+                assert!(
+                    exec.resolved_path().ends_with(&expected_suffix),
+                    "expected path to end with {expected_suffix:?}, got {:?}",
+                    exec.resolved_path()
+                );
             }
             other => panic!("expected native local bin execution, got {other:?}"),
         }
