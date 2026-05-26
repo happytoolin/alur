@@ -736,7 +736,13 @@ fn nlx_fast_mode_uses_local_bin_when_present() {
         match &resolved.strategy {
             ExecutionStrategy::Native(NativeExecution::RunLocalBin(exec)) => {
                 assert_eq!(exec.bin_name, "vitest");
-                assert!(exec.resolved_path().ends_with("node_modules/.bin/vitest"));
+                let expected_suffix =
+                    std::path::Path::new("node_modules").join(".bin").join("vitest");
+                assert!(
+                    exec.resolved_path().ends_with(&expected_suffix),
+                    "expected path to end with {expected_suffix:?}, got {:?}",
+                    exec.resolved_path()
+                );
             }
             other => panic!("expected native local bin execution, got {other:?}"),
         }
@@ -855,9 +861,15 @@ fn nlx_fast_mode_uses_pnpm_hoisted_local_bin_when_present() {
         match &resolved.strategy {
             ExecutionStrategy::Native(NativeExecution::RunLocalBin(exec)) => {
                 assert_eq!(exec.bin_name, "vitest");
+                let expected_suffix = std::path::Path::new("node_modules")
+                    .join(".pnpm")
+                    .join("node_modules")
+                    .join(".bin")
+                    .join("vitest");
                 assert!(
+                    exec.resolved_path().ends_with(&expected_suffix),
+                    "expected path to end with {expected_suffix:?}, got {:?}",
                     exec.resolved_path()
-                        .ends_with("node_modules/.pnpm/node_modules/.bin/vitest")
                 );
             }
             other => panic!("expected native local bin execution, got {other:?}"),

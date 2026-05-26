@@ -15,7 +15,7 @@ where
     F: FnOnce() -> T,
 {
     let lock = ENV_LOCK.get_or_init(|| Mutex::new(()));
-    let _guard = lock.lock().expect("env lock poisoned");
+    let _guard = lock.lock().unwrap_or_else(|e| e.into_inner());
     f()
 }
 
