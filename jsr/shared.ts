@@ -1,7 +1,7 @@
 import { dirname, join } from "jsr:@std/path@^1.1.4";
 
 const REPO = "happytoolin/hni";
-const VERSION = "0.0.2";
+const VERSION = "0.0.3";
 const TAG = VERSION.startsWith("v") ? VERSION : `v${VERSION}`;
 const DOWNLOAD_ROOT =
   Deno.env.get("HNI_DOWNLOAD_ROOT") ??

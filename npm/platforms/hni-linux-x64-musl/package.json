@@ -1,6 +1,6 @@
 {
   "name": "@happytoolin/hni-linux-x64-musl",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "linux x64 musl native binary for hni",
   "license": "GPL-3.0-only",
   "repository": {

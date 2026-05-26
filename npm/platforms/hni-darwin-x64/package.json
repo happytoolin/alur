@@ -1,6 +1,6 @@
 {
   "name": "@happytoolin/hni-darwin-x64",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "darwin x64 native binary for hni",
   "license": "GPL-3.0-only",
   "repository": {
