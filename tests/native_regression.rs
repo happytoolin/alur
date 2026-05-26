@@ -30,7 +30,7 @@ impl Manager {
     fn package_manager(self) -> &'static str {
         match self {
             Self::Npm => "npm@11.6.2",
-            Self::Pnpm => "pnpm@10.28.1",
+            Self::Pnpm => "pnpm@11.1.1",
             Self::Yarn => "yarn@1.22.22",
             Self::Bun => "bun@1.3.5",
         }
@@ -149,6 +149,18 @@ fn native_regression_cases() -> Vec<NativeRegressionCase> {
             forwarded_args: &["alpha", "beta"],
             fallback_reason_fragment: None,
             assert_state: assert_hooked_script_fixture,
+        },
+        NativeRegressionCase {
+            name: "pnpm-hooks-and-forwarded-args",
+            upstream_file: "https://github.com/pnpm/pnpm/blob/main/exec/lifecycle/test/index.ts",
+            upstream_test: "runLifecycleHook() runs pre and post hooks",
+            manager: Manager::Pnpm,
+            classification: Classification::Equivalence,
+            setup: setup_hooked_script_fixture_pnpm,
+            subject: "dev",
+            forwarded_args: &["alpha", "beta"],
+            fallback_reason_fragment: None,
+            assert_state: assert_hooked_script_fixture_pnpm,
         },
         NativeRegressionCase {
             name: "npm-unsupported-env-expansion-falls-back",
@@ -345,6 +357,23 @@ fn setup_hooked_script_fixture_npm(root: &Path) {
     .unwrap();
 }
 
+fn setup_hooked_script_fixture_pnpm(root: &Path) {
+    init_project(root, Manager::Pnpm, "hooked-pnpm");
+    fs::write(
+        root.join("write-args.cjs"),
+        "const fs = require('fs'); fs.writeFileSync('args.txt', JSON.stringify(process.argv.slice(2))); fs.appendFileSync('order.txt', 'dev');\n",
+    )
+    .unwrap();
+    fs::write(
+        root.join("package.json"),
+        format!(
+            r#"{{"name":"hooked-pnpm","packageManager":"{}","scripts":{{"predev":"printf 'pre' >> order.txt","dev":"node write-args.cjs","postdev":"printf 'post' >> order.txt"}}}}"#,
+            Manager::Pnpm.package_manager()
+        ),
+    )
+    .unwrap();
+}
+
 fn setup_env_expansion_fixture_npm(root: &Path) {
     init_project(root, Manager::Npm, "envy");
     fs::write(
@@ -453,6 +482,17 @@ fn assert_hooked_script_fixture(root: &Path) {
     assert!(
         order.contains("dev"),
         "expected order.txt to contain 'dev', got {order:?}"
+    );
+    assert_eq!(
+        fs::read_to_string(root.join("args.txt")).unwrap(),
+        "[\"alpha\",\"beta\"]"
+    );
+}
+
+fn assert_hooked_script_fixture_pnpm(root: &Path) {
+    assert_eq!(
+        fs::read_to_string(root.join("order.txt")).unwrap(),
+        "predevpost"
     );
     assert_eq!(
         fs::read_to_string(root.join("args.txt")).unwrap(),
