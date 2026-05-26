@@ -22,7 +22,7 @@ use crate::{
     platform::node::{REAL_NODE_ENV, resolve_real_node_path},
 };
 
-use super::env::{apply_native_environment, native_script_env};
+use super::env::{apply_local_bin_environment, native_script_env};
 use super::{is_node_program, looks_like_env_assignment};
 
 pub(super) fn run_script(exec: &NativeScriptExecution, invocation_cwd: &Path) -> Result<ExitCode> {
@@ -61,7 +61,7 @@ pub(super) fn run_local_bin(exec: &NativeLocalBinExecution, cwd: &Path) -> Resul
     let mut command = spawn_local_bin_command(exec)?;
     command.current_dir(cwd);
 
-    apply_native_environment(&mut command, &exec.bin_paths)?;
+    apply_local_bin_environment(&mut command, exec, cwd)?;
 
     let status = command
         .status()

@@ -83,7 +83,7 @@ pub fn package_json_path(cwd: &Path) -> PathBuf {
 
 pub fn read_package_json(cwd: &Path) -> Result<Option<PackageJson>> {
     let path = package_json_path(cwd);
-    let raw = match fs::read_to_string(&path) {
+    let raw = match crate::core::profile::measure("package_json.read_file", || fs::read(&path)) {
         Ok(content) => content,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
         Err(e) => {
@@ -94,7 +94,10 @@ pub fn read_package_json(cwd: &Path) -> Result<Option<PackageJson>> {
         }
     };
 
-    let parsed: PackageJson = serde_json::from_str(&raw)
-        .map_err(|error| anyhow!("config error: failed to parse {}: {error}", path.display()))?;
+    let parsed: PackageJson =
+        crate::core::profile::measure("package_json.parse_serde", || serde_json::from_slice(&raw))
+            .map_err(|error| {
+                anyhow!("config error: failed to parse {}: {error}", path.display())
+            })?;
     Ok(Some(parsed))
 }

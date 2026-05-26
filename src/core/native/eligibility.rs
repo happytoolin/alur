@@ -3,7 +3,7 @@ use anyhow::Result;
 use crate::core::{
     deno::{find_nearest_deno_project, plan_native_deno_task},
     package::resolve_local_bin,
-    resolve::ResolveContext,
+    resolve::{LocalBinProjectState, ProjectState, ResolveContext},
     types::{NativeLocalBinExecution, NativeScriptExecution, NativeScriptStep, PackageManager},
 };
 
@@ -15,30 +15,17 @@ use super::{
 const SUPPORTED_NPM_PACKAGE_ENV_SUFFIXES: &[&str] = &["json"];
 const SUPPORTED_NPM_CONFIG_ENV_SUFFIXES: &[&str] = &["user_agent"];
 
-pub(super) fn plan_nr(
+pub(super) fn plan_nr_from_state(
     pm: Option<PackageManager>,
     args: &[String],
     ctx: &ResolveContext,
+    state: &ProjectState,
     has_if_present: bool,
 ) -> Result<NativeDecision> {
     if pm == Some(PackageManager::Deno) {
-        let selection = args.first().cloned().unwrap_or_else(|| "start".to_string());
-        let forwarded_args = args.iter().skip(1).cloned().collect::<Vec<_>>();
-        let Some(project) = find_nearest_deno_project(ctx.cwd())? else {
-            return Ok(NativeDecision::Ineligible(
-                FallbackReason::MissingNearestDenoProject,
-            ));
-        };
-
-        return Ok(
-            match plan_native_deno_task(&project, &selection, &forwarded_args, has_if_present) {
-                Ok(exec) => NativeDecision::Eligible(NativePlan::DenoTask(exec)),
-                Err(reason) => NativeDecision::Ineligible(FallbackReason::DenoTask(reason)),
-            },
-        );
+        return plan_deno_nr(args, ctx, has_if_present);
     }
 
-    let state = ctx.project_state()?;
     let Some(pkg) = state.nearest_package() else {
         return Ok(NativeDecision::Ineligible(
             FallbackReason::MissingNearestPackage,
@@ -99,10 +86,10 @@ pub(super) fn plan_nr(
     )))
 }
 
-pub(super) fn plan_nlx(
+pub(super) fn plan_nlx_from_local_bin_state(
     pm: Option<PackageManager>,
     args: &[String],
-    ctx: &ResolveContext,
+    state: &LocalBinProjectState,
 ) -> Result<NativeDecision> {
     let Some(bin_name) = args.first() else {
         return Ok(NativeDecision::Ineligible(
@@ -110,31 +97,60 @@ pub(super) fn plan_nlx(
         ));
     };
 
-    if !matches!(pm, None | Some(PackageManager::Npm)) {
-        return Ok(NativeDecision::Ineligible(
-            FallbackReason::PackageManagerExec,
-        ));
-    }
-
-    let state = ctx.project_state()?;
-
     if pm == Some(PackageManager::YarnBerry) && state.has_yarn_pnp_loader() {
         return Ok(NativeDecision::Ineligible(FallbackReason::YarnBerryPnp));
     }
 
     let bin_paths = state.bin_dirs().to_vec();
-    let bin_path = resolve_local_bin(bin_name, &bin_paths)
-        .or_else(|| state.resolve_declared_package_bin(bin_name));
+    let bin_path = if let Some(bin_path) = resolve_local_bin(bin_name, &bin_paths) {
+        Some(bin_path)
+    } else if pm == Some(PackageManager::Deno) {
+        None
+    } else {
+        state.resolve_declared_package_bin(bin_name)?
+    };
+    plan_local_bin(bin_name, args, bin_paths, bin_path, pm)
+}
+
+fn plan_deno_nr(
+    args: &[String],
+    ctx: &ResolveContext,
+    has_if_present: bool,
+) -> Result<NativeDecision> {
+    let selection = args.first().cloned().unwrap_or_else(|| "start".to_string());
+    let forwarded_args = args.iter().skip(1).cloned().collect::<Vec<_>>();
+    let Some(project) = find_nearest_deno_project(ctx.cwd())? else {
+        return Ok(NativeDecision::Ineligible(
+            FallbackReason::MissingNearestDenoProject,
+        ));
+    };
+
+    Ok(
+        match plan_native_deno_task(&project, &selection, &forwarded_args, has_if_present) {
+            Ok(exec) => NativeDecision::Eligible(NativePlan::DenoTask(exec)),
+            Err(reason) => NativeDecision::Ineligible(FallbackReason::DenoTask(reason)),
+        },
+    )
+}
+
+fn plan_local_bin(
+    bin_name: &str,
+    args: &[String],
+    bin_paths: Vec<std::path::PathBuf>,
+    bin_path: Option<std::path::PathBuf>,
+    pm: Option<PackageManager>,
+) -> Result<NativeDecision> {
     let Some(bin_path) = bin_path else {
         return Ok(NativeDecision::Ineligible(FallbackReason::MissingLocalBin));
     };
 
     Ok(NativeDecision::Eligible(NativePlan::LocalBin(
         NativeLocalBinExecution {
-            bin_name: bin_name.clone(),
+            bin_name: bin_name.to_string(),
             launcher: resolve_local_bin_launcher(&bin_path)?,
             forwarded_args: args.iter().skip(1).cloned().collect(),
             bin_paths,
+            package_manager: pm.unwrap_or(PackageManager::Npm),
         },
     )))
 }

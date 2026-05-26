@@ -20,7 +20,6 @@ pub fn detected_package_manager(ctx: &ResolveContext) -> Result<PackageManager> 
 }
 
 pub(super) fn detect_for_action(ctx: &ResolveContext, use_global: bool) -> Result<AgentResolution> {
-    let cwd = ctx.cwd();
     let config = &ctx.config;
     let detection = if use_global {
         DetectionResult {
@@ -34,6 +33,15 @@ pub(super) fn detect_for_action(ctx: &ResolveContext, use_global: bool) -> Resul
             .map_err(|error| anyhow!("detection error: {error}"))?
     };
 
+    agent_resolution_from_detection(ctx, use_global, detection)
+}
+
+pub(super) fn agent_resolution_from_detection(
+    ctx: &ResolveContext,
+    use_global: bool,
+    detection: DetectionResult,
+) -> Result<AgentResolution> {
+    let cwd = ctx.cwd();
     let pm = detection.agent.ok_or_else(|| {
         anyhow!(
             "detection error: unable to detect package manager in {}.\nAdd packageManager to package.json, add a lockfile, or set defaultPackageManager in ~/.hnirc",

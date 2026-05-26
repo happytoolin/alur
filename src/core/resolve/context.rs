@@ -1,15 +1,14 @@
-use std::{
-    path::{Path, PathBuf},
-    sync::OnceLock,
-};
+use std::path::{Path, PathBuf};
 
 use anyhow::Result;
 
 use crate::core::{
     config::HniConfig,
     detect::detect,
-    package::NearestPackage,
-    pkg_json::{PackageJson, package_json_path, read_package_json},
+    project::{
+        NearestPackage, ProjectDiscovery, ScanMode, ScannedAncestor, resolve_declared_package_bin,
+    },
+    types::DetectionResult,
 };
 
 #[derive(Debug)]
@@ -17,7 +16,6 @@ pub struct ResolveContext {
     cwd: PathBuf,
     pub config: HniConfig,
     verify_package_manager_availability: bool,
-    project_state: OnceLock<ProjectState>,
 }
 
 impl ResolveContext {
@@ -34,25 +32,23 @@ impl ResolveContext {
             cwd,
             config,
             verify_package_manager_availability,
-            project_state: OnceLock::new(),
         }
     }
 
-    pub(crate) fn project_state(&self) -> Result<&ProjectState> {
-        if let Some(state) = self.project_state.get() {
-            return Ok(state);
-        }
+    pub(crate) fn project_state(&self) -> Result<ProjectState> {
+        crate::core::profile::measure("project.scan", || {
+            ProjectState::scan(&self.cwd, &self.config)
+        })
+    }
 
-        let state = ProjectState::scan(&self.cwd)?;
-        let _ = self.project_state.set(state);
-        Ok(self
-            .project_state
-            .get()
-            .expect("project state should be initialized"))
+    pub(crate) fn local_bin_project_state(&self) -> LocalBinProjectState {
+        crate::core::profile::measure("local_bin.scan_project", || {
+            LocalBinProjectState::scan(&self.cwd, &self.config)
+        })
     }
 
     pub fn detect(&self) -> Result<crate::core::types::DetectionResult> {
-        detect(&self.cwd, &self.config)
+        crate::core::profile::measure("detect.total", || detect(&self.cwd, &self.config))
     }
 
     pub fn cwd(&self) -> &Path {
@@ -66,62 +62,29 @@ impl ResolveContext {
 
 #[derive(Debug, Clone)]
 pub(crate) struct ProjectState {
-    ancestors: Vec<AncestorState>,
     nearest_package: Option<NearestPackage>,
     bin_dirs: Vec<PathBuf>,
+    detection: DetectionResult,
     has_yarn_pnp_loader: bool,
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct AncestorState {
-    dir: PathBuf,
-    manifest: Option<PackageJson>,
+pub(crate) struct LocalBinProjectState {
+    ancestors: Vec<ScannedAncestor>,
+    bin_dirs: Vec<PathBuf>,
+    detection: DetectionResult,
+    has_yarn_pnp_loader: bool,
 }
 
 impl ProjectState {
-    pub(crate) fn scan(cwd: &Path) -> Result<Self> {
-        let mut ancestors = Vec::new();
-        let mut nearest_package = None;
-        let mut bin_dirs = Vec::new();
-        let mut has_yarn_pnp_loader = false;
-
-        for dir in cwd.ancestors() {
-            let dir = dir.to_path_buf();
-            let manifest = read_package_json(&dir)?;
-            let package_json_path = package_json_path(&dir);
-
-            if nearest_package.is_none()
-                && let Some(manifest) = manifest.clone()
-            {
-                nearest_package = Some(NearestPackage {
-                    root: dir.clone(),
-                    package_json_path: package_json_path.clone(),
-                    manifest,
-                });
-            }
-
-            for candidate in [
-                dir.join("node_modules").join(".bin"),
-                dir.join("node_modules")
-                    .join(".pnpm")
-                    .join("node_modules")
-                    .join(".bin"),
-            ] {
-                if candidate.is_dir() {
-                    bin_dirs.push(candidate);
-                }
-            }
-
-            has_yarn_pnp_loader |= dir.join(".pnp.cjs").exists() || dir.join(".pnp.js").exists();
-
-            ancestors.push(AncestorState { dir, manifest });
-        }
+    pub(crate) fn scan(cwd: &Path, config: &HniConfig) -> Result<Self> {
+        let discovery = ProjectDiscovery::scan(cwd, config, ScanMode::Full)?;
 
         Ok(Self {
-            ancestors,
-            nearest_package,
-            bin_dirs,
-            has_yarn_pnp_loader,
+            nearest_package: discovery.nearest_package,
+            bin_dirs: discovery.bin_dirs,
+            detection: discovery.detection,
+            has_yarn_pnp_loader: discovery.has_yarn_pnp_loader,
         })
     }
 
@@ -137,12 +100,37 @@ impl ProjectState {
         self.has_yarn_pnp_loader
     }
 
-    pub(crate) fn resolve_declared_package_bin(&self, bin_name: &str) -> Option<PathBuf> {
-        self.ancestors.iter().find_map(|ancestor| {
-            let manifest = ancestor.manifest.as_ref()?;
-            let relative = manifest.bin_command_path(bin_name)?;
-            let candidate = ancestor.dir.join(relative);
-            candidate.is_file().then_some(candidate)
-        })
+    pub(crate) fn detection(&self) -> DetectionResult {
+        self.detection.clone()
+    }
+}
+
+impl LocalBinProjectState {
+    pub(crate) fn scan(cwd: &Path, config: &HniConfig) -> Self {
+        let discovery = ProjectDiscovery::scan(cwd, config, ScanMode::LocalBinsOnly)
+            .expect("local bin scan should only inspect filesystem");
+
+        Self {
+            ancestors: discovery.ancestors,
+            bin_dirs: discovery.bin_dirs,
+            detection: discovery.detection,
+            has_yarn_pnp_loader: discovery.has_yarn_pnp_loader,
+        }
+    }
+
+    pub(crate) fn bin_dirs(&self) -> &[PathBuf] {
+        &self.bin_dirs
+    }
+
+    pub(crate) fn has_yarn_pnp_loader(&self) -> bool {
+        self.has_yarn_pnp_loader
+    }
+
+    pub(crate) fn detection(&self) -> DetectionResult {
+        self.detection.clone()
+    }
+
+    pub(crate) fn resolve_declared_package_bin(&self, bin_name: &str) -> Result<Option<PathBuf>> {
+        resolve_declared_package_bin(&self.ancestors, bin_name)
     }
 }

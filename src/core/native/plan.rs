@@ -17,7 +17,6 @@ pub(super) enum NativePlan {
 pub(super) enum FallbackReason {
     DenoTask(String),
     MissingNearestDenoProject,
-    PackageManagerExec,
     MissingNearestPackage,
     YarnBerryPnp,
     MissingScript(String),
@@ -35,12 +34,6 @@ impl fmt::Display for FallbackReason {
             Self::DenoTask(reason) => write!(f, "{reason}"),
             Self::MissingNearestDenoProject => {
                 write!(f, "fast deno execution requires a nearest deno project")
-            }
-            Self::PackageManagerExec => {
-                write!(
-                    f,
-                    "fast local binary execution stays in package-manager exec mode"
-                )
             }
             Self::MissingNearestPackage => {
                 write!(f, "fast script execution requires a nearest package.json")

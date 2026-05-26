@@ -15,7 +15,7 @@ where
     F: FnOnce() -> T,
 {
     let lock = ENV_LOCK.get_or_init(|| Mutex::new(()));
-    let _guard = lock.lock().expect("env lock poisoned");
+    let _guard = lock.lock().unwrap_or_else(|e| e.into_inner());
     f()
 }
 
@@ -127,16 +127,6 @@ pub fn fixture_path(category: &str, name: &str) -> PathBuf {
 pub fn copy_fixture_into(category: &str, name: &str, dest: &Path) {
     copy_dir_all(&fixture_path(category, name), dest)
         .unwrap_or_else(|error| panic!("failed to copy fixture {category}/{name}: {error}"));
-}
-
-pub fn real_node_supports_run() -> bool {
-    let output = match Command::new("node").arg("--help").output() {
-        Ok(output) => output,
-        Err(_) => return false,
-    };
-
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    stdout.contains("--run")
 }
 
 /// Get the path to the hni executable.

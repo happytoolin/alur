@@ -10,7 +10,7 @@ use std::path::Path;
 use anyhow::Result;
 
 use crate::core::{
-    resolve::ResolveContext,
+    resolve::{LocalBinProjectState, ProjectState, ResolveContext},
     types::{NativeDenoTaskExecution, PackageManager, ResolvedExecution},
 };
 
@@ -34,24 +34,29 @@ pub enum NativeAttempt {
     Ineligible(String),
 }
 
-pub fn attempt_nr(
+pub(crate) fn attempt_nr_from_state(
     pm: Option<PackageManager>,
     args: &[String],
     ctx: &ResolveContext,
+    state: &ProjectState,
     has_if_present: bool,
 ) -> Result<NativeAttempt> {
-    into_attempt(
-        eligibility::plan_nr(pm, args, ctx, has_if_present)?,
-        ctx.cwd(),
-    )
+    let decision = crate::core::profile::measure("native.plan_nr", || {
+        eligibility::plan_nr_from_state(pm, args, ctx, state, has_if_present)
+    })?;
+    crate::core::profile::measure("native.materialize", || into_attempt(decision, ctx.cwd()))
 }
 
-pub fn attempt_nlx(
+pub(crate) fn attempt_nlx_from_local_bin_state(
     pm: Option<PackageManager>,
     args: &[String],
     ctx: &ResolveContext,
+    state: &LocalBinProjectState,
 ) -> Result<NativeAttempt> {
-    into_attempt(eligibility::plan_nlx(pm, args, ctx)?, ctx.cwd())
+    let decision = crate::core::profile::measure("native.plan_nlx", || {
+        eligibility::plan_nlx_from_local_bin_state(pm, args, state)
+    })?;
+    crate::core::profile::measure("native.materialize", || into_attempt(decision, ctx.cwd()))
 }
 
 pub fn run_script(

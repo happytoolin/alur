@@ -2,34 +2,20 @@ use std::path::Path;
 
 use anyhow::{Result, anyhow};
 
-use crate::{
-    core::{
-        native::{self, NativeAttempt},
-        types::{ExecutionMode, Intent, PackageManager, ResolvedExecution},
-    },
-    platform::node::real_node_supports_run,
+use crate::core::{
+    native::{self, NativeAttempt},
+    types::{ExecutionMode, Intent, PackageManager, ResolvedExecution},
 };
 
 use super::{
     context::ResolveContext,
-    detect::{detect_for_action, ensure_detected_available},
+    detect::{agent_resolution_from_detection, detect_for_action, ensure_detected_available},
     flags::{exclude_flag, normalize_ni_args, prepend},
     map::{
         add_command, execute_command, frozen_command, global_install_command,
         global_uninstall_command, install_command, run_command, uninstall_command, upgrade_command,
     },
 };
-
-const NODE_RUN_UNSAFE_ENV_PATTERNS: &[&str] = &[
-    "INIT_CWD",
-    "npm_package_",
-    "npm_config_",
-    "npm_lifecycle_event",
-    "npm_lifecycle_script",
-    "npm_execpath",
-    "npm_node_execpath",
-    "npm_package_json",
-];
 
 pub fn resolve_ni(args: Vec<String>, ctx: &ResolveContext) -> Result<ResolvedExecution> {
     let use_global = args.iter().any(|arg| arg == "-g");
@@ -105,85 +91,21 @@ pub fn resolve_ni(args: Vec<String>, ctx: &ResolveContext) -> Result<ResolvedExe
 }
 
 pub fn resolve_nr(mut args: Vec<String>, ctx: &ResolveContext) -> Result<ResolvedExecution> {
-    if args.is_empty() {
-        args.push("start".to_string());
-    }
-
-    let has_if_present = args.iter().any(|a| a == "--if-present");
-    if has_if_present {
-        args = exclude_flag(args, "--if-present");
-    }
-
-    let mut normalized_args = args.clone();
-    if normalized_args.get(1).is_some_and(|arg| arg == "--") {
-        normalized_args.remove(1);
-    }
-
-    if ctx.config.fast_mode {
-        let detected_hint = ctx.detect()?.agent;
-        match native::attempt_nr(detected_hint, &normalized_args, ctx, has_if_present)? {
-            NativeAttempt::Eligible(exec) => return Ok(*exec),
-            NativeAttempt::Ineligible(reason) => {
-                if let Some(mut resolved) = build_node_run_exec_if_safe(
-                    detected_hint,
-                    &normalized_args,
-                    ctx,
-                    has_if_present,
-                )? {
-                    resolved.fast_requested = true;
-                    resolved.fast_fallback_reason = Some(reason);
-                    return Ok(resolved);
-                }
-
-                let detected = detect_for_action(ctx, false)?;
-                ensure_detected_available(&detected, ctx)?;
-                let mut resolved = build_exec(
-                    detected.pm,
-                    Intent::Run,
-                    normalized_args,
-                    ctx.cwd(),
-                    false,
-                    detected.has_lock,
-                );
-
-                if has_if_present {
-                    insert_if_present(&mut resolved);
-                }
-
-                resolved.fast_requested = true;
-                resolved.fast_fallback_reason = Some(reason);
-                return Ok(resolved);
-            }
-        }
-    }
-
-    let detected = detect_for_action(ctx, false)?;
-    ensure_detected_available(&detected, ctx)?;
-
-    let mut resolved = build_exec(
-        detected.pm,
-        Intent::Run,
-        normalized_args,
-        ctx.cwd(),
-        false,
-        detected.has_lock,
-    );
-
-    if has_if_present {
-        insert_if_present(&mut resolved);
-    }
-
-    Ok(resolved)
+    resolve_run_like(&mut args, ctx)
 }
 
 pub fn resolve_node_run(mut args: Vec<String>, ctx: &ResolveContext) -> Result<ResolvedExecution> {
+    resolve_run_like(&mut args, ctx)
+}
+
+fn resolve_run_like(args: &mut Vec<String>, ctx: &ResolveContext) -> Result<ResolvedExecution> {
     if args.is_empty() {
         args.push("start".to_string());
     }
 
     let has_if_present = args.iter().any(|a| a == "--if-present");
     if has_if_present {
-        args = exclude_flag(args, "--if-present");
+        *args = exclude_flag(std::mem::take(args), "--if-present");
     }
 
     let mut normalized_args = args.clone();
@@ -192,32 +114,19 @@ pub fn resolve_node_run(mut args: Vec<String>, ctx: &ResolveContext) -> Result<R
     }
 
     if ctx.config.fast_mode {
-        let detected_hint = ctx.detect()?.agent;
-        if let Some(mut resolved) =
-            build_node_run_exec_if_safe(detected_hint, &normalized_args, ctx, has_if_present)?
-        {
-            resolved.fast_requested = true;
-            return Ok(resolved);
-        }
-
-        match native::attempt_nr(detected_hint, &normalized_args, ctx, has_if_present)? {
+        let state = ctx.project_state()?;
+        let detected_hint = state.detection().agent;
+        match native::attempt_nr_from_state(
+            detected_hint,
+            &normalized_args,
+            ctx,
+            &state,
+            has_if_present,
+        )? {
             NativeAttempt::Eligible(exec) => return Ok(*exec),
             NativeAttempt::Ineligible(reason) => {
-                let detected = detect_for_action(ctx, false)?;
-                ensure_detected_available(&detected, ctx)?;
-                let mut resolved = build_exec(
-                    detected.pm,
-                    Intent::Run,
-                    normalized_args,
-                    ctx.cwd(),
-                    false,
-                    detected.has_lock,
-                );
-
-                if has_if_present {
-                    insert_if_present(&mut resolved);
-                }
-
+                let mut resolved =
+                    build_run_fallback(ctx, normalized_args, has_if_present, state.detection())?;
                 resolved.fast_requested = true;
                 resolved.fast_fallback_reason = Some(reason);
                 return Ok(resolved);
@@ -246,8 +155,9 @@ pub fn resolve_node_run(mut args: Vec<String>, ctx: &ResolveContext) -> Result<R
 
 pub fn resolve_nlx(args: Vec<String>, ctx: &ResolveContext) -> Result<ResolvedExecution> {
     if ctx.config.fast_mode {
-        let detected_hint = ctx.detect()?.agent;
-        match native::attempt_nlx(detected_hint, &args, ctx)? {
+        let state = ctx.local_bin_project_state();
+        let detected_hint = state.detection().agent;
+        match native::attempt_nlx_from_local_bin_state(detected_hint, &args, ctx, &state)? {
             NativeAttempt::Eligible(exec) => return Ok(*exec),
             NativeAttempt::Ineligible(reason) => {
                 let detected = detect_for_action(ctx, false)?;
@@ -277,6 +187,31 @@ pub fn resolve_nlx(args: Vec<String>, ctx: &ResolveContext) -> Result<ResolvedEx
         false,
         detected.has_lock,
     ))
+}
+
+fn build_run_fallback(
+    ctx: &ResolveContext,
+    args: Vec<String>,
+    has_if_present: bool,
+    detection: crate::core::types::DetectionResult,
+) -> Result<ResolvedExecution> {
+    let detected = agent_resolution_from_detection(ctx, false, detection)?;
+    ensure_detected_available(&detected, ctx)?;
+
+    let mut resolved = build_exec(
+        detected.pm,
+        Intent::Run,
+        args,
+        ctx.cwd(),
+        false,
+        detected.has_lock,
+    );
+
+    if has_if_present {
+        insert_if_present(&mut resolved);
+    }
+
+    Ok(resolved)
 }
 
 pub fn resolve_nru(mut args: Vec<String>, ctx: &ResolveContext) -> Result<ResolvedExecution> {
@@ -483,59 +418,6 @@ fn build_exec(
     };
 
     ResolvedExecution::external(program, args, cwd.to_path_buf(), false)
-}
-
-fn build_node_run_exec_if_safe(
-    pm: Option<PackageManager>,
-    args: &[String],
-    ctx: &ResolveContext,
-    has_if_present: bool,
-) -> Result<Option<ResolvedExecution>> {
-    if pm == Some(PackageManager::Deno) {
-        return Ok(None);
-    }
-
-    if !real_node_supports_run() {
-        return Ok(None);
-    }
-
-    if has_if_present {
-        return Ok(None);
-    }
-
-    let Some(pkg) = ctx.project_state()?.nearest_package() else {
-        return Ok(None);
-    };
-    let scripts = pkg.manifest.scripts.unwrap_or_default();
-    let script_name = args.first().cloned().unwrap_or_else(|| "start".to_string());
-    let Some(script) = scripts.get(&script_name) else {
-        return Ok(None);
-    };
-
-    if scripts.contains_key(&format!("pre{script_name}"))
-        || scripts.contains_key(&format!("post{script_name}"))
-        || script_uses_node_run_unsupported_env(script)
-        || ctx.project_state()?.has_yarn_pnp_loader()
-    {
-        return Ok(None);
-    }
-
-    let mut node_args = vec!["--run".to_string(), script_name];
-    node_args.extend(args.iter().skip(1).cloned());
-
-    Ok(Some(ResolvedExecution::external_with_mode(
-        "node",
-        node_args,
-        ctx.cwd().to_path_buf(),
-        true,
-        ExecutionMode::NodeRun,
-    )))
-}
-
-fn script_uses_node_run_unsupported_env(script: &str) -> bool {
-    NODE_RUN_UNSAFE_ENV_PATTERNS
-        .iter()
-        .any(|pattern| script.contains(pattern))
 }
 
 fn insert_if_present(resolved: &mut ResolvedExecution) {

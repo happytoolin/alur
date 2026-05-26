@@ -196,25 +196,17 @@ fn native_nr_exposes_supported_shared_npm_env() {
 }
 
 #[test]
-fn node_run_prefers_builtin_node_run_when_supported() {
+fn node_run_uses_native_fast_path() {
     support::with_env_lock(|| {
         let work = tempfile::tempdir().unwrap();
         let project = work.path().join("project");
-        let fake_node = work.path().join("fake-node");
-        let bin_dir = project.join("node_modules").join(".bin");
-        fs::create_dir_all(&bin_dir).unwrap();
+        fs::create_dir_all(&project).unwrap();
         fs::write(project.join("package-lock.json"), "lock").unwrap();
         fs::write(
             project.join("package.json"),
             r#"{"name":"x","scripts":{"dev":"echo ok"}}"#,
         )
         .unwrap();
-        fs::write(
-            &fake_node,
-            "#!/bin/sh\nif [ \"$1\" = \"--help\" ]; then\n  printf '  --run\\n'\n  exit 0\nfi\nexit 0\n",
-        )
-        .unwrap();
-        make_executable(&fake_node);
 
         let run_output = run_hni(
             vec![
@@ -226,25 +218,21 @@ fn node_run_prefers_builtin_node_run_when_supported() {
                 "run",
                 "dev",
             ],
-            &[
-                ("HNI_SKIP_PM_CHECK", "1"),
-                ("HNI_REAL_NODE", fake_node.to_str().unwrap()),
-            ],
+            &[("HNI_SKIP_PM_CHECK", "1")],
         );
         assert!(run_output.status.success(), "{run_output:?}");
-        let stdout = String::from_utf8_lossy(&run_output.stdout);
-        let rendered = stdout.trim();
-        assert!(rendered.contains(fake_node.to_str().unwrap()), "{rendered}");
-        assert!(rendered.ends_with(" --run dev"), "{rendered}");
+        assert_eq!(
+            String::from_utf8_lossy(&run_output.stdout).trim(),
+            "hni fast:run-script dev"
+        );
     });
 }
 
 #[test]
-fn node_run_falls_back_to_native_when_node_run_is_unsafe() {
+fn node_run_uses_native_fast_path_with_hooks() {
     support::with_env_lock(|| {
         let work = tempfile::tempdir().unwrap();
         let project = work.path().join("project");
-        let fake_node = work.path().join("fake-node");
         fs::create_dir_all(&project).unwrap();
         fs::write(project.join("package-lock.json"), "lock").unwrap();
         fs::write(
@@ -252,12 +240,6 @@ fn node_run_falls_back_to_native_when_node_run_is_unsafe() {
             r#"{"name":"x","scripts":{"predev":"echo pre","dev":"echo ok"}}"#,
         )
         .unwrap();
-        fs::write(
-            &fake_node,
-            "#!/bin/sh\nif [ \"$1\" = \"--help\" ]; then\n  printf '  --run\\n'\n  exit 0\nfi\nexit 0\n",
-        )
-        .unwrap();
-        make_executable(&fake_node);
 
         let run_output = run_hni(
             vec![
@@ -269,10 +251,7 @@ fn node_run_falls_back_to_native_when_node_run_is_unsafe() {
                 "run",
                 "dev",
             ],
-            &[
-                ("HNI_SKIP_PM_CHECK", "1"),
-                ("HNI_REAL_NODE", fake_node.to_str().unwrap()),
-            ],
+            &[("HNI_SKIP_PM_CHECK", "1")],
         );
         assert!(run_output.status.success(), "{run_output:?}");
         assert_eq!(
@@ -283,11 +262,10 @@ fn node_run_falls_back_to_native_when_node_run_is_unsafe() {
 }
 
 #[test]
-fn node_run_falls_back_to_native_when_script_uses_lifecycle_env() {
+fn node_run_uses_native_fast_path_with_lifecycle_env() {
     support::with_env_lock(|| {
         let work = tempfile::tempdir().unwrap();
         let project = work.path().join("project");
-        let fake_node = work.path().join("fake-node");
         fs::create_dir_all(&project).unwrap();
         fs::write(project.join("package-lock.json"), "lock").unwrap();
         fs::write(
@@ -295,12 +273,6 @@ fn node_run_falls_back_to_native_when_script_uses_lifecycle_env() {
             r#"{"name":"x","scripts":{"dev":"node -e \"console.log(process.env.npm_lifecycle_event, process.env.INIT_CWD, process.env.npm_execpath, process.env.npm_node_execpath)\""}} "#.trim(),
         )
         .unwrap();
-        fs::write(
-            &fake_node,
-            "#!/bin/sh\nif [ \"$1\" = \"--help\" ]; then\n  printf '  --run\\n'\n  exit 0\nfi\nexit 0\n",
-        )
-        .unwrap();
-        make_executable(&fake_node);
 
         let run_output = run_hni(
             vec![
@@ -312,16 +284,53 @@ fn node_run_falls_back_to_native_when_script_uses_lifecycle_env() {
                 "run",
                 "dev",
             ],
-            &[
-                ("HNI_SKIP_PM_CHECK", "1"),
-                ("HNI_REAL_NODE", fake_node.to_str().unwrap()),
-            ],
+            &[("HNI_SKIP_PM_CHECK", "1")],
         );
         assert!(run_output.status.success(), "{run_output:?}");
         assert_eq!(
             String::from_utf8_lossy(&run_output.stdout).trim(),
             "hni fast:run-script dev"
         );
+    });
+}
+
+#[test]
+fn native_nlx_sets_exec_compat_env() {
+    support::with_env_lock(|| {
+        let work = tempfile::tempdir().unwrap();
+        let project = work.path().join("project");
+        let bin_dir = project.join("node_modules").join(".bin");
+        fs::create_dir_all(&bin_dir).unwrap();
+        fs::write(project.join("package-lock.json"), "lock").unwrap();
+        fs::write(project.join("package.json"), r#"{"name":"x"}"#).unwrap();
+
+        let bin = bin_dir.join("hello");
+        fs::write(
+            &bin,
+            "#!/bin/sh\nprintf '%s\\n%s\\n%s\\n%s\\n' \"$npm_command\" \"$npm_execpath\" \"$npm_config_user_agent\" \"$INIT_CWD\" > env.txt\n",
+        )
+        .unwrap();
+        make_executable(&bin);
+
+        let output = run_hni(
+            vec!["nlx", "-C", project.to_str().unwrap(), "--fast", "hello"],
+            &[
+                ("HNI_SKIP_PM_CHECK", "1"),
+                ("npm_config_user_agent", "hni-tests/1.0.0"),
+            ],
+        );
+
+        assert!(output.status.success(), "{output:?}");
+        let lines = fs::read_to_string(project.join("env.txt"))
+            .unwrap()
+            .lines()
+            .map(str::to_string)
+            .collect::<Vec<_>>();
+
+        assert_eq!(lines[0], "exec");
+        assert!(!lines[1].is_empty());
+        assert_eq!(lines[2], "hni-tests/1.0.0");
+        assert_eq!(lines[3], project.to_string_lossy());
     });
 }
 

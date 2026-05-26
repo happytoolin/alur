@@ -7,6 +7,7 @@ use super::{
     native,
     shell::shell_escape,
     types::{ExecutionStrategy, NativeExecution, ResolvedExecution},
+    util::exit_code_from_status,
 };
 use crate::platform::node::{
     REAL_NODE_ENV, SHIM_ACTIVE_ENV, path_with_real_node_priority, resolve_real_node_path,
@@ -82,13 +83,4 @@ fn materialize(exec: &ResolvedExecution) -> Result<(String, Vec<String>, bool)> 
     }
 
     Ok((program, args, passthrough))
-}
-
-fn exit_code_from_status(code: Option<i32>) -> ExitCode {
-    code.map_or_else(|| ExitCode::from(1), exit_code_from_code)
-}
-
-fn exit_code_from_code(code: i32) -> ExitCode {
-    let code = u8::try_from(code).unwrap_or(1);
-    ExitCode::from(code)
 }

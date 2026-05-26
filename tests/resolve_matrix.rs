@@ -350,86 +350,57 @@ fn nlx_fast_mode_does_not_require_detected_package_manager() {
 
 #[cfg(unix)]
 #[test]
-fn node_run_prefers_builtin_node_run_when_supported() {
+fn node_run_uses_native_fast_path() {
     with_skip_pm_check(|| {
         let dir = tempfile::tempdir().unwrap();
-        let fake_node = dir
-            .path()
-            .join(if cfg!(windows) { "node.exe" } else { "node" });
-        fs::write(
-            &fake_node,
-            "#!/bin/sh\nif [ \"$1\" = \"--help\" ]; then\n  printf '  --run\\n'\n  exit 0\nfi\nexit 0\n",
-        )
-        .unwrap();
-        make_executable(&fake_node);
         write_package_json(
             dir.path(),
             r#"{"packageManager":"npm@10.0.0","scripts":{"dev":"vite"}}"#,
         );
 
-        support::set_var("HNI_REAL_NODE", &fake_node);
         let ctx = ResolveContext::new(dir.path().to_path_buf(), HniConfig::default());
         let resolved = resolve::resolve_node_run(vec!["dev".into()], &ctx).unwrap();
-        support::remove_var("HNI_REAL_NODE");
 
-        assert_eq!(resolved.program, "node");
-        assert_eq!(resolved.args, vec!["--run", "dev"]);
-        assert_eq!(resolved.execution_mode_name(), "node-run");
+        assert!(matches!(
+            resolved.strategy,
+            ExecutionStrategy::Native(NativeExecution::RunScript(_))
+        ));
+        assert_eq!(resolved.execution_mode_name(), "fast");
     });
 }
 
 #[cfg(unix)]
 #[test]
-fn node_run_safe_path_does_not_require_detected_package_manager() {
+fn node_run_fast_path_does_not_require_detected_package_manager() {
     with_skip_pm_check(|| {
         with_path_override("", || {
             let dir = tempfile::tempdir().unwrap();
-            let fake_node = dir
-                .path()
-                .join(if cfg!(windows) { "node.exe" } else { "node" });
-            fs::write(
-                &fake_node,
-                "#!/bin/sh\nif [ \"$1\" = \"--help\" ]; then\n  printf '  --run\\n'\n  exit 0\nfi\nexit 0\n",
-            )
-            .unwrap();
-            make_executable(&fake_node);
             write_package_json(dir.path(), r#"{"name":"x","scripts":{"dev":"vite"}}"#);
 
-            support::set_var("HNI_REAL_NODE", &fake_node);
             let ctx = ResolveContext::new(dir.path().to_path_buf(), HniConfig::default());
             let resolved = resolve::resolve_node_run(vec!["dev".into()], &ctx).unwrap();
-            support::remove_var("HNI_REAL_NODE");
 
-            assert_eq!(resolved.program, "node");
-            assert_eq!(resolved.args, vec!["--run", "dev"]);
-            assert_eq!(resolved.execution_mode_name(), "node-run");
+            assert!(matches!(
+                resolved.strategy,
+                ExecutionStrategy::Native(NativeExecution::RunScript(_))
+            ));
+            assert_eq!(resolved.execution_mode_name(), "fast");
         });
     });
 }
 
 #[cfg(unix)]
 #[test]
-fn node_run_falls_back_to_native_when_builtin_node_run_is_unsafe() {
+fn node_run_uses_native_fast_path_with_hooks() {
     with_skip_pm_check(|| {
         let dir = tempfile::tempdir().unwrap();
-        let fake_node = dir
-            .path()
-            .join(if cfg!(windows) { "node.exe" } else { "node" });
-        fs::write(
-            &fake_node,
-            "#!/bin/sh\nif [ \"$1\" = \"--help\" ]; then\n  printf '  --run\\n'\n  exit 0\nfi\nexit 0\n",
-        )
-        .unwrap();
-        make_executable(&fake_node);
         write_package_json(
             dir.path(),
             r#"{"packageManager":"npm@10.0.0","scripts":{"predev":"echo pre","dev":"vite"}}"#,
         );
 
-        support::set_var("HNI_REAL_NODE", &fake_node);
         let ctx = ResolveContext::new(dir.path().to_path_buf(), HniConfig::default());
         let resolved = resolve::resolve_node_run(vec!["dev".into()], &ctx).unwrap();
-        support::remove_var("HNI_REAL_NODE");
 
         assert!(matches!(
             resolved.strategy,
@@ -440,27 +411,16 @@ fn node_run_falls_back_to_native_when_builtin_node_run_is_unsafe() {
 
 #[cfg(unix)]
 #[test]
-fn node_run_falls_back_to_package_manager_when_neither_fast_path_is_safe() {
+fn node_run_falls_back_to_package_manager_when_fast_env_is_unsupported() {
     with_skip_pm_check(|| {
         let dir = tempfile::tempdir().unwrap();
-        let fake_node = dir
-            .path()
-            .join(if cfg!(windows) { "node.exe" } else { "node" });
-        fs::write(
-            &fake_node,
-            "#!/bin/sh\nif [ \"$1\" = \"--help\" ]; then\n  printf '  --run\\n'\n  exit 0\nfi\nexit 0\n",
-        )
-        .unwrap();
-        make_executable(&fake_node);
         write_package_json(
             dir.path(),
             r#"{"packageManager":"npm@10.0.0","scripts":{"dev":"echo $npm_package_name"}}"#,
         );
 
-        support::set_var("HNI_REAL_NODE", &fake_node);
         let ctx = ResolveContext::new(dir.path().to_path_buf(), HniConfig::default());
         let resolved = resolve::resolve_node_run(vec!["dev".into()], &ctx).unwrap();
-        support::remove_var("HNI_REAL_NODE");
 
         assert_eq!(resolved.program, "npm");
         assert_eq!(resolved.args, vec!["run", "dev"]);
@@ -776,7 +736,13 @@ fn nlx_fast_mode_uses_local_bin_when_present() {
         match &resolved.strategy {
             ExecutionStrategy::Native(NativeExecution::RunLocalBin(exec)) => {
                 assert_eq!(exec.bin_name, "vitest");
-                assert!(exec.resolved_path().ends_with("node_modules/.bin/vitest"));
+                let expected_suffix =
+                    std::path::Path::new("node_modules").join(".bin").join("vitest");
+                assert!(
+                    exec.resolved_path().ends_with(&expected_suffix),
+                    "expected path to end with {expected_suffix:?}, got {:?}",
+                    exec.resolved_path()
+                );
             }
             other => panic!("expected native local bin execution, got {other:?}"),
         }
@@ -852,7 +818,13 @@ fn nlx_fast_mode_uses_declared_package_bin_when_present() {
         match &resolved.strategy {
             ExecutionStrategy::Native(NativeExecution::RunLocalBin(exec)) => {
                 assert_eq!(exec.bin_name, "hello");
-                assert!(exec.resolved_path().ends_with("bin/hello.js"));
+                let expected_suffix =
+                    std::path::Path::new("bin").join("hello.js");
+                assert!(
+                    exec.resolved_path().ends_with(&expected_suffix),
+                    "expected path to end with {expected_suffix:?}, got {:?}",
+                    exec.resolved_path()
+                );
             }
             other => panic!("expected native local bin execution, got {other:?}"),
         }
@@ -861,7 +833,7 @@ fn nlx_fast_mode_uses_declared_package_bin_when_present() {
 }
 
 #[test]
-fn nlx_fast_mode_keeps_pnpm_exec_behavior_even_with_local_bins() {
+fn nlx_fast_mode_uses_pnpm_hoisted_local_bin_when_present() {
     with_skip_pm_check(|| {
         let dir = tempfile::tempdir().unwrap();
         write_package_json(dir.path(), r#"{"packageManager":"pnpm@9.0.0"}"#);
@@ -892,13 +864,23 @@ fn nlx_fast_mode_keeps_pnpm_exec_behavior_even_with_local_bins() {
         let ctx = ResolveContext::new(dir.path().to_path_buf(), cfg);
         let resolved = resolve::resolve_nlx(vec!["vitest".into()], &ctx).unwrap();
 
-        assert!(matches!(resolved.strategy, ExecutionStrategy::External));
-        assert_eq!(resolved.program, "pnpm");
-        assert_eq!(resolved.args, vec!["dlx", "vitest"]);
-        assert_eq!(
-            resolved.fast_fallback_reason.as_deref(),
-            Some("fast local binary execution stays in package-manager exec mode")
-        );
+        match &resolved.strategy {
+            ExecutionStrategy::Native(NativeExecution::RunLocalBin(exec)) => {
+                assert_eq!(exec.bin_name, "vitest");
+                let bin_name = if cfg!(windows) { "vitest.cmd" } else { "vitest" };
+                let expected_suffix = std::path::Path::new("node_modules")
+                    .join(".pnpm")
+                    .join("node_modules")
+                    .join(".bin")
+                    .join(bin_name);
+                assert!(
+                    exec.resolved_path().ends_with(&expected_suffix),
+                    "expected path to end with {expected_suffix:?}, got {:?}",
+                    exec.resolved_path()
+                );
+            }
+            other => panic!("expected native local bin execution, got {other:?}"),
+        }
     });
 }
 
