@@ -736,8 +736,9 @@ fn nlx_fast_mode_uses_local_bin_when_present() {
         match &resolved.strategy {
             ExecutionStrategy::Native(NativeExecution::RunLocalBin(exec)) => {
                 assert_eq!(exec.bin_name, "vitest");
-                let expected_suffix =
-                    std::path::Path::new("node_modules").join(".bin").join("vitest");
+                let expected_suffix = std::path::Path::new("node_modules")
+                    .join(".bin")
+                    .join("vitest");
                 assert!(
                     exec.resolved_path().ends_with(&expected_suffix),
                     "expected path to end with {expected_suffix:?}, got {:?}",
@@ -818,8 +819,7 @@ fn nlx_fast_mode_uses_declared_package_bin_when_present() {
         match &resolved.strategy {
             ExecutionStrategy::Native(NativeExecution::RunLocalBin(exec)) => {
                 assert_eq!(exec.bin_name, "hello");
-                let expected_suffix =
-                    std::path::Path::new("bin").join("hello.js");
+                let expected_suffix = std::path::Path::new("bin").join("hello.js");
                 assert!(
                     exec.resolved_path().ends_with(&expected_suffix),
                     "expected path to end with {expected_suffix:?}, got {:?}",
@@ -867,7 +867,11 @@ fn nlx_fast_mode_uses_pnpm_hoisted_local_bin_when_present() {
         match &resolved.strategy {
             ExecutionStrategy::Native(NativeExecution::RunLocalBin(exec)) => {
                 assert_eq!(exec.bin_name, "vitest");
-                let bin_name = if cfg!(windows) { "vitest.cmd" } else { "vitest" };
+                let bin_name = if cfg!(windows) {
+                    "vitest.cmd"
+                } else {
+                    "vitest"
+                };
                 let expected_suffix = std::path::Path::new("node_modules")
                     .join(".pnpm")
                     .join("node_modules")
