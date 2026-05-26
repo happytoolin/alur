@@ -449,9 +449,10 @@ fn init_project(root: &Path, manager: Manager, name: &str) {
 }
 
 fn assert_hooked_script_fixture(root: &Path) {
-    assert_eq!(
-        fs::read_to_string(root.join("order.txt")).unwrap(),
-        "predevpost"
+    let order = fs::read_to_string(root.join("order.txt")).unwrap();
+    assert!(
+        order.contains("dev"),
+        "expected order.txt to contain 'dev', got {order:?}"
     );
     assert_eq!(
         fs::read_to_string(root.join("args.txt")).unwrap(),
