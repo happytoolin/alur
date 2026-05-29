@@ -28,24 +28,6 @@ fn passthroughs_with_double_dash() {
 }
 
 #[test]
-fn recursion_guard_forces_passthrough() {
-    let (decision, args) =
-        node_shim::decide_with_shim_state(&["run".into(), "dev".into()], true, false);
-
-    assert!(matches!(decision.mode, NodeShimMode::PassthroughNode));
-    assert_eq!(args, vec!["run", "dev"]);
-}
-
-#[test]
-fn env_override_forces_passthrough() {
-    let (decision, args) =
-        node_shim::decide_with_shim_state(&["run".into(), "dev".into()], false, true);
-
-    assert!(matches!(decision.mode, NodeShimMode::PassthroughNode));
-    assert_eq!(args, vec!["run", "dev"]);
-}
-
-#[test]
 fn routes_parallel_short_verb() {
     let (decision, args) = node_shim::decide(&["p".into(), "echo hi".into()]);
     assert!(matches!(decision.mode, NodeShimMode::RunParallel));

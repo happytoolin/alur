@@ -22,7 +22,7 @@ One install gives you:
 
 - `hni`
 - `ni`, `nr`, `nlx`, `nru`, `nun`, `nci`, `na`, `np`, `ns`
-- `node` shim via `hni init <shell>` (shell plugin only)
+- `node` shim via `hni init <shell>` (symlink-based, works everywhere)
 
 ## Install
 
@@ -47,21 +47,23 @@ hni --version
 
 ### Script install (macOS / Linux)
 
-TODO: `https://happytoolin.com/hni/install.sh` is not live yet. Use the raw GitHub script for now:
-
 ```bash
 curl -fsSL https://raw.githubusercontent.com/happytoolin/hni/main/install.sh | bash
+```
+
+To pin a specific version:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/happytoolin/hni/main/install.sh | HNI_VERSION=v0.0.3 bash
 ```
 
 Optional environment variables:
 
 - `HNI_VERSION` - install a specific version, for example `v0.0.2`
 - `HNI_INSTALL_DIR` - install somewhere other than `~/.local/bin`
-- `HNI_NODE=off` - disable the `node` shim for the current environment
+- `HNI_REAL_NODE` - override the real Node.js binary path used for `node` shim passthrough
 
 ### Script install (PowerShell)
-
-TODO: `https://happytoolin.com/hni/install.ps1` is not live yet. Use the raw GitHub script for now:
 
 ```powershell
 irm https://raw.githubusercontent.com/happytoolin/hni/main/install.ps1 | iex
@@ -87,6 +89,52 @@ Install alias commands (example):
 deno install -gA -n ni jsr:@happytoolin/hni/ni
 deno install -gA -n nr jsr:@happytoolin/hni/nr
 ```
+
+### CI / automation
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/happytoolin/hni/main/install.sh | HNI_VERSION=v0.0.3 bash
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$GITHUB_ENV"
+```
+
+Use `HNI_VERSION` to pin. Omit it to track the latest release.
+
+## Enable the `node` shim
+
+Once `hni` is installed, run `hni init` for your shell to enable the `node` shim.
+This creates a `node` → `hni` symlink, caches the real Node.js path, and outputs a
+PATH setup line for your shell config.
+
+Add the output to the **end** of your shell rc file (after nvm / mise / asdf / fnm / volta init):
+
+**zsh** (`~/.zshrc`):
+```bash
+eval "$(hni init zsh)"
+```
+
+**bash** (`~/.bashrc`):
+```bash
+eval "$(hni init bash)"
+```
+
+**fish** (`~/.config/fish/config.fish`):
+```fish
+hni init fish | source
+```
+
+**PowerShell** (`$PROFILE`):
+```powershell
+Invoke-Expression (& hni init powershell)
+```
+
+**Nushell** (`~/.config/nushell/config.nu`):
+```nu
+hni init nushell | save --force ~/.config/nushell/hni.nu
+source ~/.config/nushell/hni.nu
+```
+
+Once added, restart your shell. `node` will route known npm verbs through hni
+(`node install vite` → `ni vite`) and pass everything else through to the real Node.js.
 
 ## Commands
 
@@ -202,53 +250,6 @@ hni help ni
 hni completion zsh
 hni init bash
 hni doctor
-```
-
-## Shell Setup
-
-If you want node-shim behavior, add the init line at the end of your shell config file, after anything that manages Node or rewrites `PATH`, such as `nvm`, `mise`, `asdf`, `fnm`, or `volta`.
-
-Do not append the `hni` directory to the end of `PATH`. Put the init line at the end of the shell config file and let it prepend the correct path for you.
-
-### zsh
-
-Add to `~/.zshrc`:
-
-```bash
-eval "$(hni init zsh)"
-```
-
-### bash
-
-Add to `~/.bashrc`:
-
-```bash
-eval "$(hni init bash)"
-```
-
-### fish
-
-Add to `~/.config/fish/config.fish`:
-
-```fish
-hni init fish | source
-```
-
-### PowerShell
-
-Add to `$PROFILE`:
-
-```powershell
-Invoke-Expression (& hni init powershell)
-```
-
-### Nushell
-
-Generate a stable init file, then source it from the end of `~/.config/nushell/config.nu`:
-
-```nu
-hni init nushell | save --force ~/.config/nushell/hni.nu
-source ~/.config/nushell/hni.nu
 ```
 
 ## Global Flags

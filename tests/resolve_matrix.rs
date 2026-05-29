@@ -359,7 +359,7 @@ fn node_run_uses_native_fast_path() {
         );
 
         let ctx = ResolveContext::new(dir.path().to_path_buf(), HniConfig::default());
-        let resolved = resolve::resolve_node_run(vec!["dev".into()], &ctx).unwrap();
+        let resolved = resolve::resolve_nr(vec!["dev".into()], &ctx).unwrap();
 
         assert!(matches!(
             resolved.strategy,
@@ -378,7 +378,7 @@ fn node_run_fast_path_does_not_require_detected_package_manager() {
             write_package_json(dir.path(), r#"{"name":"x","scripts":{"dev":"vite"}}"#);
 
             let ctx = ResolveContext::new(dir.path().to_path_buf(), HniConfig::default());
-            let resolved = resolve::resolve_node_run(vec!["dev".into()], &ctx).unwrap();
+            let resolved = resolve::resolve_nr(vec!["dev".into()], &ctx).unwrap();
 
             assert!(matches!(
                 resolved.strategy,
@@ -400,7 +400,7 @@ fn node_run_uses_native_fast_path_with_hooks() {
         );
 
         let ctx = ResolveContext::new(dir.path().to_path_buf(), HniConfig::default());
-        let resolved = resolve::resolve_node_run(vec!["dev".into()], &ctx).unwrap();
+        let resolved = resolve::resolve_nr(vec!["dev".into()], &ctx).unwrap();
 
         assert!(matches!(
             resolved.strategy,
@@ -420,7 +420,7 @@ fn node_run_falls_back_to_package_manager_when_fast_env_is_unsupported() {
         );
 
         let ctx = ResolveContext::new(dir.path().to_path_buf(), HniConfig::default());
-        let resolved = resolve::resolve_node_run(vec!["dev".into()], &ctx).unwrap();
+        let resolved = resolve::resolve_nr(vec!["dev".into()], &ctx).unwrap();
 
         assert_eq!(resolved.program, "npm");
         assert_eq!(resolved.args, vec!["run", "dev"]);

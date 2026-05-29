@@ -9,9 +9,7 @@ use super::{
     types::{ExecutionStrategy, NativeExecution, ResolvedExecution},
     util::exit_code_from_status,
 };
-use crate::platform::node::{
-    REAL_NODE_ENV, SHIM_ACTIVE_ENV, path_with_real_node_priority, resolve_real_node_path,
-};
+use crate::platform::node::{REAL_NODE_ENV, path_with_real_node_priority, resolve_real_node_path};
 
 pub fn format_debug(exec: &ResolvedExecution) -> Result<String> {
     if let Some(mode) = BatchMode::from_internal_program(&exec.program) {
@@ -43,7 +41,7 @@ pub fn run(exec: &ResolvedExecution) -> Result<ExitCode> {
         };
     }
 
-    let (program, args, passthrough) = materialize(exec)?;
+    let (program, args, _passthrough) = materialize(exec)?;
 
     let mut command = Command::new(&program);
     command
@@ -58,10 +56,6 @@ pub fn run(exec: &ResolvedExecution) -> Result<ExitCode> {
         if let Some(path) = path_with_real_node_priority(&real_node, std::env::var_os("PATH")) {
             command.env("PATH", path);
         }
-    }
-
-    if passthrough {
-        command.env(SHIM_ACTIVE_ENV, "1");
     }
 
     let status = command

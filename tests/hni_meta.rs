@@ -46,7 +46,7 @@ fn hni_doctor_completion_and_init_are_available() {
         let init = run_hni(vec!["init", "bash"], &[]);
         assert!(init.status.success());
         let init_out = String::from_utf8_lossy(&init.stdout);
-        assert!(init_out.contains("# hni init for bash"));
+        assert!(init_out.contains("# hni init"));
     });
 }
 

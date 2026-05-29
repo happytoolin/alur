@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use crate::core::shell::shell_escape;
+use crate::{core::shell::shell_escape, platform::node::write_real_node_cache};
 use anyhow::{Result, anyhow};
 
 pub const SUPPORTED_SHELL_NAMES: &[&str] =
@@ -44,16 +44,23 @@ impl InitShell {
 pub fn print_init(shell_name: &str) -> Result<()> {
     let shell = InitShell::parse(shell_name)?;
     let (exe_path, bin_dir) = current_binary_paths()?;
-    print!("{}", render_init(shell, &exe_path, &bin_dir));
+
+    let shim_dir = ensure_node_shim(&exe_path, &bin_dir);
+
+    if let Ok(real_node_path) = crate::platform::node::resolve_real_node_path() {
+        let _ = write_real_node_cache(&real_node_path);
+    }
+
+    print!("{}", render_init(shell, &shim_dir));
     Ok(())
 }
 
-pub fn render_init(shell: InitShell, exe_path: &Path, bin_dir: &Path) -> String {
+pub fn render_init(shell: InitShell, path_dir: &Path) -> String {
     match shell {
-        InitShell::Bash | InitShell::Zsh => render_posix(shell, exe_path, bin_dir),
-        InitShell::Fish => render_fish(exe_path, bin_dir),
-        InitShell::PowerShell => render_powershell(exe_path, bin_dir),
-        InitShell::Nushell => render_nushell(exe_path, bin_dir),
+        InitShell::Bash | InitShell::Zsh => render_posix(path_dir),
+        InitShell::Fish => render_fish(path_dir),
+        InitShell::PowerShell => render_powershell(path_dir),
+        InitShell::Nushell => render_nushell(path_dir),
     }
 }
 
@@ -68,114 +75,119 @@ fn current_binary_paths() -> Result<(PathBuf, PathBuf)> {
     Ok((exe_path, bin_dir))
 }
 
-fn render_posix(shell: InitShell, exe_path: &Path, bin_dir: &Path) -> String {
-    let shell_name = shell.canonical_name();
-    let hni_cmd = shell_escape(exe_path.to_string_lossy().as_ref());
-    let hni_bin = shell_escape(bin_dir.to_string_lossy().as_ref());
+fn ensure_node_shim(exe_path: &Path, bin_dir: &Path) -> PathBuf {
+    let node_name = if cfg!(windows) { "node.exe" } else { "node" };
+    let node_path = bin_dir.join(node_name);
+
+    if try_create_symlink(exe_path, &node_path) {
+        return bin_dir.to_path_buf();
+    }
+
+    let Some(config_dir) = dirs::config_dir() else {
+        eprintln!("[hni] warning: cannot create node shim — unable to determine config directory");
+        return bin_dir.to_path_buf();
+    };
+
+    let managed_dir = config_dir.join("hni").join("bin");
+    let managed_node = managed_dir.join(node_name);
+
+    if managed_node.exists() {
+        return managed_dir;
+    }
+
+    if std::fs::create_dir_all(&managed_dir).is_err() {
+        eprintln!(
+            "[hni] warning: cannot create managed shim directory at {}",
+            managed_dir.display()
+        );
+        return bin_dir.to_path_buf();
+    }
+
+    if !try_create_symlink(exe_path, &managed_node) {
+        eprintln!(
+            "[hni] warning: cannot create node shim symlink at {}",
+            managed_node.display()
+        );
+        return bin_dir.to_path_buf();
+    }
+
+    managed_dir
+}
+
+fn try_create_symlink(target: &Path, link: &Path) -> bool {
+    if link.exists() {
+        return true;
+    }
+
+    #[cfg(unix)]
+    {
+        std::os::unix::fs::symlink(target, link).is_ok()
+    }
+
+    #[cfg(windows)]
+    {
+        if target.extension().map_or(false, |ext| ext == "exe") {
+            std::os::windows::fs::symlink_file(target, link).is_ok()
+        } else {
+            std::os::windows::fs::symlink_file(&target.with_extension("exe"), link).is_ok()
+        }
+    }
+}
+
+fn render_posix(path_dir: &Path) -> String {
+    let hni_path = shell_escape(path_dir.to_string_lossy().as_ref());
 
     format!(
-        "# hni init for {shell_name}\n\
-         _hni_cmd={hni_cmd}\n\
-         _hni_bin={hni_bin}\n\
-         if ! {{ [ -n \"${{HNI_REAL_NODE:-}}\" ] && [ -e \"${{HNI_REAL_NODE}}\" ]; }}; then\n\
-           _hni_real_node=\"$(\"$_hni_cmd\" internal real-node-path)\"\n\
-           if [ -n \"$_hni_real_node\" ] && [ -e \"$_hni_real_node\" ]; then\n\
-             export HNI_REAL_NODE=\"$_hni_real_node\"\n\
-           fi\n\
-         fi\n\
-         if [ \"${{PATH:-}}\" != \"$_hni_bin\" ] && [ \"${{PATH#\"$_hni_bin:\"}}\" = \"${{PATH}}\" ]; then\n\
-           export PATH=\"$_hni_bin${{PATH:+:$PATH}}\"\n\
-         fi\n\
-         node() {{ {hni_cmd} node \"$@\"; }}\n\
-         unset _hni_cmd\n\
-         unset _hni_bin\n\
-         unset _hni_real_node\n"
+        "# hni init\n\
+         case \":${{PATH:-}}\" in\n\
+           *\":{hni_path}:\"*) ;;\n\
+           *) export PATH=\"{hni_path}:${{PATH:-}}\" ;;\n\
+         esac\n"
     )
 }
 
-fn render_fish(exe_path: &Path, bin_dir: &Path) -> String {
-    let hni_cmd = fish_quote(exe_path.to_string_lossy().as_ref());
-    let hni_bin = fish_quote(bin_dir.to_string_lossy().as_ref());
+fn render_fish(path_dir: &Path) -> String {
+    let hni_path = fish_quote(path_dir.to_string_lossy().as_ref());
 
     format!(
         "# hni init for fish\n\
-         set -l __hni_cmd {hni_cmd}\n\
-         set -l __hni_bin {hni_bin}\n\
-         if not set -q HNI_REAL_NODE; or not test -e \"$HNI_REAL_NODE\"\n\
-             set -l __hni_real_node (\"$__hni_cmd\" internal real-node-path)\n\
-             if test -n \"$__hni_real_node\"; and test -e \"$__hni_real_node\"\n\
-                 set -gx HNI_REAL_NODE \"$__hni_real_node\"\n\
-             end\n\
-         end\n\
          if test (count $PATH) -eq 0\n\
-             set -gx PATH \"$__hni_bin\"\n\
-         else if test \"$PATH[1]\" != \"$__hni_bin\"\n\
-             set -gx PATH \"$__hni_bin\" $PATH\n\
-         end\n\
-         functions -e node 2>/dev/null\n\
-         function node --description \"hni node shim\"\n\
-             {hni_cmd} node $argv\n\
+             set -gx PATH {hni_path}\n\
+         else if not contains {hni_path} $PATH\n\
+             set -gx PATH {hni_path} $PATH\n\
          end\n"
     )
 }
 
-fn render_powershell(exe_path: &Path, bin_dir: &Path) -> String {
-    let hni_cmd = powershell_quote(exe_path.to_string_lossy().as_ref());
-    let hni_bin = powershell_quote(bin_dir.to_string_lossy().as_ref());
+fn render_powershell(path_dir: &Path) -> String {
+    let hni_path = powershell_quote(path_dir.to_string_lossy().as_ref());
 
     format!(
         "# hni init for powershell\n\
-         $__hniCmd = {hni_cmd}\n\
-         $__hniBin = {hni_bin}\n\
-         if (-not ($env:HNI_REAL_NODE -and (Test-Path -LiteralPath $env:HNI_REAL_NODE))) {{\n\
-           $__hniRealNode = (& $__hniCmd internal real-node-path).Trim()\n\
-           if ($__hniRealNode -and (Test-Path -LiteralPath $__hniRealNode)) {{\n\
-             $env:HNI_REAL_NODE = $__hniRealNode\n\
-           }}\n\
-         }}\n\
+         $__hniPath = {hni_path}\n\
          $__hniPathEntries = if ($env:PATH) {{ $env:PATH -split ';' }} else {{ @() }}\n\
-         $__hniHasPriority = $__hniPathEntries.Count -gt 0 -and [System.StringComparer]::OrdinalIgnoreCase.Equals($__hniPathEntries[0], $__hniBin)\n\
-         if (-not $__hniHasPriority) {{\n\
-           $env:PATH = if ($env:PATH) {{ \"$($__hniBin);$env:PATH\" }} else {{ $__hniBin }}\n\
+         $__hniHasEntry = $__hniPathEntries -contains $__hniPath\n\
+         if (-not $__hniHasEntry) {{\n\
+           $env:PATH = if ($env:PATH) {{ \"$($__hniPath);$env:PATH\" }} else {{ $__hniPath }}\n\
          }}\n\
-         function global:node {{\n\
-           & {hni_cmd} node @args\n\
-         }}\n\
-         Remove-Variable __hniCmd, __hniBin, __hniRealNode, __hniPathEntries, __hniHasPriority -ErrorAction SilentlyContinue\n"
+         Remove-Variable __hniPath, __hniPathEntries, __hniHasEntry -ErrorAction SilentlyContinue\n"
     )
 }
 
-fn render_nushell(exe_path: &Path, bin_dir: &Path) -> String {
-    let hni_cmd = nushell_quote(exe_path.to_string_lossy().as_ref());
-    let hni_bin = nushell_quote(bin_dir.to_string_lossy().as_ref());
+fn render_nushell(path_dir: &Path) -> String {
+    let hni_path = nushell_quote(path_dir.to_string_lossy().as_ref());
 
     format!(
         "# hni init for nushell\n\
-         let hni_cmd = {hni_cmd}\n\
-         let hni_bin = {hni_bin}\n\
-         if (not ($env.HNI_REAL_NODE? | default '' | path exists)) {{\n\
-           let hni_real_node = (^$hni_cmd internal real-node-path | str trim)\n\
-           if (not ($hni_real_node | is-empty)) and ($hni_real_node | path exists) {{\n\
-             $env.HNI_REAL_NODE = $hni_real_node\n\
-           }}\n\
-         }}\n\
-         if (($env.PATH | is-empty) or (($env.PATH | first) != $hni_bin)) {{\n\
-           $env.PATH = ($env.PATH | prepend $hni_bin)\n\
-         }}\n\
-         def --wrapped node [...rest] {{\n\
-           ^{hni_cmd} node ...$rest\n\
+         let hni_path = {hni_path}\n\
+         if (($env.PATH | is-empty) or (not ($env.PATH | any {{|p| $p == $hni_path}}))) {{\n\
+           $env.PATH = ($env.PATH | prepend $hni_path)\n\
          }}\n"
     )
 }
 
 fn fish_quote(value: &str) -> String {
-    format!(
-        "\"{}\"",
-        value
-            .replace('\\', "\\\\")
-            .replace('"', "\\\"")
-            .replace('$', "\\$")
-    )
+    format!("'{}'", value.replace('\\', "\\\\").replace('\'', "\\'"))
 }
 
 fn powershell_quote(value: &str) -> String {
@@ -204,57 +216,41 @@ mod tests {
     }
 
     #[test]
-    fn posix_render_embeds_absolute_paths_and_dedupe_check() {
-        let out = render_init(
-            InitShell::Bash,
-            Path::new("/tmp/hni/bin/hni"),
-            Path::new("/tmp/hni/bin"),
-        );
-        assert!(out.contains("/tmp/hni/bin/hni"));
+    fn posix_render_is_path_only() {
+        let out = render_init(InitShell::Bash, Path::new("/tmp/hni/bin"));
+        assert!(out.contains("export PATH="));
         assert!(out.contains("/tmp/hni/bin"));
-        assert!(out.contains("internal real-node-path"));
-        assert!(out.contains("PATH#\"$_hni_bin:\""));
-        assert!(out.contains("node() {"));
+        assert!(out.contains("case"));
+        assert!(!out.contains("node()"));
+        assert!(!out.contains("HNI_REAL_NODE"));
+        assert!(!out.contains("real-node-path"));
     }
 
     #[test]
-    fn fish_render_uses_path_first_element_check() {
-        let out = render_init(
-            InitShell::Fish,
-            Path::new("/tmp/hni/bin/hni"),
-            Path::new("/tmp/hni/bin"),
-        );
+    fn fish_render_is_path_only() {
+        let out = render_init(InitShell::Fish, Path::new("/tmp/hni/bin"));
         assert!(out.contains("set -gx PATH"));
-        assert!(out.contains("$PATH[1]"));
-        assert!(out.contains("internal real-node-path"));
-        assert!(out.contains("function node"));
+        assert!(out.contains("/tmp/hni/bin"));
+        assert!(!out.contains("function node"));
+        assert!(!out.contains("HNI_REAL_NODE"));
     }
 
     #[test]
-    fn powershell_render_sets_env_and_path() {
-        let out = render_init(
-            InitShell::PowerShell,
-            Path::new("C:/hni/bin/hni.exe"),
-            Path::new("C:/hni/bin"),
-        );
-        assert!(out.contains("$env:HNI_REAL_NODE"));
-        assert!(out.contains("[System.StringComparer]::OrdinalIgnoreCase"));
-        assert!(out.contains("internal real-node-path"));
-        assert!(out.contains("function global:node"));
+    fn powershell_render_is_path_only() {
+        let out = render_init(InitShell::PowerShell, Path::new("C:/hni/bin"));
+        assert!(out.contains("$env:PATH"));
+        assert!(out.contains("C:/hni/bin"));
+        assert!(!out.contains("function global:node"));
+        assert!(!out.contains("HNI_REAL_NODE"));
     }
 
     #[test]
-    fn nushell_render_uses_double_quoted_strings_and_prepend() {
-        let out = render_init(
-            InitShell::Nushell,
-            Path::new("/tmp/hni/bin/hni"),
-            Path::new("/tmp/hni/bin"),
-        );
-        assert!(out.contains("let hni_cmd = \""));
-        assert!(out.contains("| prepend $hni_bin"));
-        assert!(out.contains("^$hni_cmd internal real-node-path"));
-        assert!(out.contains("def --wrapped node"));
-        assert!(out.contains("^\"/tmp/hni/bin/hni\" node ...$rest"));
+    fn nushell_render_is_path_only() {
+        let out = render_init(InitShell::Nushell, Path::new("/tmp/hni/bin"));
+        assert!(out.contains("prepend $hni_path"));
+        assert!(out.contains("/tmp/hni/bin"));
+        assert!(!out.contains("def --wrapped node"));
+        assert!(!out.contains("HNI_REAL_NODE"));
     }
 
     #[test]

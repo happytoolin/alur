@@ -9,10 +9,9 @@ fn init_command_renders_bash_setup() {
         assert!(output.status.success());
 
         let stdout = String::from_utf8_lossy(&output.stdout);
-        assert!(stdout.contains("# hni init for bash"));
-        assert!(stdout.contains("internal real-node-path"));
+        assert!(stdout.contains("# hni init"));
         assert!(stdout.contains("export PATH="));
-        assert!(stdout.contains("node() {"));
+        assert!(!stdout.contains("node() {"));
     });
 }
 
@@ -91,12 +90,10 @@ fn bash_init_gives_node_shim_precedence_and_preserves_real_node() {
         let hni_bin = dir.path().join("hni-bin");
         let real_node_bin = dir.path().join("real-node-bin");
         let fake_home = dir.path().join("home");
-        let fake_config = dir.path().join("config");
 
         fs::create_dir_all(&hni_bin).unwrap();
         fs::create_dir_all(&real_node_bin).unwrap();
         fs::create_dir_all(&fake_home).unwrap();
-        fs::create_dir_all(&fake_config).unwrap();
 
         let source_exe = support::hni_executable_path();
         let copied_hni = hni_bin.join("hni");
@@ -113,7 +110,7 @@ fn bash_init_gives_node_shim_precedence_and_preserves_real_node() {
             std::env::var("PATH").unwrap_or_default()
         );
         let script = format!(
-            "eval \"$({} init bash)\"\nnode -- -v >/dev/null 2>&1\nprintf 'NODE_TYPE=%s\\nREAL=%s\\n' \"$(type -t node)\" \"$HNI_REAL_NODE\"\n",
+            "eval \"$({} init bash)\"\nnode -- -v >/dev/null 2>&1\nprintf 'NODE_TYPE=%s\\n' \"$(type -t node)\"\n",
             copied_hni.display()
         );
 
@@ -124,8 +121,6 @@ fn bash_init_gives_node_shim_precedence_and_preserves_real_node() {
             .env_remove("HNI_NODE_SHIM_ACTIVE")
             .env("PATH", path)
             .env("HOME", &fake_home)
-            .env("XDG_CONFIG_HOME", &fake_config)
-            .env("APPDATA", &fake_config)
             .output()
             .expect("failed to run bash init flow");
 
@@ -135,14 +130,26 @@ fn bash_init_gives_node_shim_precedence_and_preserves_real_node() {
             .lines()
             .find_map(|line| line.strip_prefix("NODE_TYPE="))
             .expect("missing NODE_TYPE line");
-        let reported_real_node = stdout
-            .lines()
-            .find_map(|line| line.strip_prefix("REAL="))
-            .expect("missing REAL line");
 
-        assert_eq!(reported_node_type, "function");
+        assert_eq!(reported_node_type, "file");
+
+        let cache_path = if cfg!(target_os = "macos") {
+            fake_home
+                .join("Library")
+                .join("Application Support")
+                .join("hni")
+                .join("real-node-path")
+        } else {
+            fake_home.join(".config").join("hni").join("real-node-path")
+        };
+        assert!(
+            cache_path.exists(),
+            "cache file not found at {}",
+            cache_path.display()
+        );
+        let cached = fs::read_to_string(&cache_path).unwrap();
         assert_eq!(
-            Path::new(reported_real_node).canonicalize().unwrap(),
+            Path::new(cached.trim()).canonicalize().unwrap(),
             fake_node.canonicalize().unwrap()
         );
     });
@@ -152,8 +159,6 @@ fn bash_init_gives_node_shim_precedence_and_preserves_real_node() {
 #[test]
 fn bash_init_keeps_package_manager_shebangs_on_real_node() {
     support::with_env_lock(|| {
-        use std::os::unix::fs::PermissionsExt;
-
         let Some(bash) = which::which("bash").ok() else {
             return;
         };
@@ -164,7 +169,6 @@ fn bash_init_keeps_package_manager_shebangs_on_real_node() {
         let pm_bin = dir.path().join("pm-bin");
         let fake_home = dir.path().join("home");
         let fake_config = dir.path().join("config");
-        let shim_log = dir.path().join("shim.log");
 
         fs::create_dir_all(&hni_bin).unwrap();
         fs::create_dir_all(&real_node_bin).unwrap();
@@ -184,17 +188,6 @@ fn bash_init_keeps_package_manager_shebangs_on_real_node() {
         )
         .unwrap();
         set_executable_if_needed(&fake_node);
-
-        let bad_shim_node = hni_bin.join("node");
-        fs::write(
-            &bad_shim_node,
-            format!(
-                "#!/bin/sh\nprintf 'shim-used\\n' >> '{}'\nexit 97\n",
-                shim_log.display()
-            ),
-        )
-        .unwrap();
-        set_executable_if_needed(&bad_shim_node);
 
         let fake_npm = pm_bin.join("npm");
         fs::write(&fake_npm, "#!/usr/bin/env node\nconsole.log('npm');\n").unwrap();
@@ -229,16 +222,6 @@ fn bash_init_keeps_package_manager_shebangs_on_real_node() {
         assert!(stdout.contains("node       v99.0.0"));
         assert!(stdout.contains("agent      npm (99.0.0)"));
         assert!(stdout.contains("global     npm (99.0.0)"));
-        assert!(
-            !shim_log.exists()
-                || fs::read_to_string(&shim_log)
-                    .unwrap_or_default()
-                    .trim()
-                    .is_empty()
-        );
-
-        let perms = fs::metadata(&bad_shim_node).unwrap().permissions();
-        assert_eq!(perms.mode() & 0o111, 0o111);
     });
 }
 

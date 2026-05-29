@@ -94,10 +94,6 @@ pub fn resolve_nr(mut args: Vec<String>, ctx: &ResolveContext) -> Result<Resolve
     resolve_run_like(&mut args, ctx)
 }
 
-pub fn resolve_node_run(mut args: Vec<String>, ctx: &ResolveContext) -> Result<ResolvedExecution> {
-    resolve_run_like(&mut args, ctx)
-}
-
 fn resolve_run_like(args: &mut Vec<String>, ctx: &ResolveContext) -> Result<ResolvedExecution> {
     if args.is_empty() {
         args.push("start".to_string());
@@ -311,7 +307,7 @@ pub fn resolve_node_routed(
         Intent::Install => resolve_ni(args, ctx),
         Intent::Add => resolve_detected_intent(intent, args, ctx),
         Intent::Execute => resolve_nlx(args, ctx),
-        Intent::Run => resolve_node_run(args, ctx),
+        Intent::Run => resolve_nr(args, ctx),
         Intent::Upgrade => resolve_nru(args, ctx),
         Intent::Uninstall => resolve_nun(args, ctx),
         Intent::CleanInstall => resolve_nci(args, ctx),

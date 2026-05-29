@@ -5,13 +5,11 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use anyhow::{Result, anyhow};
+use anyhow::{Context, Result, anyhow};
 
 use super::paths_equal;
 
 pub const REAL_NODE_ENV: &str = "HNI_REAL_NODE";
-pub const SHIM_ACTIVE_ENV: &str = "HNI_NODE_SHIM_ACTIVE";
-pub const NODE_SHIM_ENV: &str = "HNI_NODE";
 
 pub fn resolve_real_node_path() -> Result<PathBuf> {
     if let Some(from_env) = env::var_os(REAL_NODE_ENV) {
@@ -46,6 +44,26 @@ fn resolve_real_node_path_from_sources() -> Result<Option<PathBuf>> {
 }
 pub fn recorded_real_node_path_file() -> Option<PathBuf> {
     dirs::config_dir().map(|d| d.join("hni").join("real-node-path"))
+}
+
+pub fn write_real_node_cache(real_node: &Path) -> Result<()> {
+    let Some(cache_file) = recorded_real_node_path_file() else {
+        return Ok(());
+    };
+
+    if let Some(parent) = cache_file.parent() {
+        fs::create_dir_all(parent)
+            .with_context(|| format!("failed to create cache dir: {}", parent.display()))?;
+    }
+
+    fs::write(&cache_file, real_node.to_string_lossy().as_bytes()).with_context(|| {
+        format!(
+            "failed to write real-node-path cache: {}",
+            cache_file.display()
+        )
+    })?;
+
+    Ok(())
 }
 
 fn read_recorded_real_node_path() -> Result<Option<PathBuf>> {
