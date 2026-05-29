@@ -25,9 +25,14 @@ function resolveBinaryPath() {
         paths: [packageRoot],
       });
       const packageDir = path.dirname(packageJsonPath);
-      const platformBinary = path.join(packageDir, "bin", `hni${ext}`);
-      if (fs.existsSync(platformBinary)) {
-        return platformBinary;
+
+      for (const candidate of [
+        path.join(packageDir, `hni${ext}`),
+        path.join(packageDir, "bin", `hni${ext}`),
+      ]) {
+        if (fs.existsSync(candidate)) {
+          return candidate;
+        }
       }
     } catch {
       // optional dependency for this platform may not be installed in local dev.

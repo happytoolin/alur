@@ -7,6 +7,7 @@ edition = "2024"
 keywords = ["package-manager", "npm", "yarn", "pnpm", "cli"]
 license = "GPL-3.0-only"
 repository = "https://github.com/happytoolin/hni"
+homepage = "https://github.com/happytoolin/hni"
 description = "ni-compatible package manager command router with node shim"
 
 [profile.release]
@@ -18,6 +19,11 @@ strip = true
 overflow-checks = false
 debug = false
 incremental = false
+
+# The profile that 'dist' will build with
+[profile.dist]
+inherits = "release"
+lto = "thin"
 
 [dependencies]
 anyhow = "1.0.102"

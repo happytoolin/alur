@@ -6,6 +6,30 @@ import os from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
+import Handlebars from 'handlebars'
+import { geometricMean as ssGeometricMean, quantileSorted } from 'simple-statistics'
+
+const TEMPLATES = {}
+
+function loadTemplates() {
+  const templateDir = path.join(path.dirname(fileURLToPath(import.meta.url)), 'templates')
+  for (const name of ['track', 'combined', 'latest', 'history']) {
+    const content = fs.readFileSync(path.join(templateDir, `${name}.hbs`), 'utf8')
+    TEMPLATES[name] = Handlebars.compile(content)
+  }
+}
+
+function renderTemplate(name, data) {
+  if (!TEMPLATES[name]) {
+    throw new Error(`unknown template: ${name}`)
+  }
+  return TEMPLATES[name](data)
+}
+
+Handlebars.registerHelper('capitalize', (str) => {
+  if (typeof str !== 'string' || str.length === 0) return str
+  return str[0].toUpperCase() + str.slice(1)
+})
 
 const DEFAULT_RUNS = 50
 const DEFAULT_WARMUPS = 2
@@ -156,12 +180,6 @@ function buildShellCommand(envMap, shellCommand) {
   return parts.map((part) => shellQuote(part)).join(' ')
 }
 
-function percentile(sortedValues, p) {
-  if (sortedValues.length === 0) return null
-  const index = Math.max(0, Math.ceil(sortedValues.length * p) - 1)
-  return sortedValues[index]
-}
-
 function fromHyperfineResult(rawResult) {
   const times = Array.isArray(rawResult.times)
     ? [...rawResult.times].sort((a, b) => a - b)
@@ -170,7 +188,7 @@ function fromHyperfineResult(rawResult) {
   return {
     mean: rawResult.mean * 1000,
     median: rawResult.median * 1000,
-    p95: (percentile(times, 0.95) ?? rawResult.max) * 1000,
+    p95: (times.length > 0 ? quantileSorted(times, 0.95) : rawResult.max) * 1000,
     min: rawResult.min * 1000,
     max: rawResult.max * 1000,
     stddev: rawResult.stddev * 1000,
@@ -182,8 +200,7 @@ function geometricMean(values) {
   if (values.length === 0 || values.some((value) => value <= 0)) {
     return null
   }
-  const sum = values.reduce((acc, value) => acc + Math.log(value), 0)
-  return Math.exp(sum / values.length)
+  return ssGeometricMean(values)
 }
 
 function groupBy(rows, key) {
@@ -851,16 +868,12 @@ function formatRatio(value) {
   return `${value.toFixed(2)}x`
 }
 
-function markdownLink(label, target) {
-  return `[${label}](${target})`
-}
-
 function relativePath(fromDir, toPath) {
   const rel = path.relative(fromDir, toPath)
   return rel.length > 0 ? rel : '.'
 }
 
-function trackOverviewLine(payload) {
+function makeTrackOverviewLine(payload) {
   const baseline = payload.results[0]?.baseline ?? 'baseline'
   const entries = Object.entries(payload.summary.geometric_mean_relative_to_first)
   if (entries.length === 0) {
@@ -868,11 +881,11 @@ function trackOverviewLine(payload) {
   }
 
   return entries
-    .map(([name, value]) => `Relative to \`${baseline}\`, \`${name}\` averaged \`${formatRatio(value)}\`.`)
+    .map(([name, value]) => `Relative to \`${baseline}\`, \`${name}\` averaged \`${value.toFixed(2)}x\`.`)
     .join(' ')
 }
 
-function trackTable(payload) {
+function makeTrackTable(payload) {
   if (payload.track === 'runtime') {
     const lines = [
       '| Case | hni | bun | deno |',
@@ -935,7 +948,7 @@ function trackTable(payload) {
   return lines.join('\n')
 }
 
-function trackSkippedTable(payload) {
+function makeSkippedTable(payload) {
   if (payload.skipped.length === 0) {
     return 'None.'
   }
@@ -948,183 +961,116 @@ function trackSkippedTable(payload) {
 }
 
 function trackMarkdown(payload, artifactPaths) {
-  return [
-    `# ${payload.track[0].toUpperCase()}${payload.track.slice(1)} Benchmark`,
-    '',
-    `Generated: ${payload.timestamp}`,
-    '',
-    `JSON: ${markdownLink(path.basename(artifactPaths.jsonPath), path.basename(artifactPaths.jsonPath))}`,
-    '',
-    trackOverviewLine(payload),
-    '',
-    trackTable(payload),
-    '',
-    `Executed cases: ${payload.summary.executed_cases}. Skipped cases: ${payload.summary.skipped_cases}.`,
-    '',
-    '## Skipped',
-    '',
-    trackSkippedTable(payload),
-    '',
-  ].join('\n')
+  return renderTemplate('track', {
+    track: payload.track,
+    timestamp: payload.timestamp,
+    jsonBasename: path.basename(artifactPaths.jsonPath),
+    trackOverviewLine: makeTrackOverviewLine(payload),
+    trackTable: makeTrackTable(payload),
+    summary: payload.summary,
+    skippedTable: makeSkippedTable(payload),
+  })
 }
 
 function combinedMarkdown(combined, combinedArtifacts, fromDir) {
-  const lines = [
-    '# Benchmark Run',
-    '',
-    `Generated: ${combined.timestamp}`,
-    '',
-    `Combined JSON: ${markdownLink(
-      path.basename(combinedArtifacts.jsonPath),
-      relativePath(fromDir, combinedArtifacts.jsonPath),
-    )}`,
-    '',
-    '## Tracks',
-    '',
-  ]
-
+  const tracks = {}
   for (const [track, payload] of Object.entries(combined.tracks)) {
     const artifacts = combinedArtifacts.trackArtifacts[track]
-    lines.push(`### ${track[0].toUpperCase()}${track.slice(1)}`)
-    lines.push('')
-    lines.push(trackOverviewLine(payload))
-    lines.push('')
-    lines.push(
-      `Artifacts: ${markdownLink(
-        path.basename(artifacts.jsonPath),
-        relativePath(fromDir, artifacts.jsonPath),
-      )} · ${markdownLink(path.basename(artifacts.markdownPath), relativePath(fromDir, artifacts.markdownPath))}`,
-    )
-    if (SUMMARY_ONLY_TRACKS.has(track)) {
-      lines.push('')
-      lines.push('Detailed per-case results are kept in the track artifact.')
+    tracks[track] = {
+      trackOverviewLine: makeTrackOverviewLine(payload),
+      markdownBasename: path.basename(artifacts.markdownPath),
+      markdownRelative: relativePath(fromDir, artifacts.markdownPath),
+      jsonBasename: path.basename(artifacts.jsonPath),
+      jsonRelative: relativePath(fromDir, artifacts.jsonPath),
+      summaryOnly: SUMMARY_ONLY_TRACKS.has(track),
     }
-    lines.push('')
   }
 
-  return `${lines.join('\n')}\n`
+  return `${renderTemplate('combined', {
+    timestamp: combined.timestamp,
+    combinedJsonBasename: path.basename(combinedArtifacts.jsonPath),
+    combinedJsonRelative: relativePath(fromDir, combinedArtifacts.jsonPath),
+    tracks,
+  })}\n`
 }
 
 function latestMarkdown(combined, combinedArtifacts, benchmarkDir) {
-  const lines = [
-    '# Latest Benchmark Snapshot',
-    '',
-    `Updated: ${combined.timestamp}`,
-    '',
-    'This file is the small release-friendly benchmark snapshot. Raw JSON stays in `benchmark/results/`.',
-    '',
-    `Combined report: ${markdownLink(
-      path.basename(combinedArtifacts.markdownPath),
-      relativePath(benchmarkDir, combinedArtifacts.markdownPath),
-    )}`,
-    '',
-  ]
-
+  const tracks = {}
   for (const [track, payload] of Object.entries(combined.tracks)) {
     const artifacts = combinedArtifacts.trackArtifacts[track]
-    lines.push(`## ${track[0].toUpperCase()}${track.slice(1)}`)
-    lines.push('')
-    lines.push(trackOverviewLine(payload))
-    lines.push('')
-    lines.push(
-      `Artifacts: ${markdownLink(
-        path.basename(artifacts.markdownPath),
-        relativePath(benchmarkDir, artifacts.markdownPath),
-      )} · ${markdownLink(path.basename(artifacts.jsonPath), relativePath(benchmarkDir, artifacts.jsonPath))}`,
-    )
-    lines.push('')
-    if (SUMMARY_ONLY_TRACKS.has(track)) {
-      lines.push('Detailed per-case results are kept in the track artifact.')
-      lines.push('')
-    } else {
-      lines.push(trackTable(payload))
-      lines.push('')
+    tracks[track] = {
+      trackOverviewLine: makeTrackOverviewLine(payload),
+      markdownBasename: path.basename(artifacts.markdownPath),
+      markdownRelative: relativePath(benchmarkDir, artifacts.markdownPath),
+      jsonBasename: path.basename(artifacts.jsonPath),
+      jsonRelative: relativePath(benchmarkDir, artifacts.jsonPath),
+      summaryOnlyDetail: SUMMARY_ONLY_TRACKS.has(track),
+      trackTable: SUMMARY_ONLY_TRACKS.has(track) ? null : makeTrackTable(payload),
     }
   }
 
-  return `${lines.join('\n')}\n`
+  return `${renderTemplate('latest', {
+    timestamp: combined.timestamp,
+    markdownBasename: path.basename(combinedArtifacts.markdownPath),
+    markdownRelative: relativePath(benchmarkDir, combinedArtifacts.markdownPath),
+    tracks,
+  })}\n`
 }
 
 function latestTrackMarkdown(payload, artifactPaths, benchmarkDir) {
-  const lines = [
-    '# Latest Benchmark Snapshot',
-    '',
-    `Updated: ${payload.timestamp}`,
-    '',
-    'This file is the small release-friendly benchmark snapshot. Raw JSON stays in `benchmark/results/`.',
-    '',
-    `Report: ${markdownLink(
-      path.basename(artifactPaths.markdownPath),
-      relativePath(benchmarkDir, artifactPaths.markdownPath),
-    )}`,
-    '',
-    `## ${payload.track[0].toUpperCase()}${payload.track.slice(1)}`,
-    '',
-    trackOverviewLine(payload),
-    '',
-    `Artifacts: ${markdownLink(
-      path.basename(artifactPaths.markdownPath),
-      relativePath(benchmarkDir, artifactPaths.markdownPath),
-    )} · ${markdownLink(path.basename(artifactPaths.jsonPath), relativePath(benchmarkDir, artifactPaths.jsonPath))}`,
-    '',
-  ]
-
-  if (SUMMARY_ONLY_TRACKS.has(payload.track)) {
-    lines.push('Detailed per-case results are kept in the track artifact.')
-    lines.push('')
-  } else {
-    lines.push(trackTable(payload))
-    lines.push('')
+  const tracks = {
+    [payload.track]: {
+      trackOverviewLine: makeTrackOverviewLine(payload),
+      markdownBasename: path.basename(artifactPaths.markdownPath),
+      markdownRelative: relativePath(benchmarkDir, artifactPaths.markdownPath),
+      jsonBasename: path.basename(artifactPaths.jsonPath),
+      jsonRelative: relativePath(benchmarkDir, artifactPaths.jsonPath),
+      summaryOnlyDetail: SUMMARY_ONLY_TRACKS.has(payload.track),
+      trackTable: SUMMARY_ONLY_TRACKS.has(payload.track) ? null : makeTrackTable(payload),
+    },
   }
 
-  return `${lines.join('\n')}\n`
+  return `${renderTemplate('latest', {
+    timestamp: payload.timestamp,
+    markdownBasename: path.basename(artifactPaths.markdownPath),
+    markdownRelative: relativePath(benchmarkDir, artifactPaths.markdownPath),
+    tracks,
+  })}\n`
 }
 
 function historyMarkdown(resultsDir, benchmarkDir) {
-  const files = fs
-    .readdirSync(resultsDir)
+  const files = fs.readdirSync(resultsDir)
     .filter((name) => name.startsWith('benchmark-') && name.endsWith('.md'))
     .sort()
     .reverse()
     .slice(0, 1)
 
-  const lines = [
-    '# Benchmark History',
-    '',
-    'The repo intentionally keeps only the latest tracked combined benchmark report. Use `benchmark/LATEST.md` for the release-facing snapshot.',
-    '',
-    '| Run | Report | JSON |',
-    '| --- | --- | --- |',
-  ]
-
-  for (const file of files) {
+  const runs = files.map((file) => {
     const jsonFile = file.replace(/\.md$/, '.json')
-    lines.push(
-      `| ${file.replace(/^benchmark-/, '').replace(/\.md$/, '')} | ${markdownLink(
-        file,
-        relativePath(benchmarkDir, path.join(resultsDir, file)),
-      )} | ${markdownLink(jsonFile, relativePath(benchmarkDir, path.join(resultsDir, jsonFile)))} |`,
-    )
-  }
+    return {
+      label: file.replace(/^benchmark-/, '').replace(/\.md$/, ''),
+      file,
+      fileRelative: relativePath(benchmarkDir, path.join(resultsDir, file)),
+      jsonFile,
+      jsonFileRelative: relativePath(benchmarkDir, path.join(resultsDir, jsonFile)),
+    }
+  })
 
-  return `${lines.join('\n')}\n`
+  return `${renderTemplate('history', { runs })}\n`
 }
 
 function historyTrackMarkdown(payload, artifactPaths, benchmarkDir) {
-  const lines = [
-    '# Benchmark History',
-    '',
-    'The repo intentionally keeps only the latest tracked benchmark report. Use `benchmark/LATEST.md` for the release-facing snapshot.',
-    '',
-    '| Run | Track | Report | JSON |',
-    '| --- | --- | --- | --- |',
-    `| ${payload.timestamp} | ${payload.track} | ${markdownLink(
-      path.basename(artifactPaths.markdownPath),
-      relativePath(benchmarkDir, artifactPaths.markdownPath),
-    )} | ${markdownLink(path.basename(artifactPaths.jsonPath), relativePath(benchmarkDir, artifactPaths.jsonPath))} |`,
+  const runs = [
+    {
+      label: payload.timestamp,
+      file: path.basename(artifactPaths.markdownPath),
+      fileRelative: relativePath(benchmarkDir, artifactPaths.markdownPath),
+      jsonFile: path.basename(artifactPaths.jsonPath),
+      jsonFileRelative: relativePath(benchmarkDir, artifactPaths.jsonPath),
+    },
   ]
 
-  return `${lines.join('\n')}\n`
+  return `${renderTemplate('history', { runs })}\n`
 }
 
 function pruneTrackedBenchmarkArtifacts(resultsDir, keepPaths) {
@@ -1303,7 +1249,12 @@ function fixtureCases(fixturesRoot) {
 function prepareAliasDir(tempRoot, ourBin) {
   const aliasDir = path.join(tempRoot, 'bin')
   ensureDir(aliasDir)
-  for (const name of ['hni', 'ni', 'nr', 'nlx', 'node']) {
+
+  const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+  const aliases = JSON.parse(fs.readFileSync(path.join(repoRoot, 'aliases.json'), 'utf8'))
+  const allNames = ['hni', 'node', ...aliases.hni]
+
+  for (const name of allNames) {
     createAlias(ourBin, aliasBinPath(aliasDir, name))
   }
   return aliasDir
@@ -1454,6 +1405,7 @@ function writeHistoryTrackSnapshot(benchmarkDir, payload, artifactPaths) {
 
 function main() {
   const args = parseArgs(process.argv.slice(2))
+  loadTemplates()
   const scriptDir = path.dirname(fileURLToPath(import.meta.url))
   const repoRoot = path.resolve(scriptDir, '..')
   const benchmarkDir = path.join(repoRoot, 'benchmark')

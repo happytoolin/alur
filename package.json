@@ -37,14 +37,6 @@
     "README.md",
     "LICENSE"
   ],
-  "optionalDependencies": {
-    "@happytoolin/hni-darwin-arm64": "0.0.3",
-    "@happytoolin/hni-darwin-x64": "0.0.3",
-    "@happytoolin/hni-linux-arm64-musl": "0.0.3",
-    "@happytoolin/hni-linux-x64-musl": "0.0.3",
-    "@happytoolin/hni-win32-arm64-msvc": "0.0.3",
-    "@happytoolin/hni-win32-x64-msvc": "0.0.3"
-  },
   "publishConfig": {
     "access": "public"
   },
@@ -52,11 +44,11 @@
     "node": ">=18"
   },
   "scripts": {
-    "test:rust": "node ./scripts/test-modes.mjs pm",
-    "test:rust:pm": "node ./scripts/test-modes.mjs pm",
-    "test:rust:fast": "node ./scripts/test-modes.mjs fast",
-    "test:all-modes": "node ./scripts/test-modes.mjs all",
-    "bench": "./benchmark/run.sh",
+    "bench": "node ./benchmark/run.mjs",
     "bench:profile": "./benchmark/profile.sh"
+  },
+  "devDependencies": {
+    "handlebars": "^4.7.9",
+    "simple-statistics": "^7.8.9"
   }
 }
