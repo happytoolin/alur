@@ -114,6 +114,8 @@ fn bash_init_gives_node_shim_precedence_and_preserves_real_node() {
             copied_hni.display()
         );
 
+        let fake_config = fake_home.join(".config");
+
         let output = Command::new(bash)
             .arg("-c")
             .arg(script)
@@ -121,6 +123,7 @@ fn bash_init_gives_node_shim_precedence_and_preserves_real_node() {
             .env_remove("HNI_NODE_SHIM_ACTIVE")
             .env("PATH", path)
             .env("HOME", &fake_home)
+            .env("XDG_CONFIG_HOME", &fake_config)
             .output()
             .expect("failed to run bash init flow");
 
