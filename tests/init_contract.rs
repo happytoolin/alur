@@ -39,6 +39,7 @@ fn internal_real_node_path_uses_explicit_env_override() {
     });
 }
 
+#[cfg(not(windows))]
 #[test]
 fn internal_real_node_path_succeeds_with_empty_output_when_unavailable() {
     support::with_env_lock(|| {
