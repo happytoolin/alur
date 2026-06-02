@@ -17,11 +17,9 @@ use super::{
     },
 };
 
-/// Resolves `ni` install/add invocations into the package-manager command to run.
-///
 /// # Errors
 ///
-/// Returns an error when package-manager detection or availability checks fail.
+/// Fails when package-manager detection or availability checks fail.
 pub fn resolve_ni(args: Vec<String>, ctx: &ResolveContext) -> Result<ResolvedExecution> {
     let use_global = args.iter().any(|arg| arg == "-g");
     let detected = detect_for_action(ctx, use_global)?;
@@ -60,11 +58,9 @@ pub fn resolve_ni(args: Vec<String>, ctx: &ResolveContext) -> Result<ResolvedExe
     }
 }
 
-/// Resolves `nr` script invocations into native or package-manager execution.
-///
 /// # Errors
 ///
-/// Returns an error when project scanning, detection, or native command materialization fails.
+/// Fails when project scanning, package-manager detection, or native command materialization fails.
 pub fn resolve_nr(mut args: Vec<String>, ctx: &ResolveContext) -> Result<ResolvedExecution> {
     resolve_run_like(&mut args, ctx)
 }
@@ -118,11 +114,9 @@ fn resolve_run_like(args: &mut Vec<String>, ctx: &ResolveContext) -> Result<Reso
     Ok(resolved)
 }
 
-/// Resolves `nlx` package execution invocations into native or package-manager execution.
-///
 /// # Errors
 ///
-/// Returns an error when local-bin scanning, package-manager detection, or availability checks fail.
+/// Fails when local-bin scanning, package-manager detection, or availability checks fail.
 pub fn resolve_nlx(args: Vec<String>, ctx: &ResolveContext) -> Result<ResolvedExecution> {
     if ctx.config.fast_mode {
         let state = ctx.local_bin_project_state()?;
@@ -169,11 +163,9 @@ fn build_run_fallback(
     Ok(resolved)
 }
 
-/// Resolves package upgrade invocations.
-///
 /// # Errors
 ///
-/// Returns an error when detection fails or the selected package manager cannot perform the requested upgrade mode.
+/// Fails when detection fails or the selected package manager cannot perform the requested upgrade mode.
 pub fn resolve_nru(mut args: Vec<String>, ctx: &ResolveContext) -> Result<ResolvedExecution> {
     let detected = detect_for_action(ctx, false)?;
     let interactive = args
@@ -188,11 +180,9 @@ pub fn resolve_nru(mut args: Vec<String>, ctx: &ResolveContext) -> Result<Resolv
     build_upgrade_exec(detected.pm, args, ctx.cwd(), interactive)
 }
 
-/// Resolves package uninstall invocations.
-///
 /// # Errors
 ///
-/// Returns an error when detection fails, the command has no target dependency, or the selected package manager is unavailable.
+/// Fails when detection fails, the command has no target dependency, or the selected package manager is unavailable.
 pub fn resolve_nun(args: Vec<String>, ctx: &ResolveContext) -> Result<ResolvedExecution> {
     let use_global = args.iter().any(|arg| arg == "-g");
     let detected = detect_for_action(ctx, use_global)?;
@@ -217,11 +207,9 @@ pub fn resolve_nun(args: Vec<String>, ctx: &ResolveContext) -> Result<ResolvedEx
     ))
 }
 
-/// Resolves clean-install invocations.
-///
 /// # Errors
 ///
-/// Returns an error when package-manager detection or availability checks fail.
+/// Fails when package-manager detection or availability checks fail.
 pub fn resolve_nci(args: Vec<String>, ctx: &ResolveContext) -> Result<ResolvedExecution> {
     let detected = detect_for_action(ctx, false)?;
     ensure_detected_available(&detected, ctx)?;
@@ -234,12 +222,7 @@ pub fn resolve_nci(args: Vec<String>, ctx: &ResolveContext) -> Result<ResolvedEx
     ))
 }
 
-/// Resolves agent-alias invocations to the detected package-manager binary.
-///
-/// # Errors
-///
-/// Returns an error when package-manager detection or availability checks fail.
-pub fn resolve_na(args: Vec<String>, ctx: &ResolveContext) -> Result<ResolvedExecution> {
+pub(crate) fn resolve_na(args: Vec<String>, ctx: &ResolveContext) -> Result<ResolvedExecution> {
     let detected = detect_for_action(ctx, false)?;
     ensure_detected_available(&detected, ctx)?;
     Ok(build_simple_intent_exec(
@@ -250,7 +233,7 @@ pub fn resolve_na(args: Vec<String>, ctx: &ResolveContext) -> Result<ResolvedExe
     ))
 }
 
-pub fn resolve_node_passthrough(args: Vec<String>, cwd: &Path) -> ResolvedExecution {
+pub(crate) fn resolve_node_passthrough(args: Vec<String>, cwd: &Path) -> ResolvedExecution {
     ResolvedExecution::external_with_mode(
         "node",
         args,
@@ -260,12 +243,7 @@ pub fn resolve_node_passthrough(args: Vec<String>, cwd: &Path) -> ResolvedExecut
     )
 }
 
-/// Routes node-shim invocations through the resolver for the requested intent.
-///
-/// # Errors
-///
-/// Returns an error when the routed resolver cannot detect or materialize the requested execution.
-pub fn resolve_node_routed(
+pub(crate) fn resolve_node_routed(
     intent: Intent,
     args: Vec<String>,
     ctx: &ResolveContext,

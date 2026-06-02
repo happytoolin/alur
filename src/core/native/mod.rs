@@ -29,7 +29,7 @@ pub(crate) fn is_node_program(program: &str) -> bool {
         })
 }
 
-pub enum NativeAttempt {
+pub(crate) enum NativeAttempt {
     Eligible(Box<ResolvedExecution>),
     Ineligible(String),
 }
@@ -63,36 +63,21 @@ pub(crate) fn attempt_nlx_from_local_bin_state(
     }))
 }
 
-/// Runs a native package-manager script execution plan.
-///
-/// # Errors
-///
-/// Returns an error when process setup or execution fails.
-pub fn run_script(
+pub(crate) fn run_script(
     exec: &crate::core::types::NativeScriptExecution,
     invocation_cwd: &Path,
 ) -> Result<std::process::ExitCode> {
     exec::run_script(exec, invocation_cwd)
 }
 
-/// Runs a native Deno task execution plan.
-///
-/// # Errors
-///
-/// Returns an error when task command parsing, runtime setup, or execution fails.
-pub fn run_deno_task(
+pub(crate) fn run_deno_task(
     exec: &NativeDenoTaskExecution,
     invocation_cwd: &Path,
 ) -> Result<std::process::ExitCode> {
     exec::run_deno_task(exec, invocation_cwd)
 }
 
-/// Runs a native local-bin execution plan.
-///
-/// # Errors
-///
-/// Returns an error when process setup or execution fails.
-pub fn run_local_bin(
+pub(crate) fn run_local_bin(
     exec: &crate::core::types::NativeLocalBinExecution,
     cwd: &Path,
 ) -> Result<std::process::ExitCode> {
@@ -100,7 +85,7 @@ pub fn run_local_bin(
 }
 
 #[must_use]
-pub fn format_debug(exec: &ResolvedExecution) -> String {
+pub(crate) fn format_debug(exec: &ResolvedExecution) -> String {
     exec::format_debug(exec)
 }
 
