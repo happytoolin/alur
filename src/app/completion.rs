@@ -1,6 +1,7 @@
 use std::io;
 
 use anyhow::{Result, anyhow};
+use clap::{Arg, ArgAction};
 use clap_complete::{
     generate,
     shells::{Bash, Fish, Zsh},
@@ -37,6 +38,48 @@ pub fn print_completion(shell: Option<&str>, program: &str) -> Result<()> {
     }
 
     Ok(())
+}
+
+pub fn nr_completion_script_for(flag: &str) -> Option<String> {
+    match flag {
+        "--completion-bash" => Some(generate_nr_completion("nr", Bash)),
+        "--completion-zsh" => Some(generate_nr_completion("nr", Zsh)),
+        "--completion-fish" => Some(generate_nr_completion("nr", Fish)),
+        _ => None,
+    }
+}
+
+fn generate_nr_completion<G>(command: &str, generator: G) -> String
+where
+    G: clap_complete::Generator,
+{
+    let mut cmd = help_command_for_topic(HelpTopic::Nr)
+        .arg(
+            Arg::new("completion")
+                .long("completion")
+                .hide(true)
+                .num_args(0..)
+                .action(ArgAction::Append),
+        )
+        .arg(
+            Arg::new("completion-bash")
+                .long("completion-bash")
+                .action(ArgAction::SetTrue),
+        )
+        .arg(
+            Arg::new("completion-zsh")
+                .long("completion-zsh")
+                .action(ArgAction::SetTrue),
+        )
+        .arg(
+            Arg::new("completion-fish")
+                .long("completion-fish")
+                .action(ArgAction::SetTrue),
+        );
+
+    let mut output = Vec::new();
+    generate(generator, &mut cmd, command, &mut output);
+    String::from_utf8_lossy(&output).into_owned()
 }
 
 fn detect_shell_from_env() -> Option<String> {

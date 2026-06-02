@@ -324,30 +324,30 @@ function compareCases() {
     {
       id: 'compare_ni_vite',
       group: 'ni',
-      case: 'ni vite ? (npm)',
+      case: 'ni vite debug (npm)',
       commands: [
         { name: 'antfu', bin: 'ni', args: ['-C', '<npmFixture>', 'vite', '?'] },
-        { name: 'hni', bin: 'ni', args: ['-C', '<npmFixture>', 'vite', '?'] },
+        { name: 'hni', bin: 'ni', args: ['-C', '<npmFixture>', 'vite', '--debug-resolved'] },
       ],
       requiredBins: ['npm', 'npx'],
     },
     {
       id: 'compare_nr_build',
       group: 'nr',
-      case: 'nr build ? (pnpm)',
+      case: 'nr build debug (pnpm)',
       commands: [
         { name: 'antfu', bin: 'nr', args: ['-C', '<pnpmFixture>', 'build', '?'] },
-        { name: 'hni', bin: 'nr', args: ['-C', '<pnpmFixture>', 'build', '?'] },
+        { name: 'hni', bin: 'nr', args: ['-C', '<pnpmFixture>', 'build', '--debug-resolved'] },
       ],
       requiredBins: ['pnpm'],
     },
     {
       id: 'compare_nlx_vitest',
       group: 'nlx',
-      case: 'nlx vitest ? (npm)',
+      case: 'nlx vitest debug (npm)',
       commands: [
         { name: 'antfu', bin: 'nlx', args: ['-C', '<npmFixture>', 'vitest', '?'] },
-        { name: 'hni', bin: 'nlx', args: ['-C', '<npmFixture>', 'vitest', '?'] },
+        { name: 'hni', bin: 'nlx', args: ['-C', '<npmFixture>', 'vitest', '--debug-resolved'] },
       ],
       requiredBins: ['npm', 'npx'],
     },

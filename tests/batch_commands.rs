@@ -69,7 +69,7 @@ fn debug_mode_does_not_execute_np_or_node_p() {
         let np_output = run_alias_output(
             &bin_dir,
             "np",
-            vec!["-C", cwd.to_str().unwrap(), &cmd_np, "?"],
+            vec!["-C", cwd.to_str().unwrap(), &cmd_np, "--debug-resolved"],
             &[],
         );
         assert!(np_output.status.success());
@@ -80,7 +80,13 @@ fn debug_mode_does_not_execute_np_or_node_p() {
         let node_output = run_alias_output(
             &bin_dir,
             "node",
-            vec!["-C", cwd.to_str().unwrap(), "p", &cmd_node, "?"],
+            vec![
+                "-C",
+                cwd.to_str().unwrap(),
+                "p",
+                &cmd_node,
+                "--debug-resolved",
+            ],
             &[],
         );
         assert!(node_output.status.success());

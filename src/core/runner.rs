@@ -3,7 +3,7 @@ use std::process::{Command, ExitCode, Stdio};
 use anyhow::{Context, Result};
 
 use super::{
-    batch::{BatchMode, format_batch_debug, run_batch},
+    batch::{format_batch_debug, run_batch},
     native,
     shell::shell_escape,
     types::{ExecutionStrategy, NativeExecution, ResolvedExecution},
@@ -12,8 +12,8 @@ use super::{
 use crate::platform::node::{REAL_NODE_ENV, path_with_real_node_priority, resolve_real_node_path};
 
 pub fn format_debug(exec: &ResolvedExecution) -> Result<String> {
-    if let Some(mode) = BatchMode::from_internal_program(&exec.program) {
-        return Ok(format_batch_debug(mode, &exec.args));
+    if let ExecutionStrategy::InternalBatch { mode, commands } = &exec.strategy {
+        return Ok(format_batch_debug(*mode, commands));
     }
 
     if exec.is_native() {
@@ -29,8 +29,8 @@ pub fn format_debug(exec: &ResolvedExecution) -> Result<String> {
 }
 
 pub fn run(exec: &ResolvedExecution) -> Result<ExitCode> {
-    if let Some(mode) = BatchMode::from_internal_program(&exec.program) {
-        return run_batch(mode, &exec.args, &exec.cwd);
+    if let ExecutionStrategy::InternalBatch { mode, commands } = &exec.strategy {
+        return run_batch(*mode, commands, &exec.cwd);
     }
 
     if let ExecutionStrategy::Native(native_exec) = &exec.strategy {

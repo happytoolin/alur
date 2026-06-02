@@ -126,7 +126,7 @@ pub(super) fn format_debug(exec: &ResolvedExecution) -> String {
             rendered.extend(native.forwarded_args.clone());
             join_rendered(rendered)
         }
-        ExecutionStrategy::External => String::new(),
+        ExecutionStrategy::External | ExecutionStrategy::InternalBatch { .. } => String::new(),
     }
 }
 

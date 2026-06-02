@@ -1,5 +1,6 @@
 pub mod cli;
 pub mod command_registry;
+pub mod commands;
 pub mod completion;
 pub mod dispatch;
 pub mod doctor;

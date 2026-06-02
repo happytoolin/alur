@@ -66,10 +66,29 @@ pub enum ExecutionMode {
     Internal,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BatchMode {
+    Parallel,
+    Sequential,
+}
+
+impl BatchMode {
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Parallel => "parallel",
+            Self::Sequential => "sequential",
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ExecutionStrategy {
     External,
     Native(NativeExecution),
+    InternalBatch {
+        mode: BatchMode,
+        commands: Vec<String>,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -232,6 +251,19 @@ impl ResolvedExecution {
             mode: ExecutionMode::Fast,
             strategy: ExecutionStrategy::Native(NativeExecution::RunLocalBin(exec)),
             fast_requested: true,
+            fast_fallback_reason: None,
+        }
+    }
+
+    pub fn internal_batch(mode: BatchMode, commands: Vec<String>, cwd: PathBuf) -> Self {
+        Self {
+            program: "hni".to_string(),
+            args: commands.clone(),
+            cwd,
+            passthrough: false,
+            mode: ExecutionMode::Internal,
+            strategy: ExecutionStrategy::InternalBatch { mode, commands },
+            fast_requested: false,
             fast_fallback_reason: None,
         }
     }

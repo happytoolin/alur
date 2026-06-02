@@ -1,6 +1,6 @@
 use std::process::ExitCode;
 
-use anyhow::{Result, anyhow};
+use anyhow::{Context, Result, anyhow};
 
 use crate::{
     app::{
@@ -98,13 +98,12 @@ pub fn run_from_env() -> Result<ExitCode> {
             }
 
             if parsed.debug {
-                let debug_rendered = runner::format_debug(&resolved)
-                    .map_err(|error| anyhow!("execution error: {error}"))?;
+                let debug_rendered = runner::format_debug(&resolved).context("execution error")?;
                 println!("{debug_rendered}");
                 return Ok(ExitCode::SUCCESS);
             }
 
-            runner::run(&resolved).map_err(|error| anyhow!("execution error: {error}"))
+            runner::run(&resolved).context("execution error")
         }
     }
 }
@@ -134,7 +133,7 @@ fn print_explain(
     }
     println!(
         "resolved: {}",
-        runner::format_debug(resolved).map_err(|error| anyhow!("execution error: {error}"))?
+        runner::format_debug(resolved).context("execution error")?
     );
 
     if let Ok(detection) = ctx.detect() {
@@ -169,10 +168,7 @@ fn run_profile_loop(
         if let Some(resolved) = resolved {
             std::hint::black_box(crate::core::profile::measure(
                 "runner.format_debug",
-                || {
-                    runner::format_debug(&resolved)
-                        .map_err(|error| anyhow!("execution error: {error}"))
-                },
+                || runner::format_debug(&resolved).context("execution error"),
             )?);
         }
     }

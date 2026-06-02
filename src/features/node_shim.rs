@@ -1,9 +1,9 @@
 use anyhow::Result;
 
 use crate::core::{
-    batch::{self, BatchMode},
+    batch,
     resolve::{self, ResolveContext},
-    types::{Intent, NodeShimMode, ResolvedExecution},
+    types::{BatchMode, Intent, NodeShimMode, ResolvedExecution},
 };
 
 pub fn handle(args: Vec<String>, ctx: &ResolveContext) -> Result<Option<ResolvedExecution>> {

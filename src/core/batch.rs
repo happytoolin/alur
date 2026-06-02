@@ -4,51 +4,12 @@ use anyhow::{Context, Result};
 
 use super::{
     shell::{configure_command, shell_command, shell_escape},
-    types::{ExecutionMode, ResolvedExecution},
+    types::{BatchMode, ResolvedExecution},
     util::{exit_code_from_code, exit_code_from_status},
 };
 
-pub const INTERNAL_BATCH_PARALLEL: &str = "__hni_internal_batch_parallel";
-pub const INTERNAL_BATCH_SEQUENTIAL: &str = "__hni_internal_batch_sequential";
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum BatchMode {
-    Parallel,
-    Sequential,
-}
-
-impl BatchMode {
-    pub fn label(self) -> &'static str {
-        match self {
-            Self::Parallel => "parallel",
-            Self::Sequential => "sequential",
-        }
-    }
-
-    pub fn internal_program(self) -> &'static str {
-        match self {
-            Self::Parallel => INTERNAL_BATCH_PARALLEL,
-            Self::Sequential => INTERNAL_BATCH_SEQUENTIAL,
-        }
-    }
-
-    pub fn from_internal_program(program: &str) -> Option<Self> {
-        match program {
-            INTERNAL_BATCH_PARALLEL => Some(Self::Parallel),
-            INTERNAL_BATCH_SEQUENTIAL => Some(Self::Sequential),
-            _ => None,
-        }
-    }
-}
-
 pub fn make_execution(mode: BatchMode, commands: Vec<String>, cwd: &Path) -> ResolvedExecution {
-    ResolvedExecution::external_with_mode(
-        mode.internal_program().to_string(),
-        commands,
-        cwd.to_path_buf(),
-        false,
-        ExecutionMode::Internal,
-    )
+    ResolvedExecution::internal_batch(mode, commands, cwd.to_path_buf())
 }
 
 pub fn run_batch(mode: BatchMode, commands: &[String], cwd: &Path) -> Result<ExitCode> {
@@ -120,6 +81,8 @@ fn run_parallel(commands: &[String], cwd: &Path) -> Result<ExitCode> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::core::types::ExecutionStrategy;
+
     use std::path::PathBuf;
 
     #[test]
@@ -141,23 +104,21 @@ mod tests {
     }
 
     #[test]
-    fn batch_mode_roundtrip_with_internal_program() {
-        for mode in [BatchMode::Parallel, BatchMode::Sequential] {
-            let parsed = BatchMode::from_internal_program(mode.internal_program());
-            assert_eq!(parsed, Some(mode));
-        }
-        assert_eq!(BatchMode::from_internal_program("not-batch"), None);
-    }
-
-    #[test]
-    fn make_execution_sets_expected_internal_program() {
+    fn make_execution_sets_internal_batch_strategy() {
         let cwd = PathBuf::from("/tmp");
         let exec = make_execution(BatchMode::Parallel, vec!["echo hi".to_string()], &cwd);
-        assert_eq!(exec.program, INTERNAL_BATCH_PARALLEL);
+        assert_eq!(exec.program, "hni");
         assert_eq!(exec.args, vec!["echo hi"]);
         assert_eq!(exec.cwd, cwd);
         assert_eq!(exec.execution_mode_name(), "internal");
         assert!(!exec.passthrough);
+        assert!(matches!(
+            exec.strategy,
+            ExecutionStrategy::InternalBatch {
+                mode: BatchMode::Parallel,
+                ..
+            }
+        ));
     }
 
     #[test]

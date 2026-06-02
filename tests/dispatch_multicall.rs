@@ -42,7 +42,7 @@ fn multicall_aliases_resolve_expected_commands() {
         let ni_out = run_alias(
             &bin_dir,
             "ni",
-            vec!["-C", npm_proj.to_str().unwrap(), "vite", "?"],
+            vec!["-C", npm_proj.to_str().unwrap(), "vite", "--debug-resolved"],
             &[],
         );
         assert_eq!(ni_out.trim(), "npm i vite");
@@ -56,7 +56,7 @@ fn multicall_aliases_resolve_expected_commands() {
                 "--pm",
                 "dev",
                 "--port=3000",
-                "?",
+                "--debug-resolved",
             ],
             &[],
         );
@@ -71,7 +71,7 @@ fn multicall_aliases_resolve_expected_commands() {
                 "--pm",
                 "--if-present",
                 "missing-script",
-                "?",
+                "--debug-resolved",
             ],
             &[],
         );
@@ -83,7 +83,12 @@ fn multicall_aliases_resolve_expected_commands() {
         let ni_frozen_if_present_out = run_alias(
             &bin_dir,
             "ni",
-            vec!["-C", npm_proj.to_str().unwrap(), "--frozen-if-present", "?"],
+            vec![
+                "-C",
+                npm_proj.to_str().unwrap(),
+                "--frozen-if-present",
+                "--debug-resolved",
+            ],
             &[],
         );
         assert_eq!(ni_frozen_if_present_out.trim(), "npm ci");
@@ -91,7 +96,13 @@ fn multicall_aliases_resolve_expected_commands() {
         let ni_global_out = run_alias(
             &bin_dir,
             "ni",
-            vec!["-C", npm_proj.to_str().unwrap(), "-g", "eslint", "?"],
+            vec![
+                "-C",
+                npm_proj.to_str().unwrap(),
+                "-g",
+                "eslint",
+                "--debug-resolved",
+            ],
             &[("HNI_GLOBAL_PACKAGE_MANAGER", "yarn")],
         );
         assert_eq!(ni_global_out.trim(), "yarn global add eslint");
@@ -99,7 +110,14 @@ fn multicall_aliases_resolve_expected_commands() {
         let node_out = run_alias(
             &bin_dir,
             "node",
-            vec!["-C", npm_proj.to_str().unwrap(), "--pm", "run", "dev", "?"],
+            vec![
+                "-C",
+                npm_proj.to_str().unwrap(),
+                "--pm",
+                "run",
+                "dev",
+                "--debug-resolved",
+            ],
             &[],
         );
         assert_eq!(node_out.trim(), "npm run dev");
@@ -127,7 +145,7 @@ fn multicall_aliases_resolve_expected_commands() {
         let nru_out = run_alias(
             &bin_dir,
             "nru",
-            vec!["-C", npm_proj.to_str().unwrap(), "vite", "?"],
+            vec!["-C", npm_proj.to_str().unwrap(), "vite", "--debug-resolved"],
             &[],
         );
         assert_eq!(nru_out.trim(), "npm update vite");
@@ -135,7 +153,7 @@ fn multicall_aliases_resolve_expected_commands() {
         let nci_out = run_alias(
             &bin_dir,
             "nci",
-            vec!["-C", npm_proj.to_str().unwrap(), "?"],
+            vec!["-C", npm_proj.to_str().unwrap(), "--debug-resolved"],
             &[],
         );
         assert_eq!(nci_out.trim(), "npm ci");
@@ -143,7 +161,13 @@ fn multicall_aliases_resolve_expected_commands() {
         let nun_global_out = run_alias(
             &bin_dir,
             "nun",
-            vec!["-C", npm_proj.to_str().unwrap(), "-g", "eslint", "?"],
+            vec![
+                "-C",
+                npm_proj.to_str().unwrap(),
+                "-g",
+                "eslint",
+                "--debug-resolved",
+            ],
             &[("HNI_GLOBAL_PACKAGE_MANAGER", "yarn")],
         );
         assert_eq!(nun_global_out.trim(), "yarn global remove eslint");
@@ -156,7 +180,7 @@ fn multicall_aliases_resolve_expected_commands() {
                 npm_proj.to_str().unwrap(),
                 "echo one",
                 "echo two",
-                "?",
+                "--debug-resolved",
             ],
             &[],
         );
@@ -173,7 +197,7 @@ fn multicall_aliases_resolve_expected_commands() {
                 npm_proj.to_str().unwrap(),
                 "echo one",
                 "echo two",
-                "?",
+                "--debug-resolved",
             ],
             &[],
         );
@@ -191,7 +215,7 @@ fn multicall_aliases_resolve_expected_commands() {
                 "p",
                 "echo one",
                 "echo two",
-                "?",
+                "--debug-resolved",
             ],
             &[],
         );
@@ -209,7 +233,7 @@ fn multicall_aliases_resolve_expected_commands() {
                 "s",
                 "echo one",
                 "echo two",
-                "?",
+                "--debug-resolved",
             ],
             &[],
         );
@@ -235,7 +259,7 @@ fn multicall_aliases_resolve_expected_commands() {
         let passthrough_out = run_alias(
             &bin_dir,
             "node",
-            vec!["script.js", "?"],
+            vec!["script.js", "--debug-resolved"],
             &[("HNI_REAL_NODE", fake_node.to_str().unwrap())],
         );
         let output = passthrough_out.trim();
@@ -245,7 +269,7 @@ fn multicall_aliases_resolve_expected_commands() {
         let node_flag_out = run_alias(
             &bin_dir,
             "node",
-            vec!["-p", "1+1", "?"],
+            vec!["-p", "1+1", "--debug-resolved"],
             &[("HNI_REAL_NODE", fake_node.to_str().unwrap())],
         );
         let output = node_flag_out.trim();

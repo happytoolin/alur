@@ -233,7 +233,7 @@ hni doctor
 These work across `hni` and the multicall aliases:
 
 ```bash
-? --dry-run --print-command
+--debug-resolved --dry-run --print-command
 --explain
 -C <dir>
 -v --version
@@ -403,12 +403,12 @@ Local bin execution is the standout feature: `npx` and `pnpm exec` spend hundred
 
 For the same command-routing workload, `hni` is consistently faster:
 
-| Case           | antfu/ni |    hni |  Speedup |
-| -------------- | -------: | -----: | -------: |
-| `ni --version` |   149 ms |  92 ms | **1.6x** |
-| `ni vite ?`    |   6.0 ms | 3.6 ms | **1.7x** |
-| `nr build ?`   |   5.0 ms | 3.7 ms | **1.3x** |
-| `nlx vitest ?` |   4.6 ms | 3.0 ms | **1.5x** |
+| Case                           | antfu/ni |    hni |  Speedup |
+| ------------------------------ | -------: | -----: | -------: |
+| `ni --version`                 |   149 ms |  92 ms | **1.6x** |
+| `ni vite --debug-resolved`     |   6.0 ms | 3.6 ms | **1.7x** |
+| `nr build --debug-resolved`    |   5.0 ms | 3.7 ms | **1.3x** |
+| `nlx vitest --debug-resolved`  |   4.6 ms | 3.0 ms | **1.5x** |
 
 _Geometric mean: **1.5x**._
 

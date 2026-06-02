@@ -8,25 +8,17 @@ use crate::{
         types::ResolvedExecution,
     },
     features::interactive::{
-        completion::{
-            completion_candidates, completion_script_bash, completion_script_fish,
-            completion_script_zsh,
-        },
+        completion::completion_candidates,
         nr_scripts::{choose_script_interactive, read_scripts},
     },
 };
 
 pub fn handle(mut args: Vec<String>, ctx: &ResolveContext) -> Result<Option<ResolvedExecution>> {
-    if let Some(first) = args.first() {
-        if let Some(script) = completion_script_for(first) {
-            println!("{script}");
-            return Ok(None);
-        }
-
-        if first == "--completion" {
-            handle_completion_query(&args[1..], ctx)?;
-            return Ok(None);
-        }
+    if let Some(first) = args.first()
+        && first == "--completion"
+    {
+        handle_completion_query(&args[1..], ctx)?;
+        return Ok(None);
     }
 
     if args.is_empty() {
@@ -57,13 +49,4 @@ fn handle_completion_query(args: &[String], ctx: &ResolveContext) -> Result<()> 
     }
 
     Ok(())
-}
-
-fn completion_script_for(flag: &str) -> Option<String> {
-    match flag {
-        "--completion-bash" => Some(completion_script_bash("nr")),
-        "--completion-zsh" => Some(completion_script_zsh("nr")),
-        "--completion-fish" => Some(completion_script_fish("nr")),
-        _ => None,
-    }
 }

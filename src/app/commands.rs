@@ -2,18 +2,35 @@ use anyhow::{Result, anyhow};
 
 use crate::{
     core::{
-        batch::{self, BatchMode},
+        batch,
         resolve::{self, ResolveContext},
-        types::ResolvedExecution,
+        types::{BatchMode, ResolvedExecution},
     },
-    features::interactive::{
-        ni_search::augment_ni_args_interactive, nun_select::choose_dependencies_for_uninstall,
+    features::{
+        interactive::{
+            ni_search::augment_ni_args_interactive, nun_select::choose_dependencies_for_uninstall,
+        },
+        nr,
     },
 };
+
+use super::completion::nr_completion_script_for;
 
 pub fn handle_ni(args: Vec<String>, ctx: &ResolveContext) -> Result<Option<ResolvedExecution>> {
     let args = augment_ni_args_interactive(args, ctx)?;
     Ok(Some(resolve::resolve_ni(args, ctx)?))
+}
+
+pub fn handle_nr(args: Vec<String>, ctx: &ResolveContext) -> Result<Option<ResolvedExecution>> {
+    if let Some(script) = args
+        .first()
+        .and_then(|first| nr_completion_script_for(first.as_str()))
+    {
+        println!("{script}");
+        return Ok(None);
+    }
+
+    nr::handle(args, ctx)
 }
 
 pub fn handle_nlx(args: Vec<String>, ctx: &ResolveContext) -> Result<Option<ResolvedExecution>> {

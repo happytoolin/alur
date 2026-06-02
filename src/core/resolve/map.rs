@@ -86,8 +86,8 @@ pub(super) fn uninstall_command(pm: PackageManager, args: Vec<String>) -> (Strin
     }
 }
 
-pub(super) fn frozen_command(pm: PackageManager) -> (String, Vec<String>) {
-    match pm {
+pub(super) fn frozen_command(pm: PackageManager, args: Vec<String>) -> (String, Vec<String>) {
+    let (program, mut frozen_args) = match pm {
         PackageManager::Npm => ("npm".to_string(), vec!["ci".to_string()]),
         PackageManager::Yarn => (
             "yarn".to_string(),
@@ -109,7 +109,10 @@ pub(super) fn frozen_command(pm: PackageManager) -> (String, Vec<String>) {
             "deno".to_string(),
             vec!["install".to_string(), "--frozen".to_string()],
         ),
-    }
+    };
+
+    frozen_args.extend(args);
+    (program, frozen_args)
 }
 
 pub(super) fn global_install_command(
