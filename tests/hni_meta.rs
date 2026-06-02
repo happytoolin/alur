@@ -1,6 +1,21 @@
-use std::{fs, path::PathBuf, process::Command};
+use std::fs;
 
 mod support;
+
+use hni::{
+    app::{
+        command_registry::{
+            command_spec_by_name, command_specs, command_subcommands, help_command_for_topic,
+            help_topic_by_name, invocation_from_name,
+        },
+        commands::{handle_np, handle_ns},
+    },
+    core::{
+        config::HniConfig,
+        resolve::ResolveContext,
+        types::{BatchMode, ExecutionStrategy, HelpTopic, InvocationKind},
+    },
+};
 
 #[test]
 fn hni_subcommand_aliases_resolve_like_multicall() {
@@ -20,7 +35,7 @@ fn hni_subcommand_aliases_resolve_like_multicall() {
                 "--dry-run",
                 "--explain",
             ],
-            &[],
+            &[("HNI_SKIP_PM_CHECK", "1")],
         );
         assert!(output.status.success());
         let stdout = String::from_utf8_lossy(&output.stdout);
@@ -31,7 +46,37 @@ fn hni_subcommand_aliases_resolve_like_multicall() {
 }
 
 #[test]
-fn hni_doctor_completion_and_init_are_available() {
+fn command_registry_exposes_expected_public_surface() {
+    let names = command_specs()
+        .iter()
+        .map(|spec| spec.name)
+        .collect::<Vec<_>>();
+    assert_eq!(
+        names,
+        vec![
+            "ni", "nr", "nlx", "nru", "nun", "nci", "na", "np", "ns", "node"
+        ]
+    );
+
+    assert_eq!(invocation_from_name("nr"), Some(InvocationKind::Nr));
+    assert_eq!(help_topic_by_name("completion"), Some(HelpTopic::Hni));
+    assert_eq!(
+        command_spec_by_name("init").map(|spec| spec.name),
+        None,
+        "init is a top-level hni command, not a multicall alias"
+    );
+
+    let subcommand_names = command_subcommands()
+        .map(|command| command.get_name().to_string())
+        .collect::<Vec<_>>();
+    assert_eq!(subcommand_names, names);
+
+    assert_eq!(help_command_for_topic(HelpTopic::Nr).get_name(), "nr");
+    assert_eq!(help_command_for_topic(HelpTopic::Init).get_name(), "init");
+}
+
+#[test]
+fn hni_pre_execution_commands_are_available() {
     support::with_env_lock(|| {
         let work = tempfile::tempdir().unwrap();
         let doctor = run_hni(vec!["doctor"], &[("HNI_SKIP_PM_CHECK", "1")]);
@@ -44,6 +89,21 @@ fn hni_doctor_completion_and_init_are_available() {
         let completion_out = String::from_utf8_lossy(&completion.stdout);
         assert!(completion_out.contains("hni"));
 
+        let top_help = run_hni(vec!["help"], &[("HNI_SKIP_PM_CHECK", "1")]);
+        assert!(top_help.status.success());
+        let top_help_out = String::from_utf8_lossy(&top_help.stdout);
+        assert!(top_help_out.contains("Usage: hni"));
+
+        let nr_help = run_hni(vec!["help", "nr"], &[("HNI_SKIP_PM_CHECK", "1")]);
+        assert!(nr_help.status.success());
+        let nr_help_out = String::from_utf8_lossy(&nr_help.stdout);
+        assert!(nr_help_out.contains("Usage: nr"));
+
+        let version = run_hni(vec!["--version"], &[("HNI_SKIP_PM_CHECK", "1")]);
+        assert!(version.status.success());
+        let version_out = String::from_utf8_lossy(&version.stdout);
+        assert!(version_out.contains("hni       v"));
+
         let init_home = work.path().join("init-home");
         let init_data = work.path().join("init-data");
         fs::create_dir_all(&init_home).unwrap();
@@ -51,6 +111,7 @@ fn hni_doctor_completion_and_init_are_available() {
         let init = run_hni(
             vec!["init", "bash"],
             &[
+                ("HNI_SKIP_PM_CHECK", "1"),
                 ("HOME", init_home.to_string_lossy().as_ref()),
                 ("XDG_DATA_HOME", init_data.to_string_lossy().as_ref()),
             ],
@@ -61,25 +122,40 @@ fn hni_doctor_completion_and_init_are_available() {
     });
 }
 
-fn run_hni(args: Vec<&str>, extra_env: &[(&str, &str)]) -> std::process::Output {
-    let mut cmd = Command::new(hni_executable_path());
-    cmd.args(args).env("HNI_SKIP_PM_CHECK", "1");
+#[test]
+fn app_command_handlers_build_batch_executions() {
+    let work = tempfile::tempdir().unwrap();
+    let ctx = ResolveContext::with_package_manager_checks(
+        work.path().to_path_buf(),
+        HniConfig::default(),
+        false,
+    );
 
-    for (key, value) in extra_env {
-        cmd.env(key, value);
-    }
+    let parallel = handle_np(vec!["echo one".to_string(), "echo two".to_string()], &ctx)
+        .unwrap()
+        .expect("np should build a batch execution");
+    assert!(matches!(
+        parallel.strategy,
+        ExecutionStrategy::InternalBatch {
+            mode: BatchMode::Parallel,
+            ..
+        }
+    ));
+    assert_eq!(parallel.args, vec!["echo one", "echo two"]);
 
-    cmd.output().expect("failed to run hni")
+    let sequential = handle_ns(vec!["echo one".to_string(), "echo two".to_string()], &ctx)
+        .unwrap()
+        .expect("ns should build a batch execution");
+    assert!(matches!(
+        sequential.strategy,
+        ExecutionStrategy::InternalBatch {
+            mode: BatchMode::Sequential,
+            ..
+        }
+    ));
+    assert_eq!(sequential.args, vec!["echo one", "echo two"]);
 }
 
-fn hni_executable_path() -> PathBuf {
-    if let Ok(path) = std::env::var("CARGO_BIN_EXE_hni") {
-        return PathBuf::from(path);
-    }
-
-    let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    path.push("target");
-    path.push("debug");
-    path.push(if cfg!(windows) { "hni.exe" } else { "hni" });
-    path
+fn run_hni(args: Vec<&str>, extra_env: &[(&str, &str)]) -> std::process::Output {
+    support::run_hni(args, extra_env)
 }
