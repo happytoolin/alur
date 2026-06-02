@@ -76,6 +76,13 @@ impl SharedFlags {
     }
 }
 
+/// Parse CLI arguments from the current process environment.
+///
+/// # Errors
+///
+/// Returns an error when argv is unavailable, shared flags conflict or use an
+/// invalid working directory, clap rejects command arguments, help/internal
+/// topics are unknown, or changing to the requested current directory fails.
 pub fn parse_from_env() -> Result<ParsedInvocation> {
     let argv = env::args().collect::<Vec<_>>();
     let Some(argv0) = argv.first() else {
@@ -338,6 +345,7 @@ fn hni_parser() -> Command {
     cmd
 }
 
+#[must_use]
 pub fn command_parser(name: &'static str) -> Command {
     Command::new(name).arg(command_args_arg())
 }

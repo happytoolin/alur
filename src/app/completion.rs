@@ -1,4 +1,4 @@
-use std::io;
+use std::{env, io};
 
 use anyhow::{Result, anyhow};
 use clap::{Arg, ArgAction};
@@ -8,7 +8,10 @@ use clap_complete::{
 };
 
 use super::command_registry::help_command_for_topic;
-pub use crate::core::types::HelpTopic;
+use crate::{
+    core::{resolve::ResolveContext, types::HelpTopic},
+    features::interactive::{completion::completion_candidates, nr_scripts::read_scripts},
+};
 
 /// Print shell completion script.
 ///
@@ -40,13 +43,36 @@ pub fn print_completion(shell: Option<&str>, program: &str) -> Result<()> {
     Ok(())
 }
 
-pub fn nr_completion_script_for(flag: &str) -> Option<String> {
+#[must_use]
+pub(super) fn nr_completion_script_for(flag: &str) -> Option<String> {
     match flag {
         "--completion-bash" => Some(generate_nr_completion("nr", Bash)),
         "--completion-zsh" => Some(generate_nr_completion("nr", Zsh)),
         "--completion-fish" => Some(generate_nr_completion("nr", Fish)),
         _ => None,
     }
+}
+
+pub(super) fn print_nr_completion_query(args: &[String], ctx: &ResolveContext) -> Result<()> {
+    let scripts = read_scripts(ctx)?;
+    let script_names = scripts.into_iter().map(|script| script.name);
+
+    let comp_word = env::var("COMP_CWORD")
+        .ok()
+        .and_then(|value| value.parse::<usize>().ok())
+        .unwrap_or(0);
+
+    let prefix = if comp_word > 1 {
+        args.last().cloned().unwrap_or_default()
+    } else {
+        args.get(1).cloned().unwrap_or_default()
+    };
+
+    for candidate in completion_candidates(&prefix, script_names) {
+        println!("{candidate}");
+    }
+
+    Ok(())
 }
 
 fn generate_nr_completion<G>(command: &str, generator: G) -> String

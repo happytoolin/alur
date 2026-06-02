@@ -14,7 +14,7 @@ use crate::{
     },
 };
 
-use super::completion::nr_completion_script_for;
+use super::completion::{nr_completion_script_for, print_nr_completion_query};
 
 pub fn handle_ni(args: Vec<String>, ctx: &ResolveContext) -> Result<Option<ResolvedExecution>> {
     let args = augment_ni_args_interactive(args, ctx)?;
@@ -27,6 +27,11 @@ pub fn handle_nr(args: Vec<String>, ctx: &ResolveContext) -> Result<Option<Resol
         .and_then(|first| nr_completion_script_for(first.as_str()))
     {
         println!("{script}");
+        return Ok(None);
+    }
+
+    if args.first().is_some_and(|first| first == "--completion") {
+        print_nr_completion_query(&args[1..], ctx)?;
         return Ok(None);
     }
 

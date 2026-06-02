@@ -176,20 +176,24 @@ const COMMAND_SPECS: &[CommandSpec] = &[
     },
 ];
 
+#[must_use]
 pub fn command_specs() -> &'static [CommandSpec] {
     COMMAND_SPECS
 }
 
+#[must_use]
 pub fn command_spec_by_name(name: &str) -> Option<&'static CommandSpec> {
     command_specs().iter().find(|spec| spec.name == name)
 }
 
+#[must_use]
 pub fn command_spec_by_invocation(invocation: InvocationKind) -> Option<&'static CommandSpec> {
     command_specs()
         .iter()
         .find(|spec| spec.invocation == invocation)
 }
 
+#[must_use]
 pub fn help_topic_by_name(name: &str) -> Option<HelpTopic> {
     match name {
         "hni" | "doctor" | "completion" | "help" => Some(HelpTopic::Hni),
@@ -198,25 +202,25 @@ pub fn help_topic_by_name(name: &str) -> Option<HelpTopic> {
     }
 }
 
+#[must_use]
 pub fn help_topic_for_invocation(invocation: InvocationKind) -> HelpTopic {
-    command_spec_by_invocation(invocation)
-        .map(|spec| spec.help_topic)
-        .unwrap_or(HelpTopic::Hni)
+    command_spec_by_invocation(invocation).map_or(HelpTopic::Hni, |spec| spec.help_topic)
 }
 
+#[must_use]
 pub fn invocation_from_name(name: &str) -> Option<InvocationKind> {
     command_spec_by_name(name).map(|spec| spec.invocation)
 }
 
+#[must_use]
 pub fn help_command_for_topic(topic: HelpTopic) -> Command {
     match topic {
         HelpTopic::Hni => super::help::top_level_help(),
         HelpTopic::Init => init_help(),
         _ => {
-            let spec = command_specs()
-                .iter()
-                .find(|spec| spec.help_topic == topic)
-                .expect("help topic should have matching command spec");
+            let Some(spec) = command_specs().iter().find(|spec| spec.help_topic == topic) else {
+                return super::help::top_level_help();
+            };
             command_help(spec)
         }
     }
