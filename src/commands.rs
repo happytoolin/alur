@@ -6,21 +6,14 @@ use crate::{
         resolve::{self, ResolveContext},
         types::ResolvedExecution,
     },
-    features::{
-        interactive::{
-            ni_search::augment_ni_args_interactive, nun_select::choose_dependencies_for_uninstall,
-        },
-        node_shim, nr,
+    features::interactive::{
+        ni_search::augment_ni_args_interactive, nun_select::choose_dependencies_for_uninstall,
     },
 };
 
 pub fn handle_ni(args: Vec<String>, ctx: &ResolveContext) -> Result<Option<ResolvedExecution>> {
     let args = augment_ni_args_interactive(args, ctx)?;
     Ok(Some(resolve::resolve_ni(args, ctx)?))
-}
-
-pub fn handle_nr(args: Vec<String>, ctx: &ResolveContext) -> Result<Option<ResolvedExecution>> {
-    nr::handle(args, ctx)
 }
 
 pub fn handle_nlx(args: Vec<String>, ctx: &ResolveContext) -> Result<Option<ResolvedExecution>> {
@@ -86,8 +79,4 @@ pub fn handle_ns(args: Vec<String>, ctx: &ResolveContext) -> Result<Option<Resol
         args,
         ctx.cwd(),
     )))
-}
-
-pub fn handle_node(args: Vec<String>, ctx: &ResolveContext) -> Result<Option<ResolvedExecution>> {
-    node_shim::handle(args, ctx)
 }

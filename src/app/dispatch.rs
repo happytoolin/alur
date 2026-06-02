@@ -14,7 +14,6 @@ use crate::{
     },
     core::{
         config::HniConfig,
-        detect::detect,
         resolve::ResolveContext,
         runner,
         types::{ExecutionMode, InvocationKind, ResolvedExecution},
@@ -47,7 +46,7 @@ pub fn run_from_env() -> Result<ExitCode> {
             && !parsed.explain;
     let resolve_ctx = ResolveContext::with_package_manager_checks(
         parsed.cwd.clone(),
-        config.clone(),
+        config,
         verify_package_manager_availability,
     );
 
@@ -94,7 +93,7 @@ pub fn run_from_env() -> Result<ExitCode> {
             };
 
             if parsed.explain {
-                print_explain(invocation, &resolved, &resolve_ctx, &config)?;
+                print_explain(invocation, &resolved, &resolve_ctx)?;
                 return Ok(ExitCode::SUCCESS);
             }
 
@@ -114,14 +113,13 @@ fn print_explain(
     invocation: InvocationKind,
     resolved: &ResolvedExecution,
     ctx: &ResolveContext,
-    config: &HniConfig,
 ) -> Result<()> {
     println!("hni explain");
     println!("invocation: {}", invocation_name(invocation));
     println!("cwd: {}", ctx.cwd().display());
-    println!("fast_mode: {}", config.fast_mode);
+    println!("fast_mode: {}", ctx.config.fast_mode);
     println!("execution_mode: {}", resolved.execution_mode_name());
-    if config.fast_mode {
+    if ctx.config.fast_mode {
         let fast_status = if resolved.fast_fallback_reason.is_some() {
             "fallback"
         } else if matches!(resolved.mode, ExecutionMode::Fast) {
@@ -139,7 +137,7 @@ fn print_explain(
         runner::format_debug(resolved).map_err(|error| anyhow!("execution error: {error}"))?
     );
 
-    if let Ok(detection) = ctx.detect().or_else(|_| detect(ctx.cwd(), &ctx.config)) {
+    if let Ok(detection) = ctx.detect() {
         println!(
             "detected_agent: {}",
             detection

@@ -4,6 +4,7 @@ use clap::Command;
 use crate::{
     commands,
     core::{resolve::ResolveContext, types::InvocationKind},
+    features::{node_shim, nr},
 };
 
 pub use crate::core::types::HelpTopic;
@@ -59,7 +60,7 @@ const COMMAND_SPECS: &[CommandSpec] = &[
              nr --pm dev          Force package-manager mode\n\
              nr test -- --watch   Pass extra args to script\n\
              nr --if-present lint Skip failure if script is missing",
-        handler: commands::handle_nr,
+        handler: nr::handle,
     },
     CommandSpec {
         name: "nlx",
@@ -171,7 +172,7 @@ const COMMAND_SPECS: &[CommandSpec] = &[
                      node p \"echo one\" \"echo two\"\n\
                      \n\
                      Routed verbs: p, s, install|i, add, run, exec|x|dlx, update|upgrade, uninstall|remove, ci",
-        handler: commands::handle_node,
+        handler: node_shim::handle,
     },
 ];
 
