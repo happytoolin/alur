@@ -2,6 +2,7 @@ use crate::core::types::PackageManager;
 
 use super::flags::{npm_run_args, prepend};
 
+#[must_use]
 pub fn version_command_for_pm(pm: PackageManager) -> (String, Vec<String>) {
     (pm.bin().to_string(), vec!["--version".to_string()])
 }

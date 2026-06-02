@@ -14,6 +14,11 @@ pub(super) struct AgentResolution {
     pub version_hint: Option<String>,
 }
 
+/// Returns the package manager detected for the current working directory.
+///
+/// # Errors
+///
+/// Returns an error when project detection fails or no package manager can be resolved.
 pub fn detected_package_manager(ctx: &ResolveContext) -> Result<PackageManager> {
     let detected = detect_for_action(ctx, false)?;
     Ok(detected.pm)
