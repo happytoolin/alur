@@ -4,7 +4,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use anyhow::{Result, anyhow};
+use anyhow::{Context, Result};
 use serde::Deserialize;
 
 #[derive(Debug, Clone, Deserialize, Default)]
@@ -87,18 +87,14 @@ pub fn read_package_json(cwd: &Path) -> Result<Option<PackageJson>> {
         Ok(content) => content,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
         Err(e) => {
-            return Err(anyhow!(
-                "config error: failed to read {}: {e}",
-                path.display()
-            ));
+            return Err(e)
+                .with_context(|| format!("config error: failed to read {}", path.display()));
         }
     };
 
     let parsed: PackageJson =
         crate::core::profile::measure("package_json.parse_serde", || serde_json::from_slice(&raw))
-            .map_err(|error| {
-                anyhow!("config error: failed to parse {}: {error}", path.display())
-            })?;
+            .with_context(|| format!("config error: failed to parse {}", path.display()))?;
     Ok(Some(parsed))
 }
 

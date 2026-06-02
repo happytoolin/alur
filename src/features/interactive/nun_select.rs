@@ -1,6 +1,6 @@
 use std::{collections::BTreeSet, path::Path};
 
-use anyhow::{Result, anyhow};
+use anyhow::{Context, Result, anyhow};
 use dialoguer::{MultiSelect, theme::ColorfulTheme};
 
 use crate::core::pkg_json::{PackageJson, read_package_json};
@@ -21,9 +21,7 @@ pub fn choose_dependencies_for_uninstall(cwd: &Path) -> Result<Vec<String>> {
         .with_prompt("Select dependencies to remove")
         .items(&items)
         .interact()
-        .map_err(|error| {
-            anyhow!("interactive error: failed to read dependency selection: {error}")
-        })?;
+        .context("interactive error: failed to read dependency selection")?;
 
     if selected.is_empty() {
         return Ok(Vec::new());

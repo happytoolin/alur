@@ -4,7 +4,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use anyhow::{Result, anyhow, bail};
+use anyhow::{Context, Result, anyhow, bail};
 use indexmap::IndexMap;
 use jsonc_parser::{ParseOptions, parse_to_serde_value};
 use serde::Deserialize;
@@ -330,9 +330,10 @@ fn read_deno_config(dir: &Path) -> Result<Option<ParsedDenoConfig>> {
     };
 
     let raw = fs::read_to_string(&path)
-        .map_err(|error| anyhow!("config error: failed to read {}: {error}", path.display()))?;
+        .with_context(|| format!("config error: failed to read {}", path.display()))?;
     let config = parse_to_serde_value::<RawDenoConfig>(&raw, &ParseOptions::default())
-        .map_err(|error| anyhow!("config error: failed to parse {}: {error}", path.display()))?;
+        .map_err(anyhow::Error::msg)
+        .with_context(|| format!("config error: failed to parse {}", path.display()))?;
     let tasks = config
         .tasks
         .into_iter()

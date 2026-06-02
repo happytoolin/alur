@@ -44,8 +44,17 @@ fn explicit_config_path_must_exist() {
         let err = HniConfig::load().unwrap_err();
         support::remove_var("HNI_CONFIG_FILE");
 
-        assert!(err.to_string().contains("config file not found"));
-        assert!(err.to_string().contains("failed to load"));
+        let chain = err.chain().map(ToString::to_string).collect::<Vec<_>>();
+        assert!(
+            chain
+                .iter()
+                .any(|message| message.contains("config file not found"))
+        );
+        assert!(
+            chain
+                .iter()
+                .any(|message| message.contains("failed to load"))
+        );
     });
 }
 

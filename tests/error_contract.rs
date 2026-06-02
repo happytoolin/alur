@@ -39,7 +39,7 @@ fn invalid_init_shell_reports_parse_error() {
         let output = run_hni(vec!["init", "tcsh"], &[("HNI_SKIP_PM_CHECK", "1")]);
         assert!(!output.status.success());
         let stderr = String::from_utf8_lossy(&output.stderr);
-        assert!(stderr.contains("hni: parse error:"));
+        assert!(stderr.contains("hni: parse error"));
         assert!(stderr.contains("tcsh"));
     });
 }

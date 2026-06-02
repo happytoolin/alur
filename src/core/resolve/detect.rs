@@ -1,4 +1,4 @@
-use anyhow::{Result, anyhow};
+use anyhow::{Context, Result, anyhow};
 
 use crate::core::{
     detect::ensure_package_manager_available,
@@ -34,8 +34,7 @@ pub(super) fn detect_for_action(ctx: &ResolveContext, use_global: bool) -> Resul
             source: DetectionSource::Config,
         }
     } else {
-        ctx.detect()
-            .map_err(|error| anyhow!("detection error: {error}"))?
+        ctx.detect().context("detection error")?
     };
 
     agent_resolution_from_detection(ctx, use_global, detection)
@@ -76,5 +75,5 @@ pub(super) fn ensure_detected_available(
     }
 
     ensure_package_manager_available(resolution.pm, resolution.version_hint.as_deref())
-        .map_err(|error| anyhow!("detection error: {error}"))
+        .context("detection error")
 }

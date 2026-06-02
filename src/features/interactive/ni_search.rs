@@ -1,4 +1,4 @@
-use anyhow::{Result, anyhow};
+use anyhow::{Context, Result, anyhow};
 use dialoguer::{FuzzySelect, Input, Select, theme::ColorfulTheme};
 use serde::Deserialize;
 use std::time::Duration;
@@ -62,7 +62,7 @@ pub fn augment_ni_args_interactive(args: Vec<String>, ctx: &ResolveContext) -> R
         .items(&labels)
         .default(0)
         .interact_opt()
-        .map_err(|error| anyhow!("interactive error: failed to read package selection: {error}"))?
+        .context("interactive error: failed to read package selection")?
         .ok_or_else(|| anyhow!("interactive error: package selection canceled"))?;
 
     let chosen = &packages[idx].name;
@@ -74,7 +74,7 @@ pub fn augment_ni_args_interactive(args: Vec<String>, ctx: &ResolveContext) -> R
         .items(&mode_labels)
         .default(0)
         .interact()
-        .map_err(|error| anyhow!("interactive error: failed to read install mode: {error}"))?;
+        .context("interactive error: failed to read install mode")?;
 
     Ok(apply_selected_package(args, chosen, mode_labels[mode_idx]))
 }
@@ -125,9 +125,7 @@ fn prompt_pattern() -> Result<String> {
     Input::with_theme(&ColorfulTheme::default())
         .with_prompt("search for package")
         .interact_text()
-        .map_err(|error| {
-            anyhow!("interactive error: failed to read interactive search pattern: {error}")
-        })
+        .context("interactive error: failed to read interactive search pattern")
 }
 
 fn fetch_npm_packages(pattern: &str) -> Result<Vec<NpmPackage>> {
@@ -136,14 +134,12 @@ fn fetch_npm_packages(pattern: &str) -> Result<Vec<NpmPackage>> {
         .timeout_global(Some(Duration::from_secs(10)))
         .build()
         .call()
-        .map_err(|error| anyhow!("network error: failed to query npm registry: {error}"))?;
+        .context("network error: failed to query npm registry")?;
 
     let parsed = response
         .body_mut()
         .read_json::<NpmResponse>()
-        .map_err(|error| {
-            anyhow!("network error: failed to parse npm registry response: {error}")
-        })?;
+        .context("network error: failed to parse npm registry response")?;
 
     Ok(parsed.objects.into_iter().map(|obj| obj.package).collect())
 }

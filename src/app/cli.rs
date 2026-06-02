@@ -1,6 +1,6 @@
 use std::{env, ffi::OsStr, path::PathBuf};
 
-use anyhow::{Result, anyhow};
+use anyhow::{Context, Result, anyhow};
 use clap::{Arg, ArgAction, ArgMatches, Command, builder::PossibleValuesParser};
 
 use crate::app::{
@@ -142,7 +142,7 @@ fn parse_hni(
 
     let matches = hni_parser()
         .try_get_matches_from(clap_args)
-        .map_err(|error| anyhow!("parse error: {error}"))?;
+        .context("parse error")?;
 
     let mut command = if let Some((name, sub_matches)) = matches.subcommand() {
         if let Some(spec) = command_spec_by_name(name) {
@@ -245,18 +245,14 @@ fn values_from<'a, T: Clone + 'a>(values: Option<clap::parser::ValuesRef<'a, T>>
 
 fn resolve_cwd(cwd_flags: &[PathBuf]) -> Result<PathBuf> {
     if cwd_flags.is_empty() {
-        return env::current_dir().map_err(|error| {
-            anyhow!("execution error: failed to read current directory: {error}")
-        });
+        return env::current_dir().context("execution error: failed to read current directory");
     }
 
     let absolute_index = cwd_flags.iter().rposition(|segment| segment.is_absolute());
     let (mut cwd, start_index): (PathBuf, usize) = match absolute_index {
         Some(index) => (cwd_flags[index].clone(), index + 1),
         None => (
-            env::current_dir().map_err(|error| {
-                anyhow!("execution error: failed to read current directory: {error}")
-            })?,
+            env::current_dir().context("execution error: failed to read current directory")?,
             0,
         ),
     };
