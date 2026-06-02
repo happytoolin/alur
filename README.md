@@ -21,7 +21,7 @@ One install gives you:
 
 - `hni`
 - `ni`, `nr`, `nlx`, `nru`, `nun`, `nci`, `na`, `np`, `ns`
-- `node` shim via `hni init <shell>` (symlink-based, works everywhere)
+- `node` shim via `hni init <shell>` (managed launcher)
 
 ## Install
 
@@ -74,7 +74,7 @@ Use the versioned release URL to pin. Use `releases/latest/download` to track th
 ## Enable the `node` shim
 
 Once `hni` is installed, run `hni init` for your shell to enable the `node` shim.
-This creates a managed `node` → `hni` symlink and outputs a PATH setup line for your shell config.
+This creates a managed `node` launcher (a symlink on Unix, copied executable on Windows) and outputs a PATH setup line for your shell config.
 
 Add the output to the **end** of your shell rc file (after nvm / mise / asdf / fnm / volta init):
 

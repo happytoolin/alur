@@ -91,7 +91,7 @@ fn ensure_node_shim(exe_path: &Path) -> Result<PathBuf> {
         return Ok(managed_dir);
     }
 
-    if path_exists_or_symlink(&managed_node) {
+    if fs::symlink_metadata(&managed_node).is_ok() {
         remove_node_shim(&managed_node)?;
     }
 
@@ -110,10 +110,6 @@ fn ensure_node_shim(exe_path: &Path) -> Result<PathBuf> {
     }
 
     Ok(managed_dir)
-}
-
-fn path_exists_or_symlink(path: &Path) -> bool {
-    path.exists() || fs::symlink_metadata(path).is_ok()
 }
 
 fn node_shim_matches_current(path: &Path, expected_target: &Path) -> Result<bool> {
@@ -138,26 +134,18 @@ fn node_shim_matches_current(path: &Path, expected_target: &Path) -> Result<bool
 
 #[cfg(unix)]
 fn node_symlink_points_to(link: &Path, expected_target: &Path) -> bool {
-    let Ok(metadata) = fs::symlink_metadata(link) else {
-        return false;
-    };
-
-    if !metadata.file_type().is_symlink() {
-        return false;
-    }
-
-    let Ok(target) = fs::read_link(link) else {
-        return false;
-    };
-    let target = if target.is_absolute() {
-        target
-    } else {
-        link.parent()
-            .map(|parent| parent.join(&target))
-            .unwrap_or(target)
-    };
-
-    paths_equal(&target, expected_target)
+    fs::read_link(link)
+        .ok()
+        .map(|target| {
+            if target.is_absolute() {
+                target
+            } else {
+                link.parent()
+                    .map(|parent| parent.join(&target))
+                    .unwrap_or(target)
+            }
+        })
+        .is_some_and(|target| paths_equal(&target, expected_target))
 }
 
 fn remove_node_shim(path: &Path) -> Result<()> {
@@ -210,10 +198,9 @@ fn render_posix(path_dir: &Path) -> String {
     format!(
         "# hni init\n\
          _hni_path={hni_path}\n\
-         case \":${{PATH:-}}:\" in\n\
-           *\":$_hni_path:\"*) ;;\n\
-           *) export PATH=\"$_hni_path${{PATH:+:$PATH}}\" ;;\n\
-         esac\n\
+         if [ \"${{PATH:-}}\" != \"$_hni_path\" ] && [ \"${{PATH#\"$_hni_path:\"}}\" = \"${{PATH}}\" ]; then\n\
+           export PATH=\"$_hni_path${{PATH:+:$PATH}}\"\n\
+         fi\n\
          unset _hni_path\n"
     )
 }
@@ -225,7 +212,7 @@ fn render_fish(path_dir: &Path) -> String {
         "# hni init for fish\n\
          if test (count $PATH) -eq 0\n\
              set -gx PATH {hni_path}\n\
-         else if not contains {hni_path} $PATH\n\
+         else if test \"$PATH[1]\" != {hni_path}\n\
              set -gx PATH {hni_path} $PATH\n\
          end\n"
     )
@@ -238,11 +225,11 @@ fn render_powershell(path_dir: &Path) -> String {
         "# hni init for powershell\n\
          $__hniPath = {hni_path}\n\
          $__hniPathEntries = if ($env:PATH) {{ $env:PATH -split ';' }} else {{ @() }}\n\
-         $__hniHasEntry = $__hniPathEntries -contains $__hniPath\n\
-         if (-not $__hniHasEntry) {{\n\
+         $__hniHasPriority = $__hniPathEntries.Count -gt 0 -and [System.StringComparer]::OrdinalIgnoreCase.Equals($__hniPathEntries[0], $__hniPath)\n\
+         if (-not $__hniHasPriority) {{\n\
            $env:PATH = if ($env:PATH) {{ \"$($__hniPath);$env:PATH\" }} else {{ $__hniPath }}\n\
          }}\n\
-         Remove-Variable __hniPath, __hniPathEntries, __hniHasEntry -ErrorAction SilentlyContinue\n"
+         Remove-Variable __hniPath, __hniPathEntries, __hniHasPriority -ErrorAction SilentlyContinue\n"
     )
 }
 
@@ -252,7 +239,7 @@ fn render_nushell(path_dir: &Path) -> String {
     format!(
         "# hni init for nushell\n\
          let hni_path = {hni_path}\n\
-         if (($env.PATH | is-empty) or (not ($env.PATH | any {{|p| $p == $hni_path}}))) {{\n\
+         if (($env.PATH | is-empty) or (($env.PATH | first) != $hni_path)) {{\n\
            $env.PATH = ($env.PATH | prepend $hni_path)\n\
          }}\n"
     )
@@ -292,7 +279,7 @@ mod tests {
         let out = render_init(InitShell::Bash, Path::new("/tmp/hni/bin"));
         assert!(out.contains("export PATH="));
         assert!(out.contains("/tmp/hni/bin"));
-        assert!(out.contains("case"));
+        assert!(out.contains("PATH#\"$_hni_path:\""));
         assert!(!out.contains("node()"));
         assert!(!out.contains("HNI_REAL_NODE"));
         assert!(!out.contains("real-node-path"));
@@ -303,6 +290,7 @@ mod tests {
         let out = render_init(InitShell::Fish, Path::new("/tmp/hni/bin"));
         assert!(out.contains("set -gx PATH"));
         assert!(out.contains("/tmp/hni/bin"));
+        assert!(out.contains("$PATH[1]"));
         assert!(!out.contains("function node"));
         assert!(!out.contains("HNI_REAL_NODE"));
     }
@@ -312,6 +300,7 @@ mod tests {
         let out = render_init(InitShell::PowerShell, Path::new("C:/hni/bin"));
         assert!(out.contains("$env:PATH"));
         assert!(out.contains("C:/hni/bin"));
+        assert!(out.contains("[System.StringComparer]::OrdinalIgnoreCase"));
         assert!(!out.contains("function global:node"));
         assert!(!out.contains("HNI_REAL_NODE"));
     }
