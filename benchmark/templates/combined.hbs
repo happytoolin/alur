@@ -1,0 +1,17 @@
+# Benchmark Run
+
+Generated: {{timestamp}}
+
+Combined JSON: [{{combinedJsonBasename}}]({{combinedJsonRelative}})
+
+## Tracks
+
+{{#each tracks}}
+### {{capitalize @key}}
+{{trackOverviewLine}}
+
+Artifacts: [{{markdownBasename}}]({{markdownRelative}}) · [{{jsonBasename}}]({{jsonRelative}})
+{{#if summaryOnly}}
+Detailed per-case results are kept in the track artifact.
+{{/if}}
+{{/each}}

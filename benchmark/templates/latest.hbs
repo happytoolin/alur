@@ -1,0 +1,19 @@
+# Latest Benchmark Snapshot
+
+Updated: {{timestamp}}
+
+This file is the small release-friendly benchmark snapshot. Raw JSON stays in `benchmark/results/`.
+
+Combined report: [{{markdownBasename}}]({{markdownRelative}})
+
+{{#each tracks}}
+## {{capitalize @key}}
+{{trackOverviewLine}}
+
+Artifacts: [{{markdownBasename}}]({{markdownRelative}}) · [{{jsonBasename}}]({{jsonRelative}})
+{{#if summaryOnlyDetail}}
+Detailed per-case results are kept in the track artifact.
+{{else}}
+{{trackTable}}
+{{/if}}
+{{/each}}

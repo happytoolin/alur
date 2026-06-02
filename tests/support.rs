@@ -83,8 +83,7 @@ pub fn run_hni_owned(args: &[String], extra_env: &[(&str, &str)]) -> std::proces
         .env_remove("HNI_GLOBAL_PACKAGE_MANAGER")
         .env_remove("HNI_FAST")
         .env_remove("HNI_SKIP_PM_CHECK")
-        .env_remove("HNI_REAL_NODE")
-        .env_remove("HNI_NODE_SHIM_ACTIVE");
+        .env_remove("HNI_REAL_NODE");
 
     for (key, value) in extra_env {
         cmd.env(key, value);

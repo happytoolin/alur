@@ -67,8 +67,7 @@ pub fn init_help() -> Command {
         Command::new("init")
             .about("print shell init code for node shim")
             .long_about(
-                "Prints shell-specific init code that captures the current real Node.js binary\n\
-                 and registers a shell-level node wrapper for shim behavior.\n\
+                "Creates hni's managed node shim symlink and prints shell-specific PATH setup.\n\
                  Add the generated line at the end of your shell config, after nvm/mise/asdf/fnm/volta init.",
             )
             .arg(init_shell_arg())

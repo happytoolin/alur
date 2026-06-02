@@ -1,12 +1,9 @@
 use anyhow::Result;
 
-use crate::{
-    core::{
-        batch::{self, BatchMode},
-        resolve::{self, ResolveContext},
-        types::{Intent, NodeShimDecision, NodeShimMode, ResolvedExecution},
-    },
-    platform::node::{NODE_SHIM_ENV, SHIM_ACTIVE_ENV},
+use crate::core::{
+    batch::{self, BatchMode},
+    resolve::{self, ResolveContext},
+    types::{Intent, NodeShimDecision, NodeShimMode, ResolvedExecution},
 };
 
 pub fn handle(args: Vec<String>, ctx: &ResolveContext) -> Result<Option<ResolvedExecution>> {
@@ -29,29 +26,6 @@ pub fn handle(args: Vec<String>, ctx: &ResolveContext) -> Result<Option<Resolved
 }
 
 pub fn decide(args: &[String]) -> (NodeShimDecision, Vec<String>) {
-    let shim_active = std::env::var_os(SHIM_ACTIVE_ENV).is_some();
-    let shim_disabled = std::env::var_os(NODE_SHIM_ENV)
-        .and_then(|value| value.into_string().ok())
-        .is_some_and(|value| node_shim_disabled(&value));
-    decide_with_shim_state(args, shim_active, shim_disabled)
-}
-
-pub fn decide_with_shim_state(
-    args: &[String],
-    shim_active: bool,
-    shim_disabled: bool,
-) -> (NodeShimDecision, Vec<String>) {
-    if shim_disabled {
-        return passthrough(
-            args.to_vec(),
-            "node shim disabled by HNI_NODE environment override",
-        );
-    }
-
-    if shim_active {
-        return passthrough(args.to_vec(), "shim recursion guard active");
-    }
-
     let Some((first, rest)) = args.split_first() else {
         return passthrough(Vec::new(), "node with no args should open REPL");
     };
@@ -125,13 +99,6 @@ fn decision(
     )
 }
 
-fn node_shim_disabled(value: &str) -> bool {
-    matches!(
-        value.trim().to_ascii_lowercase().as_str(),
-        "0" | "off" | "false" | "disable" | "disabled"
-    )
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -150,13 +117,6 @@ mod tests {
     fn passthrough_unknown() {
         let (decision, args) = decide(&["server.js".into()]);
         assert_eq!(args, vec!["server.js"]);
-        assert!(matches!(decision.mode, NodeShimMode::PassthroughNode));
-    }
-
-    #[test]
-    fn env_override_disables_shim() {
-        let (decision, args) = decide_with_shim_state(&["run".into(), "dev".into()], false, true);
-        assert_eq!(args, vec!["run", "dev"]);
         assert!(matches!(decision.mode, NodeShimMode::PassthroughNode));
     }
 
@@ -249,19 +209,5 @@ mod tests {
         let (decision, args) = decide(&[]);
         assert_eq!(args, Vec::<String>::new());
         assert!(matches!(decision.mode, NodeShimMode::PassthroughNode));
-    }
-
-    #[test]
-    fn disabled_values_are_recognized_case_insensitively() {
-        for value in ["0", "off", "OFF", "false", "False", "disable", "disabled"] {
-            assert!(node_shim_disabled(value), "{value} should disable the shim");
-        }
-
-        for value in ["1", "on", "true", "npm"] {
-            assert!(
-                !node_shim_disabled(value),
-                "{value} should not disable the shim"
-            );
-        }
     }
 }

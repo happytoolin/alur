@@ -27,13 +27,14 @@ test-pm:
 test-fast:
     HNI_FAST=true cargo test --all-targets --all-features
 
-test-all:
-    node ./scripts/test-modes.mjs all
+test-modes:
+    HNI_FAST=false cargo test --all-targets --all-features
+    HNI_FAST=true cargo test --all-targets --all-features
 
 ci: fmt-check lint test
 
 bench *args:
-    ./benchmark/run.sh {{args}}
+    node ./benchmark/run.mjs {{args}}
 
 bench-profile:
     ./benchmark/profile.sh
