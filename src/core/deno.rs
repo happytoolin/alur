@@ -172,8 +172,10 @@ fn build_deno_task_stages(
         Ok(())
     }
 
+    let mut root_set = HashSet::<String>::new();
     for root in roots {
         for matched in resolve_pattern(tasks, root)? {
+            root_set.insert(matched.clone());
             visit_task(
                 &matched,
                 tasks,
@@ -188,8 +190,6 @@ fn build_deno_task_stages(
 
     let mut completed = HashSet::<String>::new();
     let mut stages = Vec::new();
-    let root_set = roots.iter().cloned().collect::<HashSet<_>>();
-    let last_root = roots.last().cloned();
 
     while completed.len() < selected.len() {
         let mut ready = selected
@@ -209,9 +209,7 @@ fn build_deno_task_stages(
             if let Some(task) = tasks.get(name)
                 && let Some(command) = &task.command
             {
-                let forward_args = !forwarded_args.is_empty()
-                    && root_set.contains(name)
-                    && last_root.as_ref() == Some(name);
+                let forward_args = !forwarded_args.is_empty() && root_set.contains(name);
                 steps.push(NativeDenoTaskStep {
                     task_name: name.clone(),
                     command: command.clone(),
@@ -377,6 +375,42 @@ mod tests {
         assert!(wildcard_matches("build-*-dev", "build-a-dev"));
         assert!(!wildcard_matches("build-*", "test-a"));
         assert!(!wildcard_matches("build-*-dev", "build-dev"));
+    }
+
+    #[test]
+    fn wildcard_root_tasks_all_receive_forwarded_args() {
+        let mut tasks = IndexMap::new();
+        tasks.insert("prepare".to_string(), task("echo prepare", &[]));
+        tasks.insert("build-a".to_string(), task("echo a", &["prepare"]));
+        tasks.insert("build-b".to_string(), task("echo b", &[]));
+
+        let stages = build_deno_task_stages(
+            &tasks,
+            &[String::from("build-*")],
+            &[String::from("--flag")],
+        )
+        .unwrap();
+        let steps = stages
+            .into_iter()
+            .flat_map(|stage| stage.steps)
+            .map(|step| (step.task_name, step.forward_args))
+            .collect::<Vec<_>>();
+
+        assert_eq!(steps.len(), 3);
+        assert!(steps.contains(&("prepare".to_string(), false)));
+        assert!(steps.contains(&("build-a".to_string(), true)));
+        assert!(steps.contains(&("build-b".to_string(), true)));
+    }
+
+    fn task(command: &str, dependencies: &[&str]) -> DenoTaskDefinition {
+        DenoTaskDefinition {
+            command: Some(command.to_string()),
+            description: None,
+            dependencies: dependencies
+                .iter()
+                .map(|dependency| (*dependency).to_string())
+                .collect(),
+        }
     }
 
     #[test]
