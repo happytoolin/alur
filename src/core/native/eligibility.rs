@@ -226,3 +226,26 @@ fn contains_unsupported_prefixed_env(
 
     false
 }
+
+#[cfg(test)]
+mod tests {
+    use super::unsupported_pattern;
+
+    #[test]
+    fn unsupported_pattern_allows_supported_npm_env_expansions() {
+        assert_eq!(unsupported_pattern("echo $npm_package_json"), None);
+        assert_eq!(unsupported_pattern("echo $npm_config_user_agent"), None);
+    }
+
+    #[test]
+    fn unsupported_pattern_flags_unknown_npm_env_expansions() {
+        assert_eq!(
+            unsupported_pattern("echo $npm_package_name"),
+            Some("npm_package_")
+        );
+        assert_eq!(
+            unsupported_pattern("echo $npm_config_registry"),
+            Some("npm_config_")
+        );
+    }
+}

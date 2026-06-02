@@ -91,3 +91,25 @@ fn render(stats: &ProfileStats, iterations: usize) -> String {
 
     lines.join("\n")
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{finish, measure, start};
+
+    #[test]
+    fn finish_returns_none_when_profile_was_not_started() {
+        assert!(finish(1).is_none());
+    }
+
+    #[test]
+    fn started_profile_records_measured_spans() {
+        start();
+        measure("demo.span", || {});
+        measure("demo.span", || {});
+
+        let output = finish(2).unwrap();
+        assert!(output.contains("hni profile-loop timings"));
+        assert!(output.contains("iterations: 2"));
+        assert!(output.contains("demo.span,2,"));
+    }
+}

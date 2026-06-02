@@ -100,3 +100,24 @@ fn into_attempt(decision: NativeDecision, cwd: &Path) -> Result<NativeAttempt> {
         NativeDecision::Ineligible(reason) => NativeAttempt::Ineligible(reason.to_string()),
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{is_node_program, looks_like_env_assignment};
+
+    #[test]
+    fn env_assignment_detection_requires_equals_and_non_flag_token() {
+        assert!(looks_like_env_assignment("NODE_ENV=test"));
+        assert!(!looks_like_env_assignment("--flag=value"));
+        assert!(!looks_like_env_assignment("plain"));
+    }
+
+    #[test]
+    fn node_program_detection_matches_node_binary_names_only() {
+        assert!(is_node_program("node"));
+        assert!(is_node_program("/usr/local/bin/node"));
+        assert!(is_node_program("node.exe"));
+        assert!(!is_node_program("nodejs"));
+        assert!(!is_node_program("/usr/local/bin/npm"));
+    }
+}
