@@ -21,6 +21,13 @@ use crate::{
     platform::node::resolve_real_node_path,
 };
 
+/// Run the current process invocation.
+///
+/// # Errors
+///
+/// Returns an error when parsing fails, the requested working directory is
+/// invalid, configuration or project detection fails, command resolution fails,
+/// or the selected runner cannot format or execute the resolved command.
 pub fn run_from_env() -> Result<ExitCode> {
     let parsed = parse_from_env()?;
     if parsed.deprecated_debug_alias_used {
