@@ -15,9 +15,34 @@ pub fn node_binary_name() -> &'static str {
 }
 
 pub fn managed_node_shim_dir() -> Option<PathBuf> {
-    dirs::data_local_dir()
-        .or_else(dirs::config_dir)
+    local_data_dir()
+        .or_else(config_dir)
         .map(|d| d.join("hni").join("bin"))
+}
+
+fn local_data_dir() -> Option<PathBuf> {
+    #[cfg(windows)]
+    if let Some(path) = env_path("LOCALAPPDATA") {
+        return Some(path);
+    }
+
+    dirs::data_local_dir()
+}
+
+fn config_dir() -> Option<PathBuf> {
+    #[cfg(windows)]
+    if let Some(path) = env_path("APPDATA") {
+        return Some(path);
+    }
+
+    dirs::config_dir()
+}
+
+#[cfg(windows)]
+fn env_path(name: &str) -> Option<PathBuf> {
+    env::var_os(name)
+        .filter(|value| !value.is_empty())
+        .map(PathBuf::from)
 }
 
 pub fn managed_node_shim_path() -> Option<PathBuf> {
