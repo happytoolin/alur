@@ -59,6 +59,23 @@ struct SharedFlags {
     version: bool,
 }
 
+impl SharedFlags {
+    fn into_invocation(
+        self,
+        command: ParsedCommand,
+        deprecated_debug_alias_used: bool,
+    ) -> Result<ParsedInvocation> {
+        Ok(ParsedInvocation {
+            cwd: resolve_cwd(&self.cwd)?,
+            debug: self.debug,
+            explain: self.explain,
+            fast_override: self.fast_override,
+            command,
+            deprecated_debug_alias_used,
+        })
+    }
+}
+
 pub fn parse_from_env() -> Result<ParsedInvocation> {
     let argv = env::args().collect::<Vec<_>>();
     let Some(argv0) = argv.first() else {
@@ -108,14 +125,7 @@ fn parse_hni(
             command = ParsedCommand::PrintHelp(help_target_from_command(&command));
         }
 
-        return Ok(ParsedInvocation {
-            cwd: resolve_cwd(&shared_flags.cwd)?,
-            debug: shared_flags.debug,
-            explain: shared_flags.explain,
-            fast_override: shared_flags.fast_override,
-            command,
-            deprecated_debug_alias_used,
-        });
+        return shared_flags.into_invocation(command, deprecated_debug_alias_used);
     }
 
     let program = normalized_program_name(argv0);
@@ -157,14 +167,7 @@ fn parse_hni(
         command = ParsedCommand::PrintHelp(help_target_from_command(&command));
     }
 
-    Ok(ParsedInvocation {
-        cwd: resolve_cwd(&shared_flags.cwd)?,
-        debug: shared_flags.debug,
-        explain: shared_flags.explain,
-        fast_override: shared_flags.fast_override,
-        command,
-        deprecated_debug_alias_used,
-    })
+    shared_flags.into_invocation(command, deprecated_debug_alias_used)
 }
 
 fn parse_alias(
@@ -198,14 +201,7 @@ fn parse_alias(
         }
     }
 
-    Ok(ParsedInvocation {
-        cwd: resolve_cwd(&shared_flags.cwd)?,
-        debug: shared_flags.debug,
-        explain: shared_flags.explain,
-        fast_override: shared_flags.fast_override,
-        command,
-        deprecated_debug_alias_used,
-    })
+    shared_flags.into_invocation(command, deprecated_debug_alias_used)
 }
 
 fn execute_from_subcommand(invocation: InvocationKind, sub_matches: &ArgMatches) -> ParsedCommand {

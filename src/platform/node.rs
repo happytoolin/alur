@@ -237,11 +237,14 @@ mod tests {
         let fake_node = dir.path().join("node");
         fs::write(&fake_node, b"node").unwrap();
 
+        // SAFETY: ENV_LOCK serializes this test's process-wide environment mutation.
         unsafe { env::set_var(REAL_NODE_ENV, &fake_node) };
         assert_eq!(resolve_real_node_path().unwrap(), fake_node);
 
         match original {
+            // SAFETY: ENV_LOCK is still held while restoring the environment.
             Some(value) => unsafe { env::set_var(REAL_NODE_ENV, value) },
+            // SAFETY: ENV_LOCK is still held while restoring the environment.
             None => unsafe { env::remove_var(REAL_NODE_ENV) },
         }
     }

@@ -2,7 +2,7 @@
 
 Updated: 2026-04-26T19:56:19.240Z
 
-This file is the small release-friendly benchmark snapshot. Raw JSON stays in `benchmark/results/`.
+This file is the small release-friendly benchmark snapshot.
 
 Report: [fast-2026-04-26T19-56-19-241Z.md](results/fast-2026-04-26T19-56-19-241Z.md)
 
@@ -10,7 +10,7 @@ Report: [fast-2026-04-26T19-56-19-241Z.md](results/fast-2026-04-26T19-56-19-241Z
 
 Relative to `pm`, `fast` averaged `4.59x`.
 
-Artifacts: [fast-2026-04-26T19-56-19-241Z.md](results/fast-2026-04-26T19-56-19-241Z.md) · [fast-2026-04-26T19-56-19-241Z.json](results/fast-2026-04-26T19-56-19-241Z.json)
+Artifact: [fast-2026-04-26T19-56-19-241Z.md](results/fast-2026-04-26T19-56-19-241Z.md)
 
 | Case | pm | fast | Relative |
 | --- | ---: | ---: | ---: |
@@ -30,4 +30,3 @@ Artifacts: [fast-2026-04-26T19-56-19-241Z.md](results/fast-2026-04-26T19-56-19-2
 | nr hooks (deno) | 34.48 ms | 25.05 ms | 1.38x |
 | node run noop (deno) | 30.29 ms | 23.61 ms | 1.28x |
 | nlx hello --flag (npm local bin) | 250.74 ms | 5.29 ms | 47.43x |
-

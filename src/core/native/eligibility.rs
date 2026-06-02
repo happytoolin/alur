@@ -128,7 +128,7 @@ fn plan_deno_nr(
     Ok(
         match plan_native_deno_task(&project, &selection, &forwarded_args, has_if_present) {
             Ok(exec) => NativeDecision::Eligible(NativePlan::DenoTask(exec)),
-            Err(reason) => NativeDecision::Ineligible(FallbackReason::DenoTask(reason)),
+            Err(reason) => NativeDecision::Ineligible(FallbackReason::DenoTask(reason.to_string())),
         },
     )
 }

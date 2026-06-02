@@ -99,7 +99,6 @@ pub struct NativeScriptStep {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NativeDenoTaskExecution {
     pub project_root: PathBuf,
-    pub config_path: Option<PathBuf>,
     pub selection: String,
     pub stages: Vec<NativeDenoTaskStage>,
     pub forwarded_args: Vec<String>,
@@ -184,25 +183,6 @@ impl ResolvedExecution {
         }
     }
 
-    pub fn external_with_native_fallback(
-        program: impl Into<String>,
-        args: Vec<String>,
-        cwd: PathBuf,
-        passthrough: bool,
-        reason: impl Into<String>,
-    ) -> Self {
-        Self {
-            program: program.into(),
-            args,
-            cwd,
-            passthrough,
-            mode: ExecutionMode::PackageManager,
-            strategy: ExecutionStrategy::External,
-            fast_requested: true,
-            fast_fallback_reason: Some(reason.into()),
-        }
-    }
-
     pub fn native_script(
         script_name: impl Into<String>,
         cwd: PathBuf,
@@ -278,12 +258,6 @@ pub enum NodeShimMode {
     PassthroughNode,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct NodeShimDecision {
-    pub mode: NodeShimMode,
-    pub reason: String,
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, EnumString)]
 #[strum(serialize_all = "lowercase")]
 pub enum PackageManager {
@@ -316,10 +290,6 @@ impl PackageManager {
             Self::Bun => "bun",
             Self::Deno => "deno",
         }
-    }
-
-    pub fn global_package_name(self) -> &'static str {
-        self.bin()
     }
 
     pub fn from_name(value: &str) -> Option<Self> {

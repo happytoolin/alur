@@ -6,7 +6,7 @@ use std::{
 
 use anyhow::Result;
 
-use crate::core::types::NativeLocalBinLauncher;
+use crate::core::{types::NativeLocalBinLauncher, util::has_unix_executable_bit};
 
 use super::shim_parser::{NodeBinLaunch, node_args_from_shebang, parse_node_shell_shim};
 
@@ -32,7 +32,7 @@ pub(super) fn resolve_local_bin_launcher(bin_path: &Path) -> Result<NativeLocalB
             _ => {}
         }
 
-        if is_directly_executable(&inspected_path) {
+        if has_unix_executable_bit(&inspected_path) {
             return Ok(NativeLocalBinLauncher::Binary(inspected_path));
         }
 
@@ -65,20 +65,6 @@ fn detect_node_launcher_without_extension(inspected_path: &Path) -> Result<Optio
     crate::core::profile::measure("local_bin.parse_shell_shim", || {
         Ok(parse_node_shell_shim(&raw, inspected_path))
     })
-}
-
-#[cfg(unix)]
-fn is_directly_executable(path: &Path) -> bool {
-    use std::os::unix::fs::PermissionsExt;
-
-    path.metadata()
-        .map(|metadata| metadata.is_file() && metadata.permissions().mode() & 0o111 != 0)
-        .unwrap_or(false)
-}
-
-#[cfg(not(unix))]
-fn is_directly_executable(_path: &Path) -> bool {
-    false
 }
 
 fn read_launcher_prefix(path: &Path) -> std::io::Result<String> {

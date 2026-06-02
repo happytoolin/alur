@@ -35,58 +35,29 @@ pub fn resolve_ni(args: Vec<String>, ctx: &ResolveContext) -> Result<ResolvedExe
         ));
     }
 
-    if args.iter().any(|a| a == "--frozen-if-present") {
+    let (args, intent, has_lock) = if args.iter().any(|a| a == "--frozen-if-present") {
         let args = exclude_flag(args, "--frozen-if-present");
         if detected.has_lock {
-            return Ok(build_exec(
-                detected.pm,
-                Intent::CleanInstall,
-                args,
-                ctx.cwd(),
-                false,
-                true,
-            ));
+            (args, Intent::CleanInstall, true)
+        } else {
+            (args, Intent::Install, false)
         }
-        return Ok(build_exec(
-            detected.pm,
-            Intent::Install,
-            args,
-            ctx.cwd(),
-            false,
-            false,
-        ));
-    }
-
-    if args.iter().any(|a| a == "--frozen") {
+    } else if args.iter().any(|a| a == "--frozen") {
         let args = exclude_flag(args, "--frozen");
-        return Ok(build_exec(
-            detected.pm,
-            Intent::CleanInstall,
-            args,
-            ctx.cwd(),
-            false,
-            true,
-        ));
-    }
-
-    if args.is_empty() || args.iter().all(|a| a.starts_with('-')) {
-        return Ok(build_exec(
-            detected.pm,
-            Intent::Install,
-            args,
-            ctx.cwd(),
-            false,
-            detected.has_lock,
-        ));
-    }
+        (args, Intent::CleanInstall, true)
+    } else if args.is_empty() || args.iter().all(|a| a.starts_with('-')) {
+        (args, Intent::Install, detected.has_lock)
+    } else {
+        (args, Intent::Add, detected.has_lock)
+    };
 
     Ok(build_exec(
         detected.pm,
-        Intent::Add,
+        intent,
         args,
         ctx.cwd(),
         false,
-        detected.has_lock,
+        has_lock,
     ))
 }
 
@@ -254,25 +225,19 @@ pub fn resolve_nci(args: Vec<String>, ctx: &ResolveContext) -> Result<ResolvedEx
     let detected = detect_for_action(ctx, false)?;
     ensure_detected_available(&detected, ctx)?;
 
-    if detected.has_lock {
-        Ok(build_exec(
-            detected.pm,
-            Intent::CleanInstall,
-            args,
-            ctx.cwd(),
-            false,
-            true,
-        ))
+    let intent = if detected.has_lock {
+        Intent::CleanInstall
     } else {
-        Ok(build_exec(
-            detected.pm,
-            Intent::Install,
-            args,
-            ctx.cwd(),
-            false,
-            false,
-        ))
-    }
+        Intent::Install
+    };
+    Ok(build_exec(
+        detected.pm,
+        intent,
+        args,
+        ctx.cwd(),
+        false,
+        detected.has_lock,
+    ))
 }
 
 pub fn resolve_na(args: Vec<String>, ctx: &ResolveContext) -> Result<ResolvedExecution> {

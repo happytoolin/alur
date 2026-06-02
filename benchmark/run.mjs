@@ -358,42 +358,6 @@ function fastCases(fixturePaths) {
   const cases = []
 
   for (const pm of PMS) {
-    if (pm.id === 'deno') {
-      cases.push(
-        {
-          id: `${pm.id}_nr_noop`,
-          group: 'nr',
-          case: `nr noop (${pm.label})`,
-          commands: [
-            { name: 'pm', bin: 'nr', args: ['-C', fixturePaths[pm.fixtureKey], 'noop'], env: { HNI_FAST: 'false' } },
-            { name: 'fast', bin: 'nr', args: ['-C', fixturePaths[pm.fixtureKey], 'noop'], env: { HNI_FAST: 'true' } },
-          ],
-          requiredBins: pm.requiredBins,
-        },
-        {
-          id: `${pm.id}_nr_hooks`,
-          group: 'nr',
-          case: `nr hooks (${pm.label})`,
-          commands: [
-            { name: 'pm', bin: 'nr', args: ['-C', fixturePaths[pm.fixtureKey], 'hooks'], env: { HNI_FAST: 'false' } },
-            { name: 'fast', bin: 'nr', args: ['-C', fixturePaths[pm.fixtureKey], 'hooks'], env: { HNI_FAST: 'true' } },
-          ],
-          requiredBins: pm.requiredBins,
-        },
-        {
-          id: `${pm.id}_node_run_noop`,
-          group: 'node-run',
-          case: `node run noop (${pm.label})`,
-          commands: [
-            { name: 'pm', bin: 'node', args: ['-C', fixturePaths[pm.fixtureKey], 'run', 'noop'], env: { HNI_FAST: 'false' } },
-            { name: 'fast', bin: 'node', args: ['-C', fixturePaths[pm.fixtureKey], 'run', 'noop'], env: { HNI_FAST: 'true' } },
-          ],
-          requiredBins: pm.requiredBins,
-        },
-      )
-      continue
-    }
-
     cases.push(
       {
         id: `${pm.id}_nr_noop`,
@@ -964,7 +928,6 @@ function trackMarkdown(payload, artifactPaths) {
   return renderTemplate('track', {
     track: payload.track,
     timestamp: payload.timestamp,
-    jsonBasename: path.basename(artifactPaths.jsonPath),
     trackOverviewLine: makeTrackOverviewLine(payload),
     trackTable: makeTrackTable(payload),
     summary: payload.summary,
@@ -980,16 +943,12 @@ function combinedMarkdown(combined, combinedArtifacts, fromDir) {
       trackOverviewLine: makeTrackOverviewLine(payload),
       markdownBasename: path.basename(artifacts.markdownPath),
       markdownRelative: relativePath(fromDir, artifacts.markdownPath),
-      jsonBasename: path.basename(artifacts.jsonPath),
-      jsonRelative: relativePath(fromDir, artifacts.jsonPath),
       summaryOnly: SUMMARY_ONLY_TRACKS.has(track),
     }
   }
 
   return `${renderTemplate('combined', {
     timestamp: combined.timestamp,
-    combinedJsonBasename: path.basename(combinedArtifacts.jsonPath),
-    combinedJsonRelative: relativePath(fromDir, combinedArtifacts.jsonPath),
     tracks,
   })}\n`
 }
@@ -1002,8 +961,6 @@ function latestMarkdown(combined, combinedArtifacts, benchmarkDir) {
       trackOverviewLine: makeTrackOverviewLine(payload),
       markdownBasename: path.basename(artifacts.markdownPath),
       markdownRelative: relativePath(benchmarkDir, artifacts.markdownPath),
-      jsonBasename: path.basename(artifacts.jsonPath),
-      jsonRelative: relativePath(benchmarkDir, artifacts.jsonPath),
       summaryOnlyDetail: SUMMARY_ONLY_TRACKS.has(track),
       trackTable: SUMMARY_ONLY_TRACKS.has(track) ? null : makeTrackTable(payload),
     }
@@ -1023,8 +980,6 @@ function latestTrackMarkdown(payload, artifactPaths, benchmarkDir) {
       trackOverviewLine: makeTrackOverviewLine(payload),
       markdownBasename: path.basename(artifactPaths.markdownPath),
       markdownRelative: relativePath(benchmarkDir, artifactPaths.markdownPath),
-      jsonBasename: path.basename(artifactPaths.jsonPath),
-      jsonRelative: relativePath(benchmarkDir, artifactPaths.jsonPath),
       summaryOnlyDetail: SUMMARY_ONLY_TRACKS.has(payload.track),
       trackTable: SUMMARY_ONLY_TRACKS.has(payload.track) ? null : makeTrackTable(payload),
     },
@@ -1046,13 +1001,10 @@ function historyMarkdown(resultsDir, benchmarkDir) {
     .slice(0, 1)
 
   const runs = files.map((file) => {
-    const jsonFile = file.replace(/\.md$/, '.json')
     return {
       label: file.replace(/^benchmark-/, '').replace(/\.md$/, ''),
       file,
       fileRelative: relativePath(benchmarkDir, path.join(resultsDir, file)),
-      jsonFile,
-      jsonFileRelative: relativePath(benchmarkDir, path.join(resultsDir, jsonFile)),
     }
   })
 
@@ -1065,8 +1017,6 @@ function historyTrackMarkdown(payload, artifactPaths, benchmarkDir) {
       label: payload.timestamp,
       file: path.basename(artifactPaths.markdownPath),
       fileRelative: relativePath(benchmarkDir, artifactPaths.markdownPath),
-      jsonFile: path.basename(artifactPaths.jsonPath),
-      jsonFileRelative: relativePath(benchmarkDir, artifactPaths.jsonPath),
     },
   ]
 
