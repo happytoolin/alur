@@ -79,9 +79,8 @@ pub fn run_from_env() -> Result<ExitCode> {
             Ok(ExitCode::SUCCESS)
         }
         ParsedCommand::InternalRealNodePath => {
-            if let Ok(path) = resolve_real_node_path() {
-                println!("{}", path.display());
-            }
+            let path = resolve_real_node_path().context("execution error")?;
+            println!("{}", path.display());
             Ok(ExitCode::SUCCESS)
         }
         ParsedCommand::InternalProfileLoop {

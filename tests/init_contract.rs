@@ -47,7 +47,7 @@ fn internal_real_node_path_uses_explicit_env_override() {
 
 #[cfg(not(windows))]
 #[test]
-fn internal_real_node_path_succeeds_with_empty_output_when_unavailable() {
+fn internal_real_node_path_reports_resolution_failure_when_unavailable() {
     support::with_env_lock(|| {
         let home = TestHome::new();
         let empty_path = home.path().join("empty-bin");
@@ -59,8 +59,11 @@ fn internal_real_node_path_succeeds_with_empty_output_when_unavailable() {
             .env("PATH", empty_path)
             .output()
             .expect("failed to run hni");
-        assert!(output.status.success());
+        assert!(!output.status.success());
         assert!(String::from_utf8_lossy(&output.stdout).trim().is_empty());
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(stderr.contains("hni: execution error"));
+        assert!(stderr.contains("unable to locate real node binary"));
     });
 }
 
