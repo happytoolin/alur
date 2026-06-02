@@ -15,15 +15,15 @@ pub(super) fn resolve_local_bin_launcher(bin_path: &Path) -> Result<NativeLocalB
         let inspected_path = resolve_bin_source_path(bin_path)?;
         let extension = inspected_path
             .extension()
-            .and_then(|value| value.to_str())
+            .and_then(std::ffi::OsStr::to_str)
             .map(|value| value.to_ascii_lowercase());
 
         match extension.as_deref() {
-            Some("cmd") | Some("bat") => {
+            Some("cmd" | "bat") => {
                 return Ok(NativeLocalBinLauncher::Cmd(inspected_path));
             }
             Some("ps1") => return Ok(NativeLocalBinLauncher::PowerShell(inspected_path)),
-            Some("js") | Some("cjs") | Some("mjs") => {
+            Some("js" | "cjs" | "mjs") => {
                 return Ok(NativeLocalBinLauncher::NodeScript {
                     script_path: inspected_path,
                     node_args: Vec::new(),
@@ -48,11 +48,10 @@ pub(super) fn resolve_local_bin_launcher(bin_path: &Path) -> Result<NativeLocalB
 }
 
 fn detect_node_launcher_without_extension(inspected_path: &Path) -> Result<Option<NodeBinLaunch>> {
-    let raw = match crate::core::profile::measure("local_bin.read_launcher", || {
+    let Ok(raw) = crate::core::profile::measure("local_bin.read_launcher", || {
         read_launcher_prefix(inspected_path)
-    }) {
-        Ok(raw) => raw,
-        Err(_) => return Ok(None),
+    }) else {
+        return Ok(None);
     };
 
     if let Some(node_args) = raw.lines().next().and_then(node_args_from_shebang) {
@@ -83,9 +82,8 @@ fn resolve_bin_source_path(bin_path: &Path) -> Result<PathBuf> {
         let mut followed_symlink = false;
 
         for _ in 0..8 {
-            let metadata = match fs::symlink_metadata(&current) {
-                Ok(metadata) => metadata,
-                Err(_) => return Ok(current),
+            let Ok(metadata) = fs::symlink_metadata(&current) else {
+                return Ok(current);
             };
 
             if !metadata.file_type().is_symlink() {

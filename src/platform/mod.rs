@@ -2,6 +2,7 @@ pub mod node;
 
 use std::path::Path;
 
+#[must_use]
 pub fn paths_equal(a: &Path, b: &Path) -> bool {
     a == b
         || dunce::canonicalize(a)

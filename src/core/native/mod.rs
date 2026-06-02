@@ -44,7 +44,9 @@ pub(crate) fn attempt_nr_from_state(
     let decision = crate::core::profile::measure("native.plan_nr", || {
         eligibility::plan_nr_from_state(pm, args, ctx, state, has_if_present)
     })?;
-    crate::core::profile::measure("native.materialize", || into_attempt(decision, ctx.cwd()))
+    Ok(crate::core::profile::measure("native.materialize", || {
+        into_attempt(decision, ctx.cwd())
+    }))
 }
 
 pub(crate) fn attempt_nlx_from_local_bin_state(
@@ -56,9 +58,16 @@ pub(crate) fn attempt_nlx_from_local_bin_state(
     let decision = crate::core::profile::measure("native.plan_nlx", || {
         eligibility::plan_nlx_from_local_bin_state(pm, args, state)
     })?;
-    crate::core::profile::measure("native.materialize", || into_attempt(decision, ctx.cwd()))
+    Ok(crate::core::profile::measure("native.materialize", || {
+        into_attempt(decision, ctx.cwd())
+    }))
 }
 
+/// Runs a native package-manager script execution plan.
+///
+/// # Errors
+///
+/// Returns an error when process setup or execution fails.
 pub fn run_script(
     exec: &crate::core::types::NativeScriptExecution,
     invocation_cwd: &Path,
@@ -66,6 +75,11 @@ pub fn run_script(
     exec::run_script(exec, invocation_cwd)
 }
 
+/// Runs a native Deno task execution plan.
+///
+/// # Errors
+///
+/// Returns an error when task command parsing, runtime setup, or execution fails.
 pub fn run_deno_task(
     exec: &NativeDenoTaskExecution,
     invocation_cwd: &Path,
@@ -73,6 +87,11 @@ pub fn run_deno_task(
     exec::run_deno_task(exec, invocation_cwd)
 }
 
+/// Runs a native local-bin execution plan.
+///
+/// # Errors
+///
+/// Returns an error when process setup or execution fails.
 pub fn run_local_bin(
     exec: &crate::core::types::NativeLocalBinExecution,
     cwd: &Path,
@@ -80,12 +99,13 @@ pub fn run_local_bin(
     exec::run_local_bin(exec, cwd)
 }
 
+#[must_use]
 pub fn format_debug(exec: &ResolvedExecution) -> String {
     exec::format_debug(exec)
 }
 
-fn into_attempt(decision: NativeDecision, cwd: &Path) -> Result<NativeAttempt> {
-    Ok(match decision {
+fn into_attempt(decision: NativeDecision, cwd: &Path) -> NativeAttempt {
+    match decision {
         NativeDecision::Eligible(plan) => NativeAttempt::Eligible(Box::new(match plan {
             NativePlan::Script(exec) => {
                 ResolvedExecution::native_script(exec.script_name.clone(), cwd.to_path_buf(), exec)
@@ -98,7 +118,7 @@ fn into_attempt(decision: NativeDecision, cwd: &Path) -> Result<NativeAttempt> {
             }
         })),
         NativeDecision::Ineligible(reason) => NativeAttempt::Ineligible(reason.to_string()),
-    })
+    }
 }
 
 #[cfg(test)]

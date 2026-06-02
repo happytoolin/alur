@@ -61,7 +61,7 @@ pub(super) fn run_local_bin(exec: &NativeLocalBinExecution, cwd: &Path) -> Resul
     let mut command = spawn_local_bin_command(exec)?;
     command.current_dir(cwd);
 
-    apply_local_bin_environment(&mut command, exec, cwd)?;
+    apply_local_bin_environment(&mut command, exec, cwd);
 
     let status = command
         .status()
@@ -103,7 +103,7 @@ pub(super) fn format_debug(exec: &ResolvedExecution) -> String {
                 native.script_name.clone(),
             ];
             rendered.extend(native.forwarded_args.clone());
-            join_rendered(rendered)
+            join_rendered(&rendered)
         }
         ExecutionStrategy::Native(NativeExecution::RunDenoTask(native)) => {
             let mut rendered = vec![
@@ -115,7 +115,7 @@ pub(super) fn format_debug(exec: &ResolvedExecution) -> String {
                 rendered.push("--".to_string());
                 rendered.extend(native.forwarded_args.clone());
             }
-            join_rendered(rendered)
+            join_rendered(&rendered)
         }
         ExecutionStrategy::Native(NativeExecution::RunLocalBin(native)) => {
             let mut rendered = vec![
@@ -124,13 +124,13 @@ pub(super) fn format_debug(exec: &ResolvedExecution) -> String {
                 native.bin_name.clone(),
             ];
             rendered.extend(native.forwarded_args.clone());
-            join_rendered(rendered)
+            join_rendered(&rendered)
         }
         ExecutionStrategy::External | ExecutionStrategy::InternalBatch { .. } => String::new(),
     }
 }
 
-fn join_rendered(rendered: Vec<String>) -> String {
+fn join_rendered(rendered: &[String]) -> String {
     rendered
         .iter()
         .map(|part| shell_escape(part))
@@ -239,7 +239,7 @@ fn execute_deno_shell_command(
         parsed,
         envs.clone(),
         cwd.to_path_buf(),
-        Default::default(),
+        HashMap::default(),
         KillSignal::default(),
     ))))
 }

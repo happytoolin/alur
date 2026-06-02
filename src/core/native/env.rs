@@ -54,7 +54,7 @@ pub(super) fn apply_local_bin_environment(
     command: &mut Command,
     exec: &NativeLocalBinExecution,
     invocation_cwd: &Path,
-) -> Result<()> {
+) {
     if let Ok(path) = merged_path_with_bins(&exec.bin_paths) {
         command.env("PATH", path);
     }
@@ -79,8 +79,6 @@ pub(super) fn apply_local_bin_environment(
             synthetic_user_agent(exec.package_manager),
         );
     }
-
-    Ok(())
 }
 
 pub(super) fn merged_path_with_bins(bin_paths: &[PathBuf]) -> Result<String> {
@@ -174,7 +172,7 @@ mod tests {
         };
         let mut command = Command::new("demo");
 
-        apply_local_bin_environment(&mut command, &exec, dir.path()).unwrap();
+        apply_local_bin_environment(&mut command, &exec, dir.path());
         let envs = command
             .get_envs()
             .map(|(key, value)| {
