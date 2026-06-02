@@ -47,37 +47,38 @@ cargo install flamegraph
 Build release binary and run the default local benchmark:
 
 ```bash
-./benchmark/run.sh
+npm ci
+npm run bench
 ```
 
 Run one track:
 
 ```bash
-./benchmark/run.sh --track=compare
-./benchmark/run.sh --track=fast
-./benchmark/run.sh --track=runtime
-./benchmark/run.sh --track=direct
-./benchmark/run.sh --track=fixtures
+npm run bench -- --track=compare
+npm run bench -- --track=fast
+npm run bench -- --track=runtime
+npm run bench -- --track=direct
+npm run bench -- --track=fixtures
 ```
 
 Full release-style run:
 
 ```bash
-./benchmark/run.sh --track=all --runs=500 --warmups=50
+npm run bench -- --track=all --runs=500 --warmups=50
 ```
 
 Tiny smoke run:
 
 ```bash
-./benchmark/run.sh --runs=3 --warmups=1 --no-build
+npm run bench -- --runs=3 --warmups=1 --no-build
 ```
 
 Formats:
 
 ```bash
-./benchmark/run.sh --format=table
-./benchmark/run.sh --format=markdown
-./benchmark/run.sh --format=json
+npm run bench -- --format=table
+npm run bench -- --format=markdown
+npm run bench -- --format=json
 ```
 
 ## Profiling

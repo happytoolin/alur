@@ -1,8 +1,11 @@
-use std::{ffi::OsStr, path::Path};
+use std::path::Path;
 
 use crate::{
     core::{resolve::ResolveContext, types::DetectionSource},
-    platform::{node::resolve_real_node_path, paths_equal},
+    platform::{
+        node::{managed_node_shim_path, resolve_real_node_path},
+        paths_equal,
+    },
 };
 
 pub fn print_doctor(ctx: &ResolveContext) {
@@ -13,6 +16,7 @@ pub fn print_doctor(ctx: &ResolveContext) {
         .map(|path| dunce::canonicalize(&path).unwrap_or(path));
     let path_node = which::which("node").ok();
     let resolved_real_node = resolve_real_node_path().ok();
+    let managed_node_shim = managed_node_shim_path();
 
     println!("hni doctor");
     println!();
@@ -36,8 +40,14 @@ pub fn print_doctor(ctx: &ResolveContext) {
             .map_or_else(|| "unavailable".to_string(), |p| p.display().to_string())
     );
     println!(
-        "shim_precedence_active: {}",
-        shim_precedence_active(current_hni.as_deref(), path_node.as_deref())
+        "managed_node_shim: {}",
+        managed_node_shim
+            .as_ref()
+            .map_or_else(|| "unavailable".to_string(), |p| p.display().to_string())
+    );
+    println!(
+        "node_shim_active: {}",
+        node_shim_active(path_node.as_deref(), managed_node_shim.as_deref())
     );
     println!();
     println!(
@@ -100,25 +110,12 @@ pub fn print_doctor(ctx: &ResolveContext) {
     }
 }
 
-fn shim_precedence_active(current_hni: Option<&Path>, path_node: Option<&Path>) -> bool {
-    let (Some(current_hni), Some(path_node)) = (current_hni, path_node) else {
+fn node_shim_active(path_node: Option<&Path>, managed_node_shim: Option<&Path>) -> bool {
+    let (Some(path_node), Some(managed_node_shim)) = (path_node, managed_node_shim) else {
         return false;
     };
 
-    let Some(node_dir) = path_node.parent() else {
-        return false;
-    };
-    let Some(hni_dir) = current_hni.parent() else {
-        return false;
-    };
-    if !paths_equal(node_dir, hni_dir) {
-        return false;
-    }
-
-    matches!(
-        path_node.file_name().and_then(OsStr::to_str),
-        Some("node" | "node.exe")
-    )
+    paths_equal(path_node, managed_node_shim)
 }
 
 fn detection_source_label(value: DetectionSource) -> &'static str {

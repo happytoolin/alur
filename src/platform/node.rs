@@ -1,15 +1,28 @@
 use std::{
     env,
     ffi::OsString,
-    fs,
     path::{Path, PathBuf},
 };
 
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Result, anyhow};
 
 use super::paths_equal;
 
 pub const REAL_NODE_ENV: &str = "HNI_REAL_NODE";
+
+pub fn node_binary_name() -> &'static str {
+    if cfg!(windows) { "node.exe" } else { "node" }
+}
+
+pub fn managed_node_shim_dir() -> Option<PathBuf> {
+    dirs::data_local_dir()
+        .or_else(dirs::config_dir)
+        .map(|d| d.join("hni").join("bin"))
+}
+
+pub fn managed_node_shim_path() -> Option<PathBuf> {
+    managed_node_shim_dir().map(|dir| dir.join(node_binary_name()))
+}
 
 pub fn resolve_real_node_path() -> Result<PathBuf> {
     if let Some(from_env) = env::var_os(REAL_NODE_ENV) {
@@ -25,7 +38,7 @@ pub fn resolve_real_node_path() -> Result<PathBuf> {
         ));
     }
 
-    resolve_real_node_path_from_sources()?.ok_or_else(|| {
+    resolve_real_node_path_from_sources().ok_or_else(|| {
         anyhow!(
             "unable to locate real node binary. Set {}=/absolute/path/to/node",
             REAL_NODE_ENV
@@ -33,65 +46,20 @@ pub fn resolve_real_node_path() -> Result<PathBuf> {
     })
 }
 
-fn resolve_real_node_path_from_sources() -> Result<Option<PathBuf>> {
-    if let Some(recorded) = read_recorded_real_node_path()?
-        && recorded.exists()
-    {
-        return Ok(Some(recorded));
-    }
-
-    Ok(scan_path_for_real_node())
-}
-pub fn recorded_real_node_path_file() -> Option<PathBuf> {
-    dirs::config_dir().map(|d| d.join("hni").join("real-node-path"))
-}
-
-pub fn write_real_node_cache(real_node: &Path) -> Result<()> {
-    let Some(cache_file) = recorded_real_node_path_file() else {
-        return Ok(());
-    };
-
-    if let Some(parent) = cache_file.parent() {
-        fs::create_dir_all(parent)
-            .with_context(|| format!("failed to create cache dir: {}", parent.display()))?;
-    }
-
-    fs::write(&cache_file, real_node.to_string_lossy().as_bytes()).with_context(|| {
-        format!(
-            "failed to write real-node-path cache: {}",
-            cache_file.display()
-        )
-    })?;
-
-    Ok(())
-}
-
-fn read_recorded_real_node_path() -> Result<Option<PathBuf>> {
-    let Some(path) = recorded_real_node_path_file() else {
-        return Ok(None);
-    };
-
-    if !path.exists() {
-        return Ok(None);
-    }
-
-    let raw = fs::read_to_string(path)?;
-    let trimmed = raw.trim();
-    if trimmed.is_empty() {
-        return Ok(None);
-    }
-
-    Ok(Some(PathBuf::from(trimmed)))
+fn resolve_real_node_path_from_sources() -> Option<PathBuf> {
+    scan_path_for_real_node()
 }
 
 fn scan_path_for_real_node() -> Option<PathBuf> {
     let current_exe = env::current_exe().ok();
-    let current_dir = current_exe
-        .as_ref()
-        .and_then(|path| path.parent().map(Path::to_path_buf));
+    let managed_shim_dir = managed_node_shim_dir();
     let candidates = which::which_all("node").ok()?;
     for candidate in candidates {
-        if should_skip_node_candidate(&candidate, current_exe.as_deref(), current_dir.as_deref()) {
+        if should_skip_node_candidate(
+            &candidate,
+            current_exe.as_deref(),
+            managed_shim_dir.as_deref(),
+        ) {
             continue;
         }
         return Some(candidate);
@@ -121,11 +89,11 @@ pub fn path_with_real_node_priority(
 fn should_skip_node_candidate(
     candidate: &Path,
     current_exe: Option<&Path>,
-    current_dir: Option<&Path>,
+    managed_shim_dir: Option<&Path>,
 ) -> bool {
-    if let Some(current_dir) = current_dir
+    if let Some(managed_shim_dir) = managed_shim_dir
         && let Some(parent) = candidate.parent()
-        && paths_equal(parent, current_dir)
+        && paths_equal(parent, managed_shim_dir)
     {
         return true;
     }
@@ -214,7 +182,25 @@ mod tests {
         assert!(should_skip_node_candidate(
             &shim_dir.join("node"),
             Some(&debug_hni),
-            Some(&debug_dir),
+            None,
+        ));
+    }
+
+    #[test]
+    fn keeps_real_node_candidates_in_current_hni_dir() {
+        let dir = tempdir().unwrap();
+        let bin_dir = dir.path().join("bin");
+        fs::create_dir_all(&bin_dir).unwrap();
+
+        let current_hni = bin_dir.join("hni");
+        let real_node = bin_dir.join("node");
+        fs::write(&current_hni, b"hni").unwrap();
+        fs::write(&real_node, b"node").unwrap();
+
+        assert!(!should_skip_node_candidate(
+            &real_node,
+            Some(&current_hni),
+            None,
         ));
     }
 

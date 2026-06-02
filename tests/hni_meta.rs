@@ -33,6 +33,7 @@ fn hni_subcommand_aliases_resolve_like_multicall() {
 #[test]
 fn hni_doctor_completion_and_init_are_available() {
     support::with_env_lock(|| {
+        let work = tempfile::tempdir().unwrap();
         let doctor = run_hni(vec!["doctor"], &[("HNI_SKIP_PM_CHECK", "1")]);
         assert!(doctor.status.success());
         let doctor_out = String::from_utf8_lossy(&doctor.stdout);
@@ -43,7 +44,17 @@ fn hni_doctor_completion_and_init_are_available() {
         let completion_out = String::from_utf8_lossy(&completion.stdout);
         assert!(completion_out.contains("hni"));
 
-        let init = run_hni(vec!["init", "bash"], &[]);
+        let init_home = work.path().join("init-home");
+        let init_data = work.path().join("init-data");
+        fs::create_dir_all(&init_home).unwrap();
+        fs::create_dir_all(&init_data).unwrap();
+        let init = run_hni(
+            vec!["init", "bash"],
+            &[
+                ("HOME", init_home.to_string_lossy().as_ref()),
+                ("XDG_DATA_HOME", init_data.to_string_lossy().as_ref()),
+            ],
+        );
         assert!(init.status.success());
         let init_out = String::from_utf8_lossy(&init.stdout);
         assert!(init_out.contains("# hni init"));

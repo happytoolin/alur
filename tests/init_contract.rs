@@ -5,7 +5,20 @@ mod support;
 #[test]
 fn init_command_renders_bash_setup() {
     support::with_env_lock(|| {
-        let output = support::run_hni(vec!["init", "bash"], &[("HNI_SKIP_PM_CHECK", "1")]);
+        let dir = tempfile::tempdir().unwrap();
+        let fake_home = dir.path().join("home");
+        let fake_data = dir.path().join("data");
+        fs::create_dir_all(&fake_home).unwrap();
+        fs::create_dir_all(&fake_data).unwrap();
+
+        let output = support::run_hni(
+            vec!["init", "bash"],
+            &[
+                ("HNI_SKIP_PM_CHECK", "1"),
+                ("HOME", fake_home.to_string_lossy().as_ref()),
+                ("XDG_DATA_HOME", fake_data.to_string_lossy().as_ref()),
+            ],
+        );
         assert!(output.status.success());
 
         let stdout = String::from_utf8_lossy(&output.stdout);
@@ -75,7 +88,8 @@ fn doctor_reports_shell_setup_fields() {
         assert!(stdout.contains("current_hni:"));
         assert!(stdout.contains("path_node:"));
         assert!(stdout.contains("real_node:"));
-        assert!(stdout.contains("shim_precedence_active:"));
+        assert!(stdout.contains("managed_node_shim:"));
+        assert!(stdout.contains("node_shim_active:"));
     });
 }
 
@@ -91,10 +105,12 @@ fn bash_init_gives_node_shim_precedence_and_preserves_real_node() {
         let hni_bin = dir.path().join("hni-bin");
         let real_node_bin = dir.path().join("real-node-bin");
         let fake_home = dir.path().join("home");
+        let fake_data = dir.path().join("data");
 
         fs::create_dir_all(&hni_bin).unwrap();
         fs::create_dir_all(&real_node_bin).unwrap();
         fs::create_dir_all(&fake_home).unwrap();
+        fs::create_dir_all(&fake_data).unwrap();
 
         let source_exe = support::hni_executable_path();
         let copied_hni = hni_bin.join("hni");
@@ -111,20 +127,28 @@ fn bash_init_gives_node_shim_precedence_and_preserves_real_node() {
             std::env::var("PATH").unwrap_or_default()
         );
         let script = format!(
-            "eval \"$({} init bash)\"\nnode -- -v >/dev/null 2>&1\nprintf 'NODE_TYPE=%s\\n' \"$(type -t node)\"\n",
+            "eval \"$({} init bash)\"\nnode -- -v >/dev/null 2>&1\nprintf 'NODE_TYPE=%s\\nNODE_PATH=%s\\n' \"$(type -t node)\" \"$(command -v node)\"\n",
             copied_hni.display()
         );
 
-        let fake_config = fake_home.join(".config");
+        let expected_node = if cfg!(target_os = "macos") {
+            fake_home
+                .join("Library")
+                .join("Application Support")
+                .join("hni")
+                .join("bin")
+                .join("node")
+        } else {
+            fake_data.join("hni").join("bin").join("node")
+        };
 
         let output = Command::new(bash)
             .arg("-c")
             .arg(script)
             .env_remove("HNI_REAL_NODE")
-            .env_remove("HNI_NODE_SHIM_ACTIVE")
             .env("PATH", path)
             .env("HOME", &fake_home)
-            .env("XDG_CONFIG_HOME", &fake_config)
+            .env("XDG_DATA_HOME", &fake_data)
             .output()
             .expect("failed to run bash init flow");
 
@@ -134,27 +158,23 @@ fn bash_init_gives_node_shim_precedence_and_preserves_real_node() {
             .lines()
             .find_map(|line| line.strip_prefix("NODE_TYPE="))
             .expect("missing NODE_TYPE line");
+        let reported_node_path = stdout
+            .lines()
+            .find_map(|line| line.strip_prefix("NODE_PATH="))
+            .expect("missing NODE_PATH line");
 
         assert_eq!(reported_node_type, "file");
-
-        let cache_path = if cfg!(target_os = "macos") {
-            fake_home
-                .join("Library")
-                .join("Application Support")
-                .join("hni")
-                .join("real-node-path")
-        } else {
-            fake_home.join(".config").join("hni").join("real-node-path")
-        };
-        assert!(
-            cache_path.exists(),
-            "cache file not found at {}",
-            cache_path.display()
-        );
-        let cached = fs::read_to_string(&cache_path).unwrap();
         assert_eq!(
-            Path::new(cached.trim()).canonicalize().unwrap(),
-            fake_node.canonicalize().unwrap()
+            Path::new(reported_node_path),
+            expected_node.as_path(),
+            "node should resolve to hni's managed shim path"
+        );
+        assert_eq!(
+            std::fs::read_link(&expected_node)
+                .unwrap()
+                .canonicalize()
+                .unwrap(),
+            copied_hni.canonicalize().unwrap()
         );
     });
 }
@@ -173,12 +193,14 @@ fn bash_init_keeps_package_manager_shebangs_on_real_node() {
         let pm_bin = dir.path().join("pm-bin");
         let fake_home = dir.path().join("home");
         let fake_config = dir.path().join("config");
+        let fake_data = dir.path().join("data");
 
         fs::create_dir_all(&hni_bin).unwrap();
         fs::create_dir_all(&real_node_bin).unwrap();
         fs::create_dir_all(&pm_bin).unwrap();
         fs::create_dir_all(&fake_home).unwrap();
         fs::create_dir_all(&fake_config).unwrap();
+        fs::create_dir_all(&fake_data).unwrap();
 
         let source_exe = support::hni_executable_path();
         let copied_hni = hni_bin.join("hni");
@@ -213,10 +235,10 @@ fn bash_init_keeps_package_manager_shebangs_on_real_node() {
             .arg("-c")
             .arg(script)
             .env_remove("HNI_REAL_NODE")
-            .env_remove("HNI_NODE_SHIM_ACTIVE")
             .env("PATH", base_path)
             .env("HOME", &fake_home)
             .env("XDG_CONFIG_HOME", &fake_config)
+            .env("XDG_DATA_HOME", &fake_data)
             .env("APPDATA", &fake_config)
             .output()
             .expect("failed to run bash version flow");
@@ -226,6 +248,73 @@ fn bash_init_keeps_package_manager_shebangs_on_real_node() {
         assert!(stdout.contains("node       v99.0.0"));
         assert!(stdout.contains("agent      npm (99.0.0)"));
         assert!(stdout.contains("global     npm (99.0.0)"));
+    });
+}
+
+#[cfg(unix)]
+#[test]
+fn internal_real_node_path_follows_current_path_without_cache() {
+    support::with_env_lock(|| {
+        let dir = tempfile::tempdir().unwrap();
+        let first_bin = dir.path().join("first-bin");
+        let second_bin = dir.path().join("second-bin");
+        let fake_home = dir.path().join("home");
+        let fake_data = dir.path().join("data");
+
+        fs::create_dir_all(&first_bin).unwrap();
+        fs::create_dir_all(&second_bin).unwrap();
+        fs::create_dir_all(&fake_home).unwrap();
+        fs::create_dir_all(&fake_data).unwrap();
+
+        let first_node = first_bin.join("node");
+        let second_node = second_bin.join("node");
+        fs::write(&first_node, "#!/bin/sh\nexit 0\n").unwrap();
+        fs::write(&second_node, "#!/bin/sh\nexit 0\n").unwrap();
+        set_executable_if_needed(&first_node);
+        set_executable_if_needed(&second_node);
+
+        let common_env = [
+            ("HOME", fake_home.to_string_lossy().to_string()),
+            ("XDG_DATA_HOME", fake_data.to_string_lossy().to_string()),
+        ];
+
+        let first_path = format!(
+            "{}:{}",
+            first_bin.display(),
+            std::env::var("PATH").unwrap_or_default()
+        );
+        let first_output = support::run_hni(
+            vec!["internal", "real-node-path"],
+            &[
+                ("PATH", first_path.as_str()),
+                ("HOME", common_env[0].1.as_str()),
+                ("XDG_DATA_HOME", common_env[1].1.as_str()),
+            ],
+        );
+        assert!(first_output.status.success());
+        assert_eq!(
+            String::from_utf8_lossy(&first_output.stdout).trim(),
+            first_node.to_string_lossy()
+        );
+
+        let second_path = format!(
+            "{}:{}",
+            second_bin.display(),
+            std::env::var("PATH").unwrap_or_default()
+        );
+        let second_output = support::run_hni(
+            vec!["internal", "real-node-path"],
+            &[
+                ("PATH", second_path.as_str()),
+                ("HOME", common_env[0].1.as_str()),
+                ("XDG_DATA_HOME", common_env[1].1.as_str()),
+            ],
+        );
+        assert!(second_output.status.success());
+        assert_eq!(
+            String::from_utf8_lossy(&second_output.stdout).trim(),
+            second_node.to_string_lossy()
+        );
     });
 }
 

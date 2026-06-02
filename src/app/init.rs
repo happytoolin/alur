@@ -1,6 +1,15 @@
-use std::path::{Path, PathBuf};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
 
-use crate::{core::shell::shell_escape, platform::node::write_real_node_cache};
+use crate::{
+    core::shell::shell_escape,
+    platform::{
+        node::{managed_node_shim_dir, node_binary_name},
+        paths_equal,
+    },
+};
 use anyhow::{Result, anyhow};
 
 pub const SUPPORTED_SHELL_NAMES: &[&str] =
@@ -43,13 +52,8 @@ impl InitShell {
 
 pub fn print_init(shell_name: &str) -> Result<()> {
     let shell = InitShell::parse(shell_name)?;
-    let (exe_path, bin_dir) = current_binary_paths()?;
-
-    let shim_dir = ensure_node_shim(&exe_path, &bin_dir);
-
-    if let Ok(real_node_path) = crate::platform::node::resolve_real_node_path() {
-        let _ = write_real_node_cache(&real_node_path);
-    }
+    let exe_path = current_binary_path()?;
+    let shim_dir = ensure_node_shim(&exe_path)?;
 
     print!("{}", render_init(shell, &shim_dir));
     Ok(())
@@ -64,73 +68,82 @@ pub fn render_init(shell: InitShell, path_dir: &Path) -> String {
     }
 }
 
-fn current_binary_paths() -> Result<(PathBuf, PathBuf)> {
+fn current_binary_path() -> Result<PathBuf> {
     let exe_path = std::env::current_exe().map_err(|error| {
         anyhow!("execution error: failed to determine current executable path: {error}")
     })?;
-    let exe_path = dunce::canonicalize(&exe_path).unwrap_or(exe_path);
-    let bin_dir = exe_path.parent().map(Path::to_path_buf).ok_or_else(|| {
-        anyhow!("execution error: failed to determine current executable directory")
-    })?;
-    Ok((exe_path, bin_dir))
+    Ok(dunce::canonicalize(&exe_path).unwrap_or(exe_path))
 }
 
-fn ensure_node_shim(exe_path: &Path, bin_dir: &Path) -> PathBuf {
-    let node_name = if cfg!(windows) { "node.exe" } else { "node" };
-    let node_path = bin_dir.join(node_name);
+fn ensure_node_shim(exe_path: &Path) -> Result<PathBuf> {
+    let managed_dir = managed_node_shim_dir().ok_or_else(|| {
+        anyhow!("execution error: unable to determine managed hni shim directory")
+    })?;
+    let managed_node = managed_dir.join(node_binary_name());
 
-    if try_create_symlink(exe_path, &node_path) {
-        return bin_dir.to_path_buf();
+    fs::create_dir_all(&managed_dir).map_err(|error| {
+        anyhow!(
+            "execution error: failed to create managed hni shim directory at {}: {error}",
+            managed_dir.display()
+        )
+    })?;
+
+    if path_exists_or_symlink(&managed_node) {
+        if node_shim_points_to(&managed_node, exe_path) {
+            return Ok(managed_dir);
+        }
+
+        return Err(anyhow!(
+            "execution error: managed node shim already exists and is not an hni symlink: {}",
+            managed_node.display()
+        ));
     }
 
-    let Some(config_dir) = dirs::config_dir() else {
-        eprintln!("[hni] warning: cannot create node shim — unable to determine config directory");
-        return bin_dir.to_path_buf();
+    create_node_symlink(exe_path, &managed_node).map_err(|error| {
+        anyhow!(
+            "execution error: failed to create node shim symlink at {}: {error}",
+            managed_node.display()
+        )
+    })?;
+
+    Ok(managed_dir)
+}
+
+fn path_exists_or_symlink(path: &Path) -> bool {
+    path.exists() || fs::symlink_metadata(path).is_ok()
+}
+
+fn node_shim_points_to(link: &Path, expected_target: &Path) -> bool {
+    let Ok(metadata) = fs::symlink_metadata(link) else {
+        return false;
+    };
+    if !metadata.file_type().is_symlink() {
+        return false;
+    }
+
+    let Ok(target) = fs::read_link(link) else {
+        return false;
+    };
+    let target = if target.is_absolute() {
+        target
+    } else {
+        link.parent()
+            .map(|parent| parent.join(&target))
+            .unwrap_or(target)
     };
 
-    let managed_dir = config_dir.join("hni").join("bin");
-    let managed_node = managed_dir.join(node_name);
-
-    if managed_node.exists() {
-        return managed_dir;
-    }
-
-    if std::fs::create_dir_all(&managed_dir).is_err() {
-        eprintln!(
-            "[hni] warning: cannot create managed shim directory at {}",
-            managed_dir.display()
-        );
-        return bin_dir.to_path_buf();
-    }
-
-    if !try_create_symlink(exe_path, &managed_node) {
-        eprintln!(
-            "[hni] warning: cannot create node shim symlink at {}",
-            managed_node.display()
-        );
-        return bin_dir.to_path_buf();
-    }
-
-    managed_dir
+    paths_equal(&target, expected_target)
 }
 
-fn try_create_symlink(target: &Path, link: &Path) -> bool {
-    if link.exists() {
-        return true;
-    }
-
+fn create_node_symlink(target: &Path, link: &Path) -> std::io::Result<()> {
     #[cfg(unix)]
     {
-        std::os::unix::fs::symlink(target, link).is_ok()
+        std::os::unix::fs::symlink(target, link)
     }
 
     #[cfg(windows)]
     {
-        if target.extension().map_or(false, |ext| ext == "exe") {
-            std::os::windows::fs::symlink_file(target, link).is_ok()
-        } else {
-            std::os::windows::fs::symlink_file(&target.with_extension("exe"), link).is_ok()
-        }
+        std::os::windows::fs::symlink_file(target, link)
     }
 }
 
@@ -139,10 +152,12 @@ fn render_posix(path_dir: &Path) -> String {
 
     format!(
         "# hni init\n\
-         case \":${{PATH:-}}\" in\n\
-           *\":{hni_path}:\"*) ;;\n\
-           *) export PATH=\"{hni_path}:${{PATH:-}}\" ;;\n\
-         esac\n"
+         _hni_path={hni_path}\n\
+         case \":${{PATH:-}}:\" in\n\
+           *\":$_hni_path:\"*) ;;\n\
+           *) export PATH=\"$_hni_path${{PATH:+:$PATH}}\" ;;\n\
+         esac\n\
+         unset _hni_path\n"
     )
 }
 

@@ -4,7 +4,6 @@
 
 [![CI](https://github.com/happytoolin/hni/actions/workflows/ci.yml/badge.svg)](https://github.com/happytoolin/hni/actions/workflows/ci.yml)
 [![License: GPLv3](https://img.shields.io/badge/License-GPLv3-4F46E5.svg)](https://www.gnu.org/licenses/gpl-3.0)
-[![crates.io](https://img.shields.io/crates/v/hni?logo=rust&logoColor=white)](https://crates.io/crates/hni)
 [![npm](https://img.shields.io/npm/v/%40happytoolin%2Fhni?logo=npm&logoColor=white)](https://www.npmjs.com/package/@happytoolin/hni)
 ![npm](https://img.shields.io/badge/npm-supported-CB3837?logo=npm&logoColor=white)
 ![yarn](https://img.shields.io/badge/yarn-supported-2C8EBB?logo=yarn&logoColor=white)
@@ -35,7 +34,7 @@ hni --version
 
 This installs `hni` and the `ni`-family aliases (`ni`, `nr`, `nlx`, `nru`, `nun`, `nci`, `na`, `np`, `ns`) onto your global npm bin path.
 The `node` shim is only enabled through `hni init <shell>`.
-Under the hood, npm resolves a platform-specific optional dependency package that contains the native `hni` binary.
+Under the hood, the npm postinstall downloads the matching native `hni` binary from the GitHub release.
 
 ### Homebrew
 
@@ -48,86 +47,63 @@ hni --version
 ### Script install (macOS / Linux)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/happytoolin/hni/main/install.sh | bash
+curl --proto '=https' --tlsv1.2 -LsSf https://github.com/happytoolin/hni/releases/latest/download/hni-installer.sh | sh
 ```
 
 To pin a specific version:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/happytoolin/hni/main/install.sh | HNI_VERSION=v0.0.3 bash
+curl --proto '=https' --tlsv1.2 -LsSf https://github.com/happytoolin/hni/releases/download/v0.0.3/hni-installer.sh | sh
 ```
-
-Optional environment variables:
-
-- `HNI_VERSION` - install a specific version, for example `v0.0.2`
-- `HNI_INSTALL_DIR` - install somewhere other than `~/.local/bin`
-- `HNI_REAL_NODE` - override the real Node.js binary path used for `node` shim passthrough
 
 ### Script install (PowerShell)
 
 ```powershell
-irm https://raw.githubusercontent.com/happytoolin/hni/main/install.ps1 | iex
-```
-
-Optional parameters:
-
-- `-Version latest`
-- `-InstallDir "$env:LOCALAPPDATA\hni\bin"`
-
-### Deno / JSR
-
-Install `hni`:
-
-```bash
-deno install -gA -n hni jsr:@happytoolin/hni/hni
-hni --version
-```
-
-Install alias commands (example):
-
-```bash
-deno install -gA -n ni jsr:@happytoolin/hni/ni
-deno install -gA -n nr jsr:@happytoolin/hni/nr
+powershell -ExecutionPolicy Bypass -c "irm https://github.com/happytoolin/hni/releases/latest/download/hni-installer.ps1 | iex"
 ```
 
 ### CI / automation
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/happytoolin/hni/main/install.sh | HNI_VERSION=v0.0.3 bash
-echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$GITHUB_ENV"
+curl --proto '=https' --tlsv1.2 -LsSf https://github.com/happytoolin/hni/releases/download/v0.0.3/hni-installer.sh | sh
+echo 'export PATH="$HOME/.cargo/bin:$PATH"' >> "$GITHUB_ENV"
 ```
 
-Use `HNI_VERSION` to pin. Omit it to track the latest release.
+Use the versioned release URL to pin. Use `releases/latest/download` to track the latest release.
 
 ## Enable the `node` shim
 
 Once `hni` is installed, run `hni init` for your shell to enable the `node` shim.
-This creates a `node` → `hni` symlink, caches the real Node.js path, and outputs a
-PATH setup line for your shell config.
+This creates a managed `node` → `hni` symlink and outputs a PATH setup line for your shell config.
 
 Add the output to the **end** of your shell rc file (after nvm / mise / asdf / fnm / volta init):
 
 **zsh** (`~/.zshrc`):
+
 ```bash
 eval "$(hni init zsh)"
 ```
 
 **bash** (`~/.bashrc`):
+
 ```bash
 eval "$(hni init bash)"
 ```
 
 **fish** (`~/.config/fish/config.fish`):
+
 ```fish
 hni init fish | source
 ```
 
 **PowerShell** (`$PROFILE`):
+
 ```powershell
 Invoke-Expression (& hni init powershell)
 ```
 
 **Nushell** (`~/.config/nushell/config.nu`):
+
 ```nu
 hni init nushell | save --force ~/.config/nushell/hni.nu
 source ~/.config/nushell/hni.nu
@@ -348,24 +324,25 @@ just bench
 Run the default local benchmark with:
 
 ```bash
-./benchmark/run.sh
+npm ci
+npm run bench
 just bench
 ```
 
 Pass options through either entrypoint:
 
 ```bash
-./benchmark/run.sh --track=compare
-./benchmark/run.sh --track=fast
-./benchmark/run.sh --track=runtime
-./benchmark/run.sh --track=direct
+npm run bench -- --track=compare
+npm run bench -- --track=fast
+npm run bench -- --track=runtime
+npm run bench -- --track=direct
 just bench --track=direct --runs=3 --warmups=1 --no-build
 ```
 
 Run the full release-style matrix with:
 
 ```bash
-./benchmark/run.sh --track=all --runs=500 --warmups=50
+npm run bench -- --track=all --runs=500 --warmups=50
 ```
 
 Generate flamegraphs with:
@@ -390,17 +367,17 @@ All numbers below were measured on macOS (Apple Silicon) with the release binary
 
 Fast mode bypasses the package manager CLI entirely and runs scripts / local bins natively.
 
-| Case | PM mode | Fast mode | Speedup |
-| --- | ---: | ---: | ---: |
-| `nr noop (npm)` | 246 ms | 37 ms | **6.6x** |
-| `nr noop (pnpm)` | 799 ms | 49 ms | **16.4x** |
-| `nr noop (yarn)` | 348 ms | 38 ms | **9.3x** |
-| `node run noop (pnpm)` | 956 ms | 34 ms | **28.4x** |
-| `nlx hello --flag (npm)` | 288 ms | 17 ms | **17.0x** |
-| `nr noop (bun)` | 70 ms | 37 ms | **1.9x** |
-| `nr noop (deno)` | 80 ms | 35 ms | **2.2x** |
+| Case                     | PM mode | Fast mode |   Speedup |
+| ------------------------ | ------: | --------: | --------: |
+| `nr noop (npm)`          |  246 ms |     37 ms |  **6.6x** |
+| `nr noop (pnpm)`         |  799 ms |     49 ms | **16.4x** |
+| `nr noop (yarn)`         |  348 ms |     38 ms |  **9.3x** |
+| `node run noop (pnpm)`   |  956 ms |     34 ms | **28.4x** |
+| `nlx hello --flag (npm)` |  288 ms |     17 ms | **17.0x** |
+| `nr noop (bun)`          |   70 ms |     37 ms |  **1.9x** |
+| `nr noop (deno)`         |   80 ms |     35 ms |  **2.2x** |
 
-*Geometric mean across all package managers: **4.6x**.*
+_Geometric mean across all package managers: **4.6x**._
 
 pnpm and yarn see the biggest wins because their CLIs carry the most startup overhead. Bun and Deno are already fast, so the margin is smaller (but still consistently ahead).
 
@@ -408,17 +385,17 @@ pnpm and yarn see the biggest wins because their CLIs carry the most startup ove
 
 This is the real-world comparison: what users actually type today versus using `hni`.
 
-| Case | Direct PM | hni --fast | Speedup |
-| --- | ---: | ---: | ---: |
-| `npm run noop` | 320 ms | 53 ms | **6.1x** |
-| `pnpm run noop` | 749 ms | 41 ms | **18.2x** |
-| `yarn run noop` | 443 ms | 34 ms | **13.0x** |
-| `npx hello --flag` | 300 ms | 4.8 ms | **62.0x** |
-| `pnpm exec hello --flag` | 733 ms | 8.9 ms | **82.8x** |
-| `bun run noop` | 79 ms | 34 ms | **2.4x** |
-| `deno task noop` | 50 ms | 34 ms | **1.5x** |
+| Case                     | Direct PM | hni --fast |   Speedup |
+| ------------------------ | --------: | ---------: | --------: |
+| `npm run noop`           |    320 ms |      53 ms |  **6.1x** |
+| `pnpm run noop`          |    749 ms |      41 ms | **18.2x** |
+| `yarn run noop`          |    443 ms |      34 ms | **13.0x** |
+| `npx hello --flag`       |    300 ms |     4.8 ms | **62.0x** |
+| `pnpm exec hello --flag` |    733 ms |     8.9 ms | **82.8x** |
+| `bun run noop`           |     79 ms |      34 ms |  **2.4x** |
+| `deno task noop`         |     50 ms |      34 ms |  **1.5x** |
 
-*Geometric mean: **7.4x**.*
+_Geometric mean: **7.4x**._
 
 Local bin execution is the standout feature: `npx` and `pnpm exec` spend hundreds of milliseconds resolving, validating, and bootstrapping before they even start your binary. `hni` resolves the bin once and runs it directly.
 
@@ -426,22 +403,22 @@ Local bin execution is the standout feature: `npx` and `pnpm exec` spend hundred
 
 For the same command-routing workload, `hni` is consistently faster:
 
-| Case | antfu/ni | hni | Speedup |
-| --- | ---: | ---: | ---: |
-| `ni --version` | 149 ms | 92 ms | **1.6x** |
-| `ni vite ?` | 6.0 ms | 3.6 ms | **1.7x** |
-| `nr build ?` | 5.0 ms | 3.7 ms | **1.3x** |
-| `nlx vitest ?` | 4.6 ms | 3.0 ms | **1.5x** |
+| Case           | antfu/ni |    hni |  Speedup |
+| -------------- | -------: | -----: | -------: |
+| `ni --version` |   149 ms |  92 ms | **1.6x** |
+| `ni vite ?`    |   6.0 ms | 3.6 ms | **1.7x** |
+| `nr build ?`   |   5.0 ms | 3.7 ms | **1.3x** |
+| `nlx vitest ?` |   4.6 ms | 3.0 ms | **1.5x** |
 
-*Geometric mean: **1.5x**.*
+_Geometric mean: **1.5x**._
 
 #### 4. Runtime comparison vs Bun and Deno
 
 Even against native runtime task execution, `hni` holds its own:
 
-| Case | hni | bun | deno |
-| --- | ---: | ---: | ---: |
-| `task noop` | 33 ms | 78 ms | 49 ms |
+| Case         |   hni |    bun |  deno |
+| ------------ | ----: | -----: | ----: |
+| `task noop`  | 33 ms |  78 ms | 49 ms |
 | `task hooks` | 90 ms | 210 ms | 77 ms |
 
 `hni` is **2.3x faster than bun** for task execution and slightly faster than Deno for simple scripts.
@@ -459,7 +436,7 @@ The benchmark suite lives in [`benchmark/`](benchmark/) and uses `hyperfine` to 
 Run the full matrix locally:
 
 ```bash
-./benchmark/run.sh --track=all --runs=100 --warmups=10
+npm run bench -- --track=all --runs=100 --warmups=10
 ```
 
 Or generate flamegraphs:
