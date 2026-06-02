@@ -1,4 +1,8 @@
-use std::{fs, path::Path, process::Command};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+    process::Command,
+};
 
 mod support;
 
@@ -17,6 +21,7 @@ fn init_command_renders_bash_setup() {
                 ("HNI_SKIP_PM_CHECK", "1"),
                 ("HOME", fake_home.to_string_lossy().as_ref()),
                 ("XDG_DATA_HOME", fake_data.to_string_lossy().as_ref()),
+                ("LOCALAPPDATA", fake_data.to_string_lossy().as_ref()),
             ],
         );
         assert!(output.status.success());
@@ -25,6 +30,7 @@ fn init_command_renders_bash_setup() {
         assert!(stdout.contains("# hni init"));
         assert!(stdout.contains("export PATH="));
         assert!(!stdout.contains("node() {"));
+        assert!(expected_managed_node_path(&fake_home, &fake_data).exists());
     });
 }
 
@@ -131,16 +137,7 @@ fn bash_init_gives_node_shim_precedence_and_preserves_real_node() {
             copied_hni.display()
         );
 
-        let expected_node = if cfg!(target_os = "macos") {
-            fake_home
-                .join("Library")
-                .join("Application Support")
-                .join("hni")
-                .join("bin")
-                .join("node")
-        } else {
-            fake_data.join("hni").join("bin").join("node")
-        };
+        let expected_node = expected_managed_node_path(&fake_home, &fake_data);
 
         let output = Command::new(bash)
             .arg("-c")
@@ -149,6 +146,7 @@ fn bash_init_gives_node_shim_precedence_and_preserves_real_node() {
             .env("PATH", path)
             .env("HOME", &fake_home)
             .env("XDG_DATA_HOME", &fake_data)
+            .env("LOCALAPPDATA", &fake_data)
             .output()
             .expect("failed to run bash init flow");
 
@@ -175,6 +173,132 @@ fn bash_init_gives_node_shim_precedence_and_preserves_real_node() {
                 .canonicalize()
                 .unwrap(),
             copied_hni.canonicalize().unwrap()
+        );
+    });
+}
+
+#[cfg(unix)]
+#[test]
+fn init_repairs_broken_and_stale_managed_node_symlinks() {
+    support::with_env_lock(|| {
+        use std::os::unix::fs::symlink;
+
+        let dir = tempfile::tempdir().unwrap();
+        let hni_bin = dir.path().join("hni-bin");
+        let fake_home = dir.path().join("home");
+        let fake_data = dir.path().join("data");
+
+        fs::create_dir_all(&hni_bin).unwrap();
+        fs::create_dir_all(&fake_home).unwrap();
+        fs::create_dir_all(&fake_data).unwrap();
+
+        let source_exe = support::hni_executable_path();
+        let first_hni = hni_bin.join("hni-first");
+        let second_hni = hni_bin.join("hni-second");
+        fs::copy(&source_exe, &first_hni).unwrap();
+        fs::copy(&source_exe, &second_hni).unwrap();
+        set_executable_if_needed(&first_hni);
+        set_executable_if_needed(&second_hni);
+
+        let managed_node = expected_managed_node_path(&fake_home, &fake_data);
+        fs::create_dir_all(managed_node.parent().unwrap()).unwrap();
+        symlink(dir.path().join("missing-hni"), &managed_node).unwrap();
+
+        let first = run_init_from(&first_hni, "bash", &fake_home, &fake_data);
+        assert!(first.status.success());
+        assert_eq!(
+            fs::read_link(&managed_node)
+                .unwrap()
+                .canonicalize()
+                .unwrap(),
+            first_hni.canonicalize().unwrap()
+        );
+
+        let second = run_init_from(&second_hni, "bash", &fake_home, &fake_data);
+        assert!(second.status.success());
+        assert_eq!(
+            fs::read_link(&managed_node)
+                .unwrap()
+                .canonicalize()
+                .unwrap(),
+            second_hni.canonicalize().unwrap()
+        );
+
+        let rerun = run_init_from(&second_hni, "bash", &fake_home, &fake_data);
+        assert!(rerun.status.success());
+        assert_eq!(
+            fs::read_link(&managed_node)
+                .unwrap()
+                .canonicalize()
+                .unwrap(),
+            second_hni.canonicalize().unwrap()
+        );
+    });
+}
+
+#[cfg(windows)]
+#[test]
+fn powershell_init_creates_regular_node_exe_copy() {
+    support::with_env_lock(|| {
+        let dir = tempfile::tempdir().unwrap();
+        let fake_home = dir.path().join("home");
+        let fake_data = dir.path().join("data");
+        fs::create_dir_all(&fake_home).unwrap();
+        fs::create_dir_all(&fake_data).unwrap();
+
+        let output = support::run_hni(
+            vec!["init", "powershell"],
+            &[
+                ("HNI_SKIP_PM_CHECK", "1"),
+                ("HOME", fake_home.to_string_lossy().as_ref()),
+                ("LOCALAPPDATA", fake_data.to_string_lossy().as_ref()),
+                ("APPDATA", fake_data.to_string_lossy().as_ref()),
+            ],
+        );
+        assert!(output.status.success());
+
+        let managed_node = expected_managed_node_path(&fake_home, &fake_data);
+        let metadata = fs::symlink_metadata(&managed_node).unwrap();
+        assert!(metadata.is_file());
+        assert!(!metadata.file_type().is_symlink());
+        assert_eq!(
+            fs::read(&managed_node).unwrap(),
+            fs::read(support::hni_executable_path()).unwrap()
+        );
+    });
+}
+
+#[cfg(windows)]
+#[test]
+fn powershell_init_replaces_stale_node_exe_copy() {
+    support::with_env_lock(|| {
+        let dir = tempfile::tempdir().unwrap();
+        let fake_home = dir.path().join("home");
+        let fake_data = dir.path().join("data");
+        fs::create_dir_all(&fake_home).unwrap();
+        fs::create_dir_all(&fake_data).unwrap();
+
+        let managed_node = expected_managed_node_path(&fake_home, &fake_data);
+        fs::create_dir_all(managed_node.parent().unwrap()).unwrap();
+        fs::write(&managed_node, b"stale hni launcher").unwrap();
+
+        let output = support::run_hni(
+            vec!["init", "powershell"],
+            &[
+                ("HNI_SKIP_PM_CHECK", "1"),
+                ("HOME", fake_home.to_string_lossy().as_ref()),
+                ("LOCALAPPDATA", fake_data.to_string_lossy().as_ref()),
+                ("APPDATA", fake_data.to_string_lossy().as_ref()),
+            ],
+        );
+        assert!(output.status.success());
+
+        let metadata = fs::symlink_metadata(&managed_node).unwrap();
+        assert!(metadata.is_file());
+        assert!(!metadata.file_type().is_symlink());
+        assert_eq!(
+            fs::read(&managed_node).unwrap(),
+            fs::read(support::hni_executable_path()).unwrap()
         );
     });
 }
@@ -240,6 +364,7 @@ fn bash_init_keeps_package_manager_shebangs_on_real_node() {
             .env("XDG_CONFIG_HOME", &fake_config)
             .env("XDG_DATA_HOME", &fake_data)
             .env("APPDATA", &fake_config)
+            .env("LOCALAPPDATA", &fake_data)
             .output()
             .expect("failed to run bash version flow");
 
@@ -327,4 +452,37 @@ fn set_executable_if_needed(path: &Path) {
         perms.set_mode(0o755);
         fs::set_permissions(path, perms).unwrap();
     }
+}
+
+fn expected_managed_node_path(fake_home: &Path, fake_data: &Path) -> PathBuf {
+    let bin_dir = if cfg!(target_os = "macos") {
+        fake_home
+            .join("Library")
+            .join("Application Support")
+            .join("hni")
+            .join("bin")
+    } else {
+        fake_data.join("hni").join("bin")
+    };
+
+    bin_dir.join(if cfg!(windows) { "node.exe" } else { "node" })
+}
+
+#[cfg(unix)]
+fn run_init_from(
+    hni: &Path,
+    shell: &str,
+    fake_home: &Path,
+    fake_data: &Path,
+) -> std::process::Output {
+    Command::new(hni)
+        .arg("init")
+        .arg(shell)
+        .env_remove("HNI_REAL_NODE")
+        .env("HNI_SKIP_PM_CHECK", "1")
+        .env("HOME", fake_home)
+        .env("XDG_DATA_HOME", fake_data)
+        .env("LOCALAPPDATA", fake_data)
+        .output()
+        .expect("failed to run hni init")
 }

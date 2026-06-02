@@ -3,14 +3,13 @@ use std::{
     path::{Path, PathBuf},
 };
 
+#[cfg(unix)]
+use crate::platform::paths_equal;
 use crate::{
     core::shell::shell_escape,
-    platform::{
-        node::{managed_node_shim_dir, node_binary_name},
-        paths_equal,
-    },
+    platform::node::{managed_node_shim_dir, node_binary_name},
 };
-use anyhow::{Result, anyhow};
+use anyhow::{Context, Result, anyhow};
 
 pub const SUPPORTED_SHELL_NAMES: &[&str] =
     &["bash", "zsh", "fish", "powershell", "pwsh", "nushell", "nu"];
@@ -88,23 +87,27 @@ fn ensure_node_shim(exe_path: &Path) -> Result<PathBuf> {
         )
     })?;
 
-    if path_exists_or_symlink(&managed_node) {
-        if node_shim_points_to(&managed_node, exe_path) {
-            return Ok(managed_dir);
-        }
-
-        return Err(anyhow!(
-            "execution error: managed node shim already exists and is not an hni symlink: {}",
-            managed_node.display()
-        ));
+    if node_shim_matches_current(&managed_node, exe_path)? {
+        return Ok(managed_dir);
     }
 
-    create_node_symlink(exe_path, &managed_node).map_err(|error| {
+    if path_exists_or_symlink(&managed_node) {
+        remove_node_shim(&managed_node)?;
+    }
+
+    create_node_shim(exe_path, &managed_node).map_err(|error| {
         anyhow!(
-            "execution error: failed to create node shim symlink at {}: {error}",
+            "execution error: failed to create managed node shim at {}: {error}",
             managed_node.display()
         )
     })?;
+
+    if !node_shim_matches_current(&managed_node, exe_path)? {
+        return Err(anyhow!(
+            "execution error: managed node shim was created but does not target current hni: {}",
+            managed_node.display()
+        ));
+    }
 
     Ok(managed_dir)
 }
@@ -113,10 +116,32 @@ fn path_exists_or_symlink(path: &Path) -> bool {
     path.exists() || fs::symlink_metadata(path).is_ok()
 }
 
-fn node_shim_points_to(link: &Path, expected_target: &Path) -> bool {
+fn node_shim_matches_current(path: &Path, expected_target: &Path) -> Result<bool> {
+    let Ok(metadata) = fs::symlink_metadata(path) else {
+        return Ok(false);
+    };
+
+    #[cfg(unix)]
+    {
+        Ok(metadata.file_type().is_symlink() && node_symlink_points_to(path, expected_target))
+    }
+
+    #[cfg(windows)]
+    {
+        if metadata.file_type().is_symlink() || !metadata.is_file() {
+            return Ok(false);
+        }
+
+        files_have_same_contents(path, expected_target)
+    }
+}
+
+#[cfg(unix)]
+fn node_symlink_points_to(link: &Path, expected_target: &Path) -> bool {
     let Ok(metadata) = fs::symlink_metadata(link) else {
         return false;
     };
+
     if !metadata.file_type().is_symlink() {
         return false;
     }
@@ -135,7 +160,20 @@ fn node_shim_points_to(link: &Path, expected_target: &Path) -> bool {
     paths_equal(&target, expected_target)
 }
 
-fn create_node_symlink(target: &Path, link: &Path) -> std::io::Result<()> {
+fn remove_node_shim(path: &Path) -> Result<()> {
+    let metadata = fs::symlink_metadata(path)
+        .with_context(|| format!("failed to inspect managed node shim: {}", path.display()))?;
+
+    if metadata.file_type().is_dir() && !metadata.file_type().is_symlink() {
+        fs::remove_dir_all(path)
+            .with_context(|| format!("failed to remove managed node shim dir: {}", path.display()))
+    } else {
+        fs::remove_file(path)
+            .with_context(|| format!("failed to remove managed node shim: {}", path.display()))
+    }
+}
+
+fn create_node_shim(target: &Path, link: &Path) -> std::io::Result<()> {
     #[cfg(unix)]
     {
         std::os::unix::fs::symlink(target, link)
@@ -143,8 +181,27 @@ fn create_node_symlink(target: &Path, link: &Path) -> std::io::Result<()> {
 
     #[cfg(windows)]
     {
-        std::os::windows::fs::symlink_file(target, link)
+        fs::copy(target, link).map(|_| ())
     }
+}
+
+#[cfg(windows)]
+fn files_have_same_contents(left: &Path, right: &Path) -> Result<bool> {
+    let left_metadata = fs::metadata(left)
+        .with_context(|| format!("failed to inspect node launcher: {}", left.display()))?;
+    let right_metadata = fs::metadata(right)
+        .with_context(|| format!("failed to inspect hni launcher: {}", right.display()))?;
+
+    if left_metadata.len() != right_metadata.len() {
+        return Ok(false);
+    }
+
+    let left_contents = fs::read(left)
+        .with_context(|| format!("failed to read node launcher: {}", left.display()))?;
+    let right_contents = fs::read(right)
+        .with_context(|| format!("failed to read hni launcher: {}", right.display()))?;
+
+    Ok(left_contents == right_contents)
 }
 
 fn render_posix(path_dir: &Path) -> String {
