@@ -79,6 +79,14 @@ struct CaseRun {
 
 #[test]
 fn native_regression_cases_match_or_fallback_to_the_package_manager() {
+    if std::env::var("HNI_ENABLE_NATIVE_REGRESSION_ORACLE")
+        .ok()
+        .as_deref()
+        != Some("1")
+    {
+        return;
+    }
+
     support::with_env_lock(|| {
         for case in native_regression_cases() {
             if !command_exists(case.manager.command()) {
@@ -117,6 +125,70 @@ fn native_regression_cases_match_or_fallback_to_the_package_manager() {
                         .explain_output
                         .expect("fallback cases should capture explain output");
                     let stdout = String::from_utf8_lossy(&explain.stdout);
+                    assert!(
+                        stdout.contains("fast_status: fallback"),
+                        "fallback case '{}' did not report fallback: {stdout}",
+                        case.name
+                    );
+                    if let Some(reason) = case.fallback_reason_fragment {
+                        assert!(
+                            stdout.contains(reason),
+                            "fallback case '{}' missing reason fragment {:?}: {stdout}",
+                            case.name,
+                            reason
+                        );
+                    }
+                }
+            }
+        }
+    });
+}
+
+#[test]
+fn native_regression_cases_cover_hni_fast_contract_without_external_oracle() {
+    support::with_env_lock(|| {
+        for case in native_regression_cases() {
+            let work = tempfile::tempdir().unwrap();
+            let hni_root = work.path().join(format!("{}-hni", case.name));
+            fs::create_dir_all(&hni_root).unwrap();
+            (case.setup)(&hni_root);
+
+            let debug_output = run_hni_owned(
+                &hni_debug_args(case, &hni_root),
+                &[("HNI_SKIP_PM_CHECK", "1")],
+            );
+
+            match case.classification {
+                Classification::Equivalence => {
+                    let stdout = String::from_utf8_lossy(&debug_output.stdout);
+                    assert!(
+                        stdout.starts_with("hni fast:"),
+                        "equivalence case '{}' did not resolve natively: stdout={stdout} stderr={}",
+                        case.name,
+                        String::from_utf8_lossy(&debug_output.stderr),
+                    );
+
+                    let hni_output =
+                        run_hni_owned(&hni_args(case, &hni_root), &[("HNI_SKIP_PM_CHECK", "1")]);
+                    assert!(
+                        hni_output.status.code().is_some(),
+                        "native case '{}' terminated without an exit code",
+                        case.name
+                    );
+                    (case.assert_state)(&hni_root);
+                }
+                Classification::Fallback => {
+                    let explain_output = run_hni_owned(
+                        &hni_explain_args(case, &hni_root),
+                        &[("HNI_SKIP_PM_CHECK", "1")],
+                    );
+                    assert!(
+                        explain_output.status.success(),
+                        "fallback explain case '{}' failed: {}",
+                        case.name,
+                        String::from_utf8_lossy(&explain_output.stderr),
+                    );
+                    let stdout = String::from_utf8_lossy(&explain_output.stdout);
                     assert!(
                         stdout.contains("fast_status: fallback"),
                         "fallback case '{}' did not report fallback: {stdout}",
