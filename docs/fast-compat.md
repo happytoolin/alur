@@ -25,8 +25,8 @@ When a project layout or shell environment is likely to be package-manager-speci
 | `node run` | Yes, same as `nr` | Inherits the same fast-mode checks and fallbacks. |
 | `nlx` | Yes, local bins only | Uses fast execution only when a local executable can be resolved confidently. |
 | `node exec` / `node x` / `node dlx` | Yes, local bins only | Inherits the same local-bin behavior as `nlx`. |
-| `ni`, `nci`, `nru`, `nun`, `na` | No | These remain in package-manager mode. |
-| `np`, `ns` | Already direct | These are not controlled by `fastMode`. |
+| `ni`, `nun`, `nci` | No | These remain in package-manager mode. |
+| `np`, `ns` | Already direct | These are not controlled by `fast_mode`. |
 
 ## Fast-Mode Resolution Rules
 

@@ -19,6 +19,6 @@ install-updater = false
 npm-scope = "@happytoolin"
 tap = "happytoolin/homebrew-happytap"
 formula = "hni"
-bin-aliases = { hni = ["ni", "nr", "nlx", "nru", "nun", "nci", "na", "np", "ns"] }
+bin-aliases = { hni = ["ni", "nr", "nlx", "nun", "nci", "np", "ns"] }
 publish-jobs = ["npm", "homebrew"]
 allow-dirty = ["ci"]
