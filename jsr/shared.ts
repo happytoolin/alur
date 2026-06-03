@@ -7,17 +7,20 @@ const DEFAULT_DOWNLOAD_ROOT = "https://happytoolin.com/hni/releases/download";
 const DEFAULT_FALLBACK_DOWNLOAD_ROOT =
   `https://github.com/${REPO}/releases/download`;
 
-export type Invocation =
-  | "hni"
-  | "ni"
-  | "nr"
-  | "nlx"
-  | "nru"
-  | "nun"
-  | "nci"
-  | "na"
-  | "np"
-  | "ns";
+export const INVOCATIONS = [
+  "hni",
+  "ni",
+  "nr",
+  "nlx",
+  "nru",
+  "nun",
+  "nci",
+  "na",
+  "np",
+  "ns",
+] as const;
+
+export type Invocation = typeof INVOCATIONS[number];
 
 interface TargetInfo {
   target: string;

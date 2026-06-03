@@ -1,4 +1,4 @@
-use std::fs;
+use std::{collections::BTreeSet, fs};
 
 mod support;
 
@@ -73,6 +73,91 @@ fn command_registry_exposes_expected_public_surface() {
 
     assert_eq!(help_command_for_topic(HelpTopic::Nr).get_name(), "nr");
     assert_eq!(help_command_for_topic(HelpTopic::Init).get_name(), "init");
+}
+
+#[test]
+fn jsr_invocations_stay_in_sync_with_alias_manifest_and_command_registry() {
+    let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+
+    let aliases_raw = fs::read_to_string(root.join("aliases.json")).unwrap();
+    let aliases: serde_json::Value = serde_json::from_str(&aliases_raw).unwrap();
+    let alias_names = aliases
+        .get("hni")
+        .and_then(serde_json::Value::as_array)
+        .expect("aliases.json must define hni aliases")
+        .iter()
+        .map(|alias| {
+            alias
+                .as_str()
+                .expect("hni aliases must be strings")
+                .to_string()
+        })
+        .collect::<Vec<_>>();
+
+    let registry_alias_names = command_specs()
+        .iter()
+        .filter(|spec| spec.name != "node")
+        .map(|spec| spec.name.to_string())
+        .collect::<Vec<_>>();
+    assert_eq!(alias_names, registry_alias_names);
+
+    let mut expected_invocations = vec!["hni".to_string()];
+    expected_invocations.extend(alias_names);
+
+    let shared = fs::read_to_string(root.join("jsr/shared.ts")).unwrap();
+    assert_eq!(parse_jsr_invocations(&shared), expected_invocations);
+
+    let mod_entrypoint = fs::read_to_string(root.join("jsr/mod.ts")).unwrap();
+    assert!(
+        mod_entrypoint.contains("INVOCATIONS"),
+        "jsr/mod.ts must re-export INVOCATIONS"
+    );
+
+    let jsr_json_raw = fs::read_to_string(root.join("jsr.json")).unwrap();
+    let jsr_json: serde_json::Value = serde_json::from_str(&jsr_json_raw).unwrap();
+    let exports = jsr_json
+        .get("exports")
+        .and_then(serde_json::Value::as_object)
+        .expect("jsr.json must define exports");
+    let expected_export_keys = std::iter::once(".".to_string())
+        .chain(expected_invocations.iter().map(|name| format!("./{name}")))
+        .collect::<BTreeSet<_>>();
+    let actual_export_keys = exports.keys().cloned().collect::<BTreeSet<_>>();
+    assert_eq!(actual_export_keys, expected_export_keys);
+    assert_eq!(
+        exports.get(".").and_then(serde_json::Value::as_str),
+        Some("./jsr/mod.ts")
+    );
+
+    for invocation in &expected_invocations {
+        let export = format!("./{invocation}");
+        let export_path = format!("./jsr/{invocation}.ts");
+        assert_eq!(
+            exports.get(&export).and_then(serde_json::Value::as_str),
+            Some(export_path.as_str())
+        );
+
+        let launcher_path = root.join("jsr").join(format!("{invocation}.ts"));
+        let launcher = fs::read_to_string(&launcher_path)
+            .unwrap_or_else(|error| panic!("failed to read {}: {error}", launcher_path.display()));
+        assert!(
+            launcher.contains(&format!("runInvocation(\"{invocation}\")")),
+            "{} must invoke the matching JSR command",
+            launcher_path.display()
+        );
+    }
+
+    let expected_launcher_names = expected_invocations
+        .iter()
+        .cloned()
+        .collect::<BTreeSet<_>>();
+    let actual_launcher_names = fs::read_dir(root.join("jsr"))
+        .unwrap()
+        .map(|entry| entry.unwrap().file_name().to_string_lossy().to_string())
+        .filter(|name| name != "mod.ts" && name != "shared.ts")
+        .map(|name| name.trim_end_matches(".ts").to_string())
+        .collect::<BTreeSet<_>>();
+    assert_eq!(actual_launcher_names, expected_launcher_names);
 }
 
 #[test]
@@ -158,4 +243,28 @@ fn app_command_handlers_build_batch_executions() {
 
 fn run_hni(args: Vec<&str>, extra_env: &[(&str, &str)]) -> std::process::Output {
     support::run_hni(args, extra_env)
+}
+
+fn parse_jsr_invocations(shared: &str) -> Vec<String> {
+    let mut names = Vec::new();
+    let mut collecting = false;
+
+    for line in shared.lines() {
+        let line = line.trim();
+        if line == "export const INVOCATIONS = [" {
+            collecting = true;
+            continue;
+        }
+        if collecting && line.starts_with("] as const") {
+            break;
+        }
+        if collecting
+            && let Some(rest) = line.strip_prefix('"')
+            && let Some((name, _)) = rest.split_once('"')
+        {
+            names.push(name.to_string());
+        }
+    }
+
+    names
 }
