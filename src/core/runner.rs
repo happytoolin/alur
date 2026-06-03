@@ -20,7 +20,7 @@ pub fn format_debug(exec: &ResolvedExecution) -> Result<String> {
         return Ok(native::format_debug(exec));
     }
 
-    let (program, args, _) = materialize(exec)?;
+    let (program, args) = materialize(exec)?;
     let rendered = std::iter::once(shell_escape(&program))
         .chain(args.iter().map(|arg| shell_escape(arg)))
         .collect::<Vec<_>>()
@@ -41,7 +41,7 @@ pub fn run(exec: &ResolvedExecution) -> Result<ExitCode> {
         };
     }
 
-    let (program, args, _passthrough) = materialize(exec)?;
+    let (program, args) = materialize(exec)?;
 
     let mut command = Command::new(&program);
     command
@@ -65,16 +65,14 @@ pub fn run(exec: &ResolvedExecution) -> Result<ExitCode> {
     Ok(exit_code_from_status(status.code()))
 }
 
-fn materialize(exec: &ResolvedExecution) -> Result<(String, Vec<String>, bool)> {
+fn materialize(exec: &ResolvedExecution) -> Result<(String, Vec<String>)> {
     let mut program = exec.program.clone();
     let args = exec.args.clone();
-    let mut passthrough = exec.passthrough;
 
     if exec.passthrough && exec.program == "node" {
         let real = resolve_real_node_path()?;
         program = real.to_string_lossy().to_string();
-        passthrough = true;
     }
 
-    Ok((program, args, passthrough))
+    Ok((program, args))
 }
