@@ -1045,7 +1045,7 @@ fn ni_global_rejects_yarn_berry_package_manager() {
 
         assert!(
             err.to_string()
-                .contains("global install is not supported by yarn (berry)")
+                .contains("global install/uninstall is not supported by yarn (berry)")
         );
     });
 }

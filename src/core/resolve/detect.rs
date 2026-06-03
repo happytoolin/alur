@@ -76,7 +76,7 @@ enum ResolveDetectionError {
     )]
     MissingPackageManager { cwd: PathBuf },
     #[error(
-        "detection error: global install is not supported by yarn (berry).\nUse a different global_package_manager (for example: npm, pnpm, yarn, bun, deno)."
+        "detection error: global install/uninstall is not supported by yarn (berry).\nUse a different global_package_manager (for example: npm, pnpm, yarn, bun, deno)."
     )]
     UnsupportedGlobalYarnBerry,
 }
