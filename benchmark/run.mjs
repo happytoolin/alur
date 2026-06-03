@@ -11,10 +11,60 @@ import { geometricMean as ssGeometricMean, quantileSorted } from 'simple-statist
 
 const TEMPLATES = {}
 
+function errorMessage(error) {
+  return error instanceof Error ? error.message : String(error)
+}
+
+function withFileContext(label, action, filePath, callback) {
+  try {
+    return callback()
+  } catch (error) {
+    throw new Error(`${label}: failed to ${action} ${filePath}: ${errorMessage(error)}`, {
+      cause: error,
+    })
+  }
+}
+
+function readTextFile(filePath, label) {
+  return withFileContext(label, 'read', filePath, () => fs.readFileSync(filePath, 'utf8'))
+}
+
+function readJsonFile(filePath, label) {
+  const raw = readTextFile(filePath, label)
+  return withFileContext(label, 'parse JSON from', filePath, () => JSON.parse(raw))
+}
+
+function writeTextFile(filePath, value, label) {
+  withFileContext(label, 'write', filePath, () => fs.writeFileSync(filePath, value, 'utf8'))
+}
+
+function writeJsonFile(filePath, value, label) {
+  const payload = withFileContext(
+    label,
+    'serialize JSON for',
+    filePath,
+    () => `${JSON.stringify(value, null, 2)}\n`,
+  )
+  writeTextFile(filePath, payload, label)
+}
+
+function makeExecutable(filePath, label) {
+  withFileContext(label, 'chmod', filePath, () => fs.chmodSync(filePath, 0o755))
+}
+
+function copyDir(source, destination, label) {
+  withFileContext(label, 'copy', source, () => fs.cpSync(source, destination, { recursive: true }))
+}
+
+function removeFile(filePath, label) {
+  withFileContext(label, 'remove', filePath, () => fs.rmSync(filePath, { force: true }))
+}
+
 function loadTemplates() {
   const templateDir = path.join(path.dirname(fileURLToPath(import.meta.url)), 'templates')
   for (const name of ['track', 'combined', 'latest', 'history']) {
-    const content = fs.readFileSync(path.join(templateDir, `${name}.hbs`), 'utf8')
+    const templatePath = path.join(templateDir, `${name}.hbs`)
+    const content = readTextFile(templatePath, `benchmark template ${name}`)
     TEMPLATES[name] = Handlebars.compile(content)
   }
 }
@@ -216,29 +266,25 @@ function groupBy(rows, key) {
 function writeNodeFixture(dir, pm) {
   ensureDir(dir)
   ensureDir(path.join(dir, 'node_modules', '.bin'))
-  fs.writeFileSync(
+  writeJsonFile(
     path.join(dir, 'package.json'),
-    JSON.stringify(
-      {
-        name: `benchmark-${pm.id}`,
-        version: '1.0.0',
-        packageManager: pm.packageManager,
-        scripts: {
-          noop: 'node -e ""',
-          build: 'node -e ""',
-          dev: 'node -e ""',
-          args: 'node -e "" --',
-          prehooks: 'node -e ""',
-          hooks: 'node -e ""',
-          posthooks: 'node -e ""',
-        },
+    {
+      name: `benchmark-${pm.id}`,
+      version: '1.0.0',
+      packageManager: pm.packageManager,
+      scripts: {
+        noop: 'node -e ""',
+        build: 'node -e ""',
+        dev: 'node -e ""',
+        args: 'node -e "" --',
+        prehooks: 'node -e ""',
+        hooks: 'node -e ""',
+        posthooks: 'node -e ""',
       },
-      null,
-      2,
-    ),
-    'utf8',
+    },
+    `benchmark ${pm.id} package manifest`,
   )
-  fs.writeFileSync(path.join(dir, pm.lockfile), 'lock\n', 'utf8')
+  writeTextFile(path.join(dir, pm.lockfile), 'lock\n', `benchmark ${pm.id} lockfile`)
 
   const bins = {
     vitest: '#!/bin/sh\nexit 0\n',
@@ -247,26 +293,22 @@ function writeNodeFixture(dir, pm) {
 
   for (const [name, contents] of Object.entries(bins)) {
     const binPath = path.join(dir, 'node_modules', '.bin', name)
-    fs.writeFileSync(binPath, contents, 'utf8')
-    fs.chmodSync(binPath, 0o755)
+    writeTextFile(binPath, contents, `benchmark ${pm.id} local bin ${name}`)
+    makeExecutable(binPath, `benchmark ${pm.id} local bin ${name}`)
   }
 }
 
 function writeDenoFixture(dir) {
   ensureDir(dir)
-  fs.writeFileSync(
+  writeJsonFile(
     path.join(dir, 'deno.json'),
-    JSON.stringify(
-      {
-        tasks: {
-          noop: 'deno eval ""',
-          hooks: 'deno eval ""',
-        },
+    {
+      tasks: {
+        noop: 'deno eval ""',
+        hooks: 'deno eval ""',
       },
-      null,
-      2,
-    ),
-    'utf8',
+    },
+    'benchmark deno task manifest',
   )
 }
 
@@ -615,7 +657,7 @@ function runHyperfineCase({ repoRoot, caseDef, runs, warmups, rawOutputPath, com
     )
   }
 
-  const raw = JSON.parse(fs.readFileSync(rawOutputPath, 'utf8'))
+  const raw = readJsonFile(rawOutputPath, `hyperfine raw output for case ${caseDef.id}`)
   if (!Array.isArray(raw.results) || raw.results.length !== commands.length) {
     throw new Error(`unexpected hyperfine result format for case ${caseDef.id}`)
   }
@@ -1032,7 +1074,7 @@ function pruneTrackedBenchmarkArtifacts(resultsDir, keepPaths) {
     if (!entry.isFile()) continue
     const absolutePath = path.resolve(resultsDir, entry.name)
     if (!keep.has(absolutePath)) {
-      fs.rmSync(absolutePath, { force: true })
+      removeFile(absolutePath, 'tracked benchmark artifact')
     }
   }
 }
@@ -1088,7 +1130,7 @@ function prepareFixtureBenchmarkDirs(tempRoot, repoRoot) {
 
       const targetFixture = path.join(copiedRoot, category, name)
       ensureDir(path.dirname(targetFixture))
-      fs.cpSync(sourceFixture, targetFixture, { recursive: true })
+      copyDir(sourceFixture, targetFixture, `fixture benchmark copy ${category}/${name}`)
     }
   }
 
@@ -1201,7 +1243,7 @@ function prepareAliasDir(tempRoot, ourBin) {
   ensureDir(aliasDir)
 
   const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-  const aliases = JSON.parse(fs.readFileSync(path.join(repoRoot, 'aliases.json'), 'utf8'))
+  const aliases = readJsonFile(path.join(repoRoot, 'aliases.json'), 'alias manifest')
   const allNames = ['hni', 'node', ...aliases.hni]
 
   for (const name of allNames) {
@@ -1297,21 +1339,21 @@ function filterRunnableCases(cases, availableBins, antfuBinDir) {
 function writeTrackJson(resultsDir, track, payload) {
   const stamp = new Date().toISOString().replace(/[:.]/g, '-')
   const output = path.join(resultsDir, `${track}-${stamp}.json`)
-  fs.writeFileSync(output, `${JSON.stringify(payload, null, 2)}\n`, 'utf8')
+  writeJsonFile(output, payload, `${track} benchmark JSON`)
   return output
 }
 
 function writeTrackMarkdown(resultsDir, track, payload, artifactPaths) {
   const stamp = path.basename(artifactPaths.jsonPath).replace(`${track}-`, '').replace(/\.json$/, '')
   const output = path.join(resultsDir, `${track}-${stamp}.md`)
-  fs.writeFileSync(output, trackMarkdown(payload, artifactPaths), 'utf8')
+  writeTextFile(output, trackMarkdown(payload, artifactPaths), `${track} benchmark markdown`)
   return output
 }
 
 function writeCombinedJson(resultsDir, payload) {
   const stamp = new Date().toISOString().replace(/[:.]/g, '-')
   const output = path.join(resultsDir, `benchmark-${stamp}.json`)
-  fs.writeFileSync(output, `${JSON.stringify(payload, null, 2)}\n`, 'utf8')
+  writeJsonFile(output, payload, 'combined benchmark JSON')
   return output
 }
 
@@ -1321,35 +1363,47 @@ function writeCombinedMarkdown(resultsDir, combined, combinedArtifacts, benchmar
     .replace(/^benchmark-/, '')
     .replace(/\.json$/, '')
   const output = path.join(resultsDir, `benchmark-${stamp}.md`)
-  fs.writeFileSync(
+  writeTextFile(
     output,
     combinedMarkdown(combined, combinedArtifacts, path.dirname(output)),
-    'utf8',
+    'combined benchmark markdown',
   )
   return output
 }
 
 function writeLatestSnapshot(benchmarkDir, combined, combinedArtifacts) {
   const output = path.join(benchmarkDir, 'LATEST.md')
-  fs.writeFileSync(output, latestMarkdown(combined, combinedArtifacts, benchmarkDir), 'utf8')
+  writeTextFile(
+    output,
+    latestMarkdown(combined, combinedArtifacts, benchmarkDir),
+    'latest benchmark snapshot',
+  )
   return output
 }
 
 function writeHistorySnapshot(resultsDir, benchmarkDir) {
   const output = path.join(benchmarkDir, 'HISTORY.md')
-  fs.writeFileSync(output, historyMarkdown(resultsDir, benchmarkDir), 'utf8')
+  writeTextFile(output, historyMarkdown(resultsDir, benchmarkDir), 'benchmark history snapshot')
   return output
 }
 
 function writeLatestTrackSnapshot(benchmarkDir, payload, artifactPaths) {
   const output = path.join(benchmarkDir, 'LATEST.md')
-  fs.writeFileSync(output, latestTrackMarkdown(payload, artifactPaths, benchmarkDir), 'utf8')
+  writeTextFile(
+    output,
+    latestTrackMarkdown(payload, artifactPaths, benchmarkDir),
+    'latest benchmark snapshot',
+  )
   return output
 }
 
 function writeHistoryTrackSnapshot(benchmarkDir, payload, artifactPaths) {
   const output = path.join(benchmarkDir, 'HISTORY.md')
-  fs.writeFileSync(output, historyTrackMarkdown(payload, artifactPaths, benchmarkDir), 'utf8')
+  writeTextFile(
+    output,
+    historyTrackMarkdown(payload, artifactPaths, benchmarkDir),
+    'benchmark history snapshot',
+  )
   return output
 }
 
