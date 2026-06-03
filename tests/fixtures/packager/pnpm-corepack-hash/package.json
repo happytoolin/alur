@@ -1,0 +1,7 @@
+{
+  "name": "fixture-packager-pnpm-corepack-hash",
+  "packageManager": "pnpm@9.12.3+sha512.deadbeef",
+  "scripts": {
+    "dev": "node -e \"\""
+  }
+}

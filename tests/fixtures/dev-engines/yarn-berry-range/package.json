@@ -1,0 +1,12 @@
+{
+  "name": "fixture-dev-engines-yarn-berry-range",
+  "devEngines": {
+    "packageManager": {
+      "name": "yarn",
+      "version": ">=4.0.0 <5.0.0"
+    }
+  },
+  "scripts": {
+    "dev": "node -e \"\""
+  }
+}

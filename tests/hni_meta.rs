@@ -1,7 +1,14 @@
-use std::{collections::BTreeSet, fs};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    fs,
+};
 
 mod support;
 
+use figment::{
+    Figment,
+    providers::{Format, Toml},
+};
 use hni::{
     app::{
         cli::hni_command,
@@ -17,6 +24,18 @@ use hni::{
         types::{BatchMode, ExecutionStrategy, HelpTopic, InvocationKind},
     },
 };
+use serde::Deserialize;
+
+#[derive(Debug, Deserialize)]
+struct DistWorkspace {
+    dist: DistConfig,
+}
+
+#[derive(Debug, Deserialize)]
+struct DistConfig {
+    #[serde(rename = "bin-aliases")]
+    bin_aliases: BTreeMap<String, Vec<String>>,
+}
 
 #[test]
 fn hni_canonical_subcommands_resolve_commands() {
@@ -203,6 +222,56 @@ fn jsr_invocations_stay_in_sync_with_alias_manifest_and_command_registry() {
 }
 
 #[test]
+fn release_aliases_stay_in_sync_with_alias_manifest() {
+    let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+
+    let aliases_raw = fs::read_to_string(root.join("aliases.json")).unwrap();
+    let aliases: serde_json::Value = serde_json::from_str(&aliases_raw).unwrap();
+    let alias_names = aliases
+        .get("hni")
+        .and_then(serde_json::Value::as_array)
+        .expect("aliases.json must define hni aliases")
+        .iter()
+        .map(|alias| alias.as_str().expect("aliases must be strings").to_string())
+        .collect::<Vec<_>>();
+
+    let dist: DistWorkspace = Figment::new()
+        .merge(Toml::file(root.join("dist-workspace.toml")))
+        .extract()
+        .unwrap();
+
+    assert_eq!(
+        dist.dist.bin_aliases.get("hni"),
+        Some(&alias_names),
+        "cargo-dist bin-aliases must not publish removed or missing multicall aliases"
+    );
+}
+
+#[test]
+fn removed_aliases_are_absent_from_public_surface_files() {
+    let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+
+    for relative in [
+        "README.md",
+        "docs/fast-compat.md",
+        ".github/og-image.svg",
+        "aliases.json",
+        "jsr.json",
+        "jsr/shared.ts",
+        "dist-workspace.toml",
+    ] {
+        let path = root.join(relative);
+        let content = fs::read_to_string(&path).unwrap();
+        for alias in ["nru", "na"] {
+            assert!(
+                !contains_token(&content, alias),
+                "{relative} still references removed alias {alias}"
+            );
+        }
+    }
+}
+
+#[test]
 fn hni_pre_execution_commands_are_available() {
     support::with_env_lock(|| {
         let work = tempfile::tempdir().unwrap();
@@ -311,4 +380,10 @@ fn parse_jsr_invocations(shared: &str) -> Vec<String> {
     }
 
     names
+}
+
+fn contains_token(content: &str, token: &str) -> bool {
+    content
+        .split(|ch: char| !ch.is_ascii_alphanumeric() && ch != '-' && ch != '@')
+        .any(|candidate| candidate == token)
 }

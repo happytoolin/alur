@@ -21,13 +21,13 @@ use super::{
 ///
 /// Fails when package-manager detection or availability checks fail.
 pub fn resolve_ni(args: Vec<String>, ctx: &ResolveContext) -> Result<ResolvedExecution> {
-    let use_global = args.iter().any(|arg| arg == "-g");
+    let use_global = args.iter().any(|arg| is_global_flag(arg));
     let detected = detect_for_action(ctx, use_global)?;
     let args = normalize_ni_args(args, detected.pm);
     ensure_detected_available(&detected, ctx)?;
 
     if use_global {
-        let args = exclude_flag(args, "-g");
+        let args = exclude_global_flags(args);
         return Ok(build_install_exec(detected.pm, args, ctx.cwd(), true));
     }
 
@@ -149,10 +149,10 @@ pub fn resolve_nlx(args: Vec<String>, ctx: &ResolveContext) -> Result<ResolvedEx
 ///
 /// Fails when detection fails, the command has no target dependency, or the selected package manager is unavailable.
 pub fn resolve_nun(args: Vec<String>, ctx: &ResolveContext) -> Result<ResolvedExecution> {
-    let use_global = args.iter().any(|arg| arg == "-g");
+    let use_global = args.iter().any(|arg| is_global_flag(arg));
     let detected = detect_for_action(ctx, use_global)?;
     let args = if use_global {
-        exclude_flag(args, "-g")
+        exclude_global_flags(args)
     } else {
         args
     };
@@ -188,6 +188,16 @@ fn build_run_fallback(
     }
 
     Ok(resolved)
+}
+
+fn is_global_flag(arg: &str) -> bool {
+    matches!(arg, "-g" | "--global")
+}
+
+fn exclude_global_flags(args: Vec<String>) -> Vec<String> {
+    args.into_iter()
+        .filter(|arg| !is_global_flag(arg))
+        .collect()
 }
 
 /// # Errors
