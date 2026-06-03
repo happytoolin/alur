@@ -376,8 +376,8 @@ function fastCases(fixturePaths) {
         group: 'nr',
         case: `nr noop (${pm.label})`,
         commands: [
-          { name: 'pm', bin: 'nr', args: ['-C', fixturePaths[pm.fixtureKey], 'noop'], env: { HNI_FAST: 'false' } },
-          { name: 'fast', bin: 'nr', args: ['-C', fixturePaths[pm.fixtureKey], 'noop'], env: { HNI_FAST: 'true' } },
+          { name: 'pm', bin: 'nr', args: ['-C', fixturePaths[pm.fixtureKey], 'noop'], env: { HNI_FAST_MODE: 'false' } },
+          { name: 'fast', bin: 'nr', args: ['-C', fixturePaths[pm.fixtureKey], 'noop'], env: { HNI_FAST_MODE: 'true' } },
         ],
         requiredBins: pm.requiredBins,
       },
@@ -386,8 +386,8 @@ function fastCases(fixturePaths) {
         group: 'nr',
         case: `nr hooks (${pm.label})`,
         commands: [
-          { name: 'pm', bin: 'nr', args: ['-C', fixturePaths[pm.fixtureKey], 'hooks'], env: { HNI_FAST: 'false' } },
-          { name: 'fast', bin: 'nr', args: ['-C', fixturePaths[pm.fixtureKey], 'hooks'], env: { HNI_FAST: 'true' } },
+          { name: 'pm', bin: 'nr', args: ['-C', fixturePaths[pm.fixtureKey], 'hooks'], env: { HNI_FAST_MODE: 'false' } },
+          { name: 'fast', bin: 'nr', args: ['-C', fixturePaths[pm.fixtureKey], 'hooks'], env: { HNI_FAST_MODE: 'true' } },
         ],
         requiredBins: pm.requiredBins,
       },
@@ -396,8 +396,8 @@ function fastCases(fixturePaths) {
         group: 'node-run',
         case: `node run noop (${pm.label})`,
         commands: [
-          { name: 'pm', bin: 'node', args: ['-C', fixturePaths[pm.fixtureKey], 'run', 'noop'], env: { HNI_FAST: 'false' } },
-          { name: 'fast', bin: 'node', args: ['-C', fixturePaths[pm.fixtureKey], 'run', 'noop'], env: { HNI_FAST: 'true' } },
+          { name: 'pm', bin: 'node', args: ['-C', fixturePaths[pm.fixtureKey], 'run', 'noop'], env: { HNI_FAST_MODE: 'false' } },
+          { name: 'fast', bin: 'node', args: ['-C', fixturePaths[pm.fixtureKey], 'run', 'noop'], env: { HNI_FAST_MODE: 'true' } },
         ],
         requiredBins: pm.requiredBins,
       },
@@ -409,8 +409,8 @@ function fastCases(fixturePaths) {
     group: 'nlx',
     case: 'nlx hello --flag (npm local bin)',
     commands: [
-      { name: 'pm', bin: 'nlx', args: ['-C', fixturePaths.npm, 'hello', '--flag'], env: { HNI_FAST: 'false' } },
-      { name: 'fast', bin: 'nlx', args: ['-C', fixturePaths.npm, 'hello', '--flag'], env: { HNI_FAST: 'true' } },
+      { name: 'pm', bin: 'nlx', args: ['-C', fixturePaths.npm, 'hello', '--flag'], env: { HNI_FAST_MODE: 'false' } },
+      { name: 'fast', bin: 'nlx', args: ['-C', fixturePaths.npm, 'hello', '--flag'], env: { HNI_FAST_MODE: 'true' } },
     ],
     requiredBins: ['npm'],
   })
@@ -430,7 +430,7 @@ function runtimeCases(fixturePaths) {
           kind: 'exec',
           bin: 'nr',
           args: ['-C', fixturePaths.pnpm, 'noop'],
-          env: { HNI_FAST: 'true' },
+          env: { HNI_FAST_MODE: 'true' },
         },
         {
           name: 'bun',
@@ -455,7 +455,7 @@ function runtimeCases(fixturePaths) {
           kind: 'exec',
           bin: 'nr',
           args: ['-C', fixturePaths.pnpm, 'hooks'],
-          env: { HNI_FAST: 'true' },
+          env: { HNI_FAST_MODE: 'true' },
         },
         {
           name: 'bun',
@@ -488,7 +488,7 @@ function directCases(fixturePaths) {
             kind: 'exec',
             bin: 'nr',
             args: ['-C', fixture, 'noop'],
-            env: { HNI_FAST: 'true' },
+            env: { HNI_FAST_MODE: 'true' },
           },
         ],
         requiredBins: pm.requiredBins,
@@ -504,7 +504,7 @@ function directCases(fixturePaths) {
             kind: 'exec',
             bin: 'nr',
             args: ['-C', fixture, 'hooks'],
-            env: { HNI_FAST: 'true' },
+            env: { HNI_FAST_MODE: 'true' },
           },
         ],
         requiredBins: pm.requiredBins,
@@ -524,7 +524,7 @@ function directCases(fixturePaths) {
             kind: 'exec',
             bin: 'nlx',
             args: ['-C', fixture, 'hello', '--flag'],
-            env: { HNI_FAST: 'true' },
+            env: { HNI_FAST_MODE: 'true' },
           },
         ],
         requiredBins: pm.requiredBins,
@@ -1147,7 +1147,7 @@ function fixtureDirectEnv(pmId) {
 
 function fixtureHniEnv(pmId, fastEnabled) {
   return {
-    HNI_FAST: fastEnabled ? 'true' : 'false',
+    HNI_FAST_MODE: fastEnabled ? 'true' : 'false',
     ...(pmId === 'npm' ? { npm_config_yes: 'true' } : {}),
   }
 }

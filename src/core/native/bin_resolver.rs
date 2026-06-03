@@ -5,8 +5,9 @@ use std::{
 };
 
 use anyhow::Result;
+use is_executable::IsExecutable;
 
-use crate::core::{types::NativeLocalBinLauncher, util::has_unix_executable_bit};
+use crate::core::types::NativeLocalBinLauncher;
 
 use super::shim_parser::{NodeBinLaunch, node_args_from_shebang, parse_node_shell_shim};
 
@@ -32,7 +33,7 @@ pub(super) fn resolve_local_bin_launcher(bin_path: &Path) -> Result<NativeLocalB
             _ => {}
         }
 
-        if has_unix_executable_bit(&inspected_path) {
+        if inspected_path.is_executable() {
             return Ok(NativeLocalBinLauncher::Binary(inspected_path));
         }
 
@@ -78,35 +79,7 @@ fn read_launcher_prefix(path: &Path) -> std::io::Result<String> {
 
 fn resolve_bin_source_path(bin_path: &Path) -> Result<PathBuf> {
     crate::core::profile::measure("local_bin.resolve_source", || {
-        let mut current = bin_path.to_path_buf();
-        let mut followed_symlink = false;
-
-        for _ in 0..8 {
-            let Ok(metadata) = fs::symlink_metadata(&current) else {
-                return Ok(current);
-            };
-
-            if !metadata.file_type().is_symlink() {
-                return if followed_symlink {
-                    Ok(dunce::canonicalize(&current).unwrap_or(current))
-                } else {
-                    Ok(current)
-                };
-            }
-
-            let target = fs::read_link(&current)?;
-            followed_symlink = true;
-            current = if target.is_absolute() {
-                target
-            } else {
-                current
-                    .parent()
-                    .unwrap_or_else(|| Path::new("."))
-                    .join(target)
-            };
-        }
-
-        Ok(dunce::canonicalize(&current).unwrap_or(current))
+        Ok(dunce::canonicalize(bin_path).unwrap_or_else(|_| bin_path.to_path_buf()))
     })
 }
 
@@ -154,6 +127,9 @@ mod tests {
         fs::set_permissions(&bin, permissions).unwrap();
 
         let launcher = resolve_local_bin_launcher(&bin).unwrap();
-        assert_eq!(launcher, NativeLocalBinLauncher::Binary(bin));
+        assert_eq!(
+            launcher,
+            NativeLocalBinLauncher::Binary(dunce::canonicalize(&bin).unwrap())
+        );
     }
 }

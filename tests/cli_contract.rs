@@ -19,7 +19,7 @@ fn help_and_version_contracts_are_hni_first() {
         assert!(help_subcommand_out.contains("Usage: ni"));
 
         let help_flag = run_hni(
-            vec!["ni", "-C", project.to_str().unwrap(), "--help"],
+            vec!["install", "-C", project.to_str().unwrap(), "--help"],
             &[("HNI_SKIP_PM_CHECK", "1")],
         );
         assert!(help_flag.status.success());
@@ -29,7 +29,7 @@ fn help_and_version_contracts_are_hni_first() {
 
         let passthrough_help = run_hni(
             vec![
-                "ni",
+                "install",
                 "-C",
                 project.to_str().unwrap(),
                 "--print-command",
@@ -43,7 +43,7 @@ fn help_and_version_contracts_are_hni_first() {
         assert_eq!(passthrough_help_out.trim(), "npm i --help");
 
         let version = run_hni(
-            vec!["ni", "-C", project.to_str().unwrap(), "--version"],
+            vec!["install", "-C", project.to_str().unwrap(), "--version"],
             &[("HNI_SKIP_PM_CHECK", "1")],
         );
         assert!(version.status.success());
@@ -63,7 +63,7 @@ fn global_flags_work_anywhere_before_passthrough_separator() {
 
         let output = run_hni(
             vec![
-                "ni",
+                "install",
                 "-C",
                 project.to_str().unwrap(),
                 "vite",
@@ -92,14 +92,14 @@ fn fast_and_pm_cli_flags_override_environment_setting() {
 
         let force_fast = run_hni(
             vec![
-                "nr",
+                "run",
                 "-C",
                 project.to_str().unwrap(),
                 "--fast",
                 "--print-command",
                 "dev",
             ],
-            &[("HNI_SKIP_PM_CHECK", "1"), ("HNI_FAST", "false")],
+            &[("HNI_SKIP_PM_CHECK", "1"), ("HNI_FAST_MODE", "false")],
         );
         assert!(force_fast.status.success());
         assert_eq!(
@@ -109,14 +109,14 @@ fn fast_and_pm_cli_flags_override_environment_setting() {
 
         let force_pm = run_hni(
             vec![
-                "nr",
+                "run",
                 "-C",
                 project.to_str().unwrap(),
                 "--pm",
                 "--print-command",
                 "dev",
             ],
-            &[("HNI_SKIP_PM_CHECK", "1"), ("HNI_FAST", "true")],
+            &[("HNI_SKIP_PM_CHECK", "1"), ("HNI_FAST_MODE", "true")],
         );
         assert!(force_pm.status.success());
         assert_eq!(
@@ -143,10 +143,10 @@ fn default_fast_mode_resolves_nr_and_nlx_natively() {
         fs::write(bin_dir.join("hello"), "#!/bin/sh\nexit 0\n").unwrap();
         make_executable(&bin_dir.join("hello"));
 
-        support::with_var_removed("HNI_FAST", || {
+        support::with_var_removed("HNI_FAST_MODE", || {
             let nr = run_hni(
                 vec![
-                    "nr",
+                    "run",
                     "-C",
                     project.to_str().unwrap(),
                     "--print-command",
@@ -162,7 +162,7 @@ fn default_fast_mode_resolves_nr_and_nlx_natively() {
 
             let nlx = run_hni(
                 vec![
-                    "nlx",
+                    "exec",
                     "-C",
                     project.to_str().unwrap(),
                     "--print-command",
@@ -196,14 +196,14 @@ fn fast_flag_enables_fast_mode() {
 
         let output = run_hni(
             vec![
-                "nr",
+                "run",
                 "-C",
                 project.to_str().unwrap(),
                 "--fast",
                 "--print-command",
                 "dev",
             ],
-            &[("HNI_SKIP_PM_CHECK", "1"), ("HNI_FAST", "false")],
+            &[("HNI_SKIP_PM_CHECK", "1"), ("HNI_FAST_MODE", "false")],
         );
         assert!(output.status.success(), "{output:?}");
         assert_eq!(
@@ -282,7 +282,7 @@ fn print_command_and_explain_skip_package_manager_availability_checks() {
 
         let printed = run_hni(
             vec![
-                "ni",
+                "install",
                 "-C",
                 project.to_str().unwrap(),
                 "--print-command",
@@ -297,37 +297,19 @@ fn print_command_and_explain_skip_package_manager_availability_checks() {
         );
 
         let explain = run_hni(
-            vec!["ni", "-C", project.to_str().unwrap(), "--explain", "react"],
+            vec![
+                "install",
+                "-C",
+                project.to_str().unwrap(),
+                "--explain",
+                "react",
+            ],
             &[("PATH", "/usr/bin:/bin:/usr/sbin:/sbin")],
         );
         assert!(explain.status.success(), "{explain:?}");
         let stdout = String::from_utf8_lossy(&explain.stdout);
         assert!(stdout.contains("hni explain"));
         assert!(stdout.contains("resolved: pnpm add react"));
-    });
-}
-
-#[test]
-fn passthrough_node_explain_reports_passthrough_mode() {
-    support::with_env_lock(|| {
-        let work = tempfile::tempdir().unwrap();
-        let project = work.path().join("npm");
-        fs::create_dir_all(&project).unwrap();
-        fs::write(project.join("package.json"), r#"{"name":"x"}"#).unwrap();
-
-        let output = run_hni(
-            vec![
-                "node",
-                "-C",
-                project.to_str().unwrap(),
-                "--explain",
-                "server.js",
-            ],
-            &[("HNI_SKIP_PM_CHECK", "1")],
-        );
-        assert!(output.status.success(), "{output:?}");
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        assert!(stdout.contains("execution_mode: passthrough-node"));
     });
 }
 

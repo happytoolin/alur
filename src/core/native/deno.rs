@@ -8,6 +8,7 @@ use anyhow::{Context, Result, anyhow, bail};
 use indexmap::IndexMap;
 use jsonc_parser::{ParseOptions, parse_to_serde_value};
 use serde::Deserialize;
+use wildmatch::WildMatch;
 
 use crate::core::{
     project::node_modules_bin_dirs,
@@ -238,7 +239,7 @@ fn build_deno_task_stages(
 }
 
 fn match_deno_tasks(tasks: &IndexMap<String, DenoTaskDefinition>, pattern: &str) -> Vec<String> {
-    if !pattern.contains('*') {
+    if !pattern.contains(['*', '?']) {
         return if tasks.contains_key(pattern) {
             vec![pattern.to_string()]
         } else {
@@ -246,51 +247,17 @@ fn match_deno_tasks(tasks: &IndexMap<String, DenoTaskDefinition>, pattern: &str)
         };
     }
 
+    let matcher = WildMatch::new(pattern);
     tasks
         .keys()
-        .filter(|name| wildcard_matches(pattern, name))
+        .filter(|name| matcher.matches(name))
         .cloned()
         .collect()
 }
 
+#[cfg(test)]
 fn wildcard_matches(pattern: &str, value: &str) -> bool {
-    if pattern == "*" {
-        return true;
-    }
-
-    let parts = pattern.split('*').collect::<Vec<_>>();
-    if parts.len() == 1 {
-        return pattern == value;
-    }
-
-    let mut remaining = value;
-    let mut is_first = true;
-    for (index, part) in parts.iter().enumerate() {
-        if part.is_empty() {
-            continue;
-        }
-
-        if is_first && !pattern.starts_with('*') {
-            if !remaining.starts_with(part) {
-                return false;
-            }
-            remaining = &remaining[part.len()..];
-            is_first = false;
-            continue;
-        }
-
-        if index == parts.len() - 1 && !pattern.ends_with('*') {
-            return remaining.ends_with(part);
-        }
-
-        let Some(position) = remaining.find(part) else {
-            return false;
-        };
-        remaining = &remaining[position + part.len()..];
-        is_first = false;
-    }
-
-    pattern.ends_with('*') || remaining.is_empty()
+    WildMatch::new(pattern).matches(value)
 }
 
 #[derive(Debug, Clone)]
@@ -373,8 +340,10 @@ mod tests {
         assert!(wildcard_matches("build-*", "build-a-dev"));
         assert!(wildcard_matches("*-dev", "build-dev"));
         assert!(wildcard_matches("build-*-dev", "build-a-dev"));
+        assert!(wildcard_matches("build-?", "build-a"));
         assert!(!wildcard_matches("build-*", "test-a"));
         assert!(!wildcard_matches("build-*-dev", "build-dev"));
+        assert!(!wildcard_matches("build-?", "build-ab"));
     }
 
     #[test]

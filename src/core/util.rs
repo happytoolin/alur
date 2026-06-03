@@ -1,27 +1,9 @@
 use std::{path::Path, process::ExitCode};
 
-#[cfg(unix)]
+use is_executable::IsExecutable;
+
 pub fn file_is_runnable(path: &Path) -> bool {
-    use std::os::unix::fs::PermissionsExt;
-
-    path.metadata()
-        .map(|metadata| metadata.is_file() && metadata.permissions().mode() & 0o111 != 0)
-        .unwrap_or(false)
-}
-
-#[cfg(not(unix))]
-pub fn file_is_runnable(path: &Path) -> bool {
-    path.is_file()
-}
-
-#[cfg(unix)]
-pub fn has_unix_executable_bit(path: &Path) -> bool {
-    file_is_runnable(path)
-}
-
-#[cfg(not(unix))]
-pub fn has_unix_executable_bit(_path: &Path) -> bool {
-    false
+    path.is_executable()
 }
 
 pub fn exit_code_from_status(code: Option<i32>) -> ExitCode {

@@ -44,9 +44,7 @@ fn compare_pm_mode_with_installed_antfu_when_available() {
         create_alias(&our_bin, &our_alias_dir, "ni");
         create_alias(&our_bin, &our_alias_dir, "nr");
         create_alias(&our_bin, &our_alias_dir, "nlx");
-        create_alias(&our_bin, &our_alias_dir, "nun");
         create_alias(&our_bin, &our_alias_dir, "nci");
-        create_alias(&our_bin, &our_alias_dir, "nru");
 
         let mut executed_fixtures = BTreeSet::new();
 
@@ -81,7 +79,7 @@ fn compare_pm_mode_with_installed_antfu_when_available() {
                     &fixture.path,
                     &case.args,
                     "--print-command",
-                    &[("HNI_SKIP_PM_CHECK", "1"), ("HNI_FAST", "false")],
+                    &[("HNI_SKIP_PM_CHECK", "1"), ("HNI_FAST_MODE", "false")],
                 );
 
                 assert_eq!(
@@ -187,16 +185,6 @@ fn build_fixtures(root: &Path, cmds: &AntfuBins) -> Vec<Fixture> {
             our_bin: "nlx".into(),
             args: vec!["vitest".into(), "--help".into()],
         },
-        Case {
-            antfu_bin: cmds.nun.clone(),
-            our_bin: "nun".into(),
-            args: vec!["webpack".into()],
-        },
-        Case {
-            antfu_bin: cmds.nup.clone(),
-            our_bin: "nru".into(),
-            args: vec![],
-        },
     ];
 
     let npm = root.join("npm");
@@ -237,17 +225,11 @@ fn build_fixtures(root: &Path, cmds: &AntfuBins) -> Vec<Fixture> {
     )
     .unwrap();
     fs::write(pnpm.join("pnpm-lock.yaml"), "lock").unwrap();
-    let mut pnpm_cases = base_cases.clone();
-    pnpm_cases.push(Case {
-        antfu_bin: cmds.nup.clone(),
-        our_bin: "nru".into(),
-        args: vec!["-i".into()],
-    });
     fixtures.push(Fixture {
         name: "pnpm".into(),
         path: pnpm,
         prereq_bins: vec!["pnpm".into()],
-        cases: pnpm_cases.clone(),
+        cases: base_cases.clone(),
     });
 
     let workspace_root = root.join("pnpm-workspace");
@@ -268,7 +250,7 @@ fn build_fixtures(root: &Path, cmds: &AntfuBins) -> Vec<Fixture> {
         name: "pnpm-workspace-subpkg".into(),
         path: workspace_pkg,
         prereq_bins: vec!["pnpm".into()],
-        cases: pnpm_cases,
+        cases: base_cases.clone(),
     });
 
     let bun = root.join("bun");
@@ -294,17 +276,11 @@ fn build_fixtures(root: &Path, cmds: &AntfuBins) -> Vec<Fixture> {
     )
     .unwrap();
     fs::write(deno.join("deno.lock"), "lock").unwrap();
-    let mut deno_cases = base_cases;
-    deno_cases.push(Case {
-        antfu_bin: cmds.nup.clone(),
-        our_bin: "nru".into(),
-        args: vec!["-i".into()],
-    });
     fixtures.push(Fixture {
         name: "deno".into(),
         path: deno,
         prereq_bins: vec!["deno".into()],
-        cases: deno_cases,
+        cases: base_cases,
     });
 
     fixtures
@@ -315,9 +291,7 @@ struct AntfuBins {
     ni: PathBuf,
     nr: PathBuf,
     nlx: PathBuf,
-    nun: PathBuf,
     nci: PathBuf,
-    nup: PathBuf,
 }
 
 fn antfu_bins() -> Option<AntfuBins> {
@@ -325,9 +299,7 @@ fn antfu_bins() -> Option<AntfuBins> {
         ni: which::which("ni").ok()?,
         nr: which::which("nr").ok()?,
         nlx: which::which("nlx").ok()?,
-        nun: which::which("nun").ok()?,
         nci: which::which("nci").ok()?,
-        nup: which::which("nup").ok()?,
     })
 }
 

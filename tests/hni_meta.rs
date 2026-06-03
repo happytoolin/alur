@@ -4,9 +4,10 @@ mod support;
 
 use hni::{
     app::{
+        cli::hni_command,
         command_registry::{
-            command_spec_by_name, command_specs, command_subcommands, help_command_for_topic,
-            help_topic_by_name, invocation_from_name,
+            command_spec_by_name, command_specs, help_command_for_topic, help_topic_by_name,
+            invocation_from_name,
         },
         commands::{handle_np, handle_ns},
     },
@@ -18,7 +19,7 @@ use hni::{
 };
 
 #[test]
-fn hni_subcommand_aliases_resolve_like_multicall() {
+fn hni_canonical_subcommands_resolve_commands() {
     support::with_env_lock(|| {
         let work = tempfile::tempdir().unwrap();
         let project = work.path().join("npm");
@@ -27,7 +28,13 @@ fn hni_subcommand_aliases_resolve_like_multicall() {
         fs::write(project.join("package.json"), r#"{"name":"x"}"#).unwrap();
 
         let output = run_hni(
-            vec!["ni", "-C", project.to_str().unwrap(), "vite", "--explain"],
+            vec![
+                "install",
+                "-C",
+                project.to_str().unwrap(),
+                "vite",
+                "--explain",
+            ],
             &[("HNI_SKIP_PM_CHECK", "1")],
         );
         assert!(output.status.success());
@@ -35,6 +42,30 @@ fn hni_subcommand_aliases_resolve_like_multicall() {
         assert!(stdout.contains("hni explain"));
         assert!(stdout.contains("resolved:"));
         assert!(stdout.contains("npm i vite"));
+
+        let uninstall = run_hni(
+            vec![
+                "uninstall",
+                "-C",
+                project.to_str().unwrap(),
+                "lodash",
+                "--print-command",
+            ],
+            &[("HNI_SKIP_PM_CHECK", "1")],
+        );
+        assert!(uninstall.status.success());
+        let uninstall_stdout = String::from_utf8_lossy(&uninstall.stdout);
+        assert_eq!(uninstall_stdout.trim(), "npm uninstall lodash");
+    });
+}
+
+#[test]
+fn hni_rejects_multicall_alias_subcommands() {
+    support::with_env_lock(|| {
+        let output = run_hni(vec!["ni", "--help"], &[("HNI_SKIP_PM_CHECK", "1")]);
+        assert!(!output.status.success());
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(stderr.contains("hni: parse error"));
     });
 }
 
@@ -46,23 +77,41 @@ fn command_registry_exposes_expected_public_surface() {
         .collect::<Vec<_>>();
     assert_eq!(
         names,
-        vec![
-            "ni", "nr", "nlx", "nru", "nun", "nci", "na", "np", "ns", "node"
-        ]
+        vec!["ni", "nr", "nlx", "nun", "nci", "np", "ns", "node"]
     );
 
     assert_eq!(invocation_from_name("nr"), Some(InvocationKind::Nr));
+    assert_eq!(invocation_from_name("nun"), Some(InvocationKind::Nun));
     assert_eq!(help_topic_by_name("completion"), Some(HelpTopic::Hni));
+    assert_eq!(help_topic_by_name("install"), Some(HelpTopic::Ni));
+    assert_eq!(help_topic_by_name("uninstall"), Some(HelpTopic::Nun));
     assert_eq!(
         command_spec_by_name("init").map(|spec| spec.name),
         None,
         "init is a top-level hni command, not a multicall alias"
     );
 
-    let subcommand_names = command_subcommands()
+    let hni_subcommand_names = hni_command()
+        .get_subcommands()
+        .filter(|command| !command.is_hide_set())
         .map(|command| command.get_name().to_string())
         .collect::<Vec<_>>();
-    assert_eq!(subcommand_names, names);
+    assert_eq!(
+        hni_subcommand_names,
+        vec![
+            "install",
+            "uninstall",
+            "run",
+            "exec",
+            "ci",
+            "parallel",
+            "sequential",
+            "help",
+            "doctor",
+            "completion",
+            "init",
+        ]
+    );
 
     assert_eq!(help_command_for_topic(HelpTopic::Nr).get_name(), "nr");
     assert_eq!(help_command_for_topic(HelpTopic::Init).get_name(), "init");
@@ -166,6 +215,8 @@ fn hni_pre_execution_commands_are_available() {
         assert!(completion.status.success());
         let completion_out = String::from_utf8_lossy(&completion.stdout);
         assert!(completion_out.contains("hni"));
+        assert!(!completion_out.contains(" internal"));
+        assert!(!completion_out.contains(" ni"));
 
         let top_help = run_hni(vec!["help"], &[("HNI_SKIP_PM_CHECK", "1")]);
         assert!(top_help.status.success());

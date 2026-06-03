@@ -100,51 +100,51 @@ fn fixture_projects_cover_pm_and_fast_resolution_modes() {
             assert_print_command(
                 dir.path(),
                 &[
-                    "nr",
+                    "run",
                     "-C",
                     dir.path().to_str().unwrap(),
                     "--print-command",
                     "dev",
                 ],
-                &[("HNI_SKIP_PM_CHECK", "1"), ("HNI_FAST", "false")],
+                &[("HNI_SKIP_PM_CHECK", "1"), ("HNI_FAST_MODE", "false")],
                 case.pm_nr,
             );
             assert_print_command(
                 dir.path(),
                 &[
-                    "nr",
+                    "run",
                     "-C",
                     dir.path().to_str().unwrap(),
                     "--print-command",
                     "dev",
                 ],
-                &[("HNI_SKIP_PM_CHECK", "1"), ("HNI_FAST", "true")],
+                &[("HNI_SKIP_PM_CHECK", "1"), ("HNI_FAST_MODE", "true")],
                 case.fast_nr,
             );
             assert_print_command(
                 dir.path(),
                 &[
-                    "nlx",
+                    "exec",
                     "-C",
                     dir.path().to_str().unwrap(),
                     "--print-command",
                     "hello",
                     "--flag",
                 ],
-                &[("HNI_SKIP_PM_CHECK", "1"), ("HNI_FAST", "false")],
+                &[("HNI_SKIP_PM_CHECK", "1"), ("HNI_FAST_MODE", "false")],
                 case.pm_nlx,
             );
             assert_print_command(
                 dir.path(),
                 &[
-                    "nlx",
+                    "exec",
                     "-C",
                     dir.path().to_str().unwrap(),
                     "--print-command",
                     "hello",
                     "--flag",
                 ],
-                &[("HNI_SKIP_PM_CHECK", "1"), ("HNI_FAST", "true")],
+                &[("HNI_SKIP_PM_CHECK", "1"), ("HNI_FAST_MODE", "true")],
                 case.fast_nlx,
             );
         }

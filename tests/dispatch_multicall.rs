@@ -32,7 +32,6 @@ fn multicall_aliases_resolve_expected_commands() {
         create_alias(&exe, &bin_dir, "ni");
         create_alias(&exe, &bin_dir, "nr");
         create_alias(&exe, &bin_dir, "nlx");
-        create_alias(&exe, &bin_dir, "nru");
         create_alias(&exe, &bin_dir, "nun");
         create_alias(&exe, &bin_dir, "nci");
         create_alias(&exe, &bin_dir, "np");
@@ -122,6 +121,20 @@ fn multicall_aliases_resolve_expected_commands() {
         );
         assert_eq!(node_out.trim(), "npm run dev");
 
+        let node_uninstall_out = run_alias(
+            &bin_dir,
+            "node",
+            vec![
+                "-C",
+                npm_proj.to_str().unwrap(),
+                "remove",
+                "lodash",
+                "--print-command",
+            ],
+            &[],
+        );
+        assert_eq!(node_uninstall_out.trim(), "npm uninstall lodash");
+
         let nlx_out = run_alias(
             &bin_dir,
             "nlx",
@@ -142,21 +155,18 @@ fn multicall_aliases_resolve_expected_commands() {
             nlx_out.trim()
         );
 
-        let nru_out = run_alias(
+        let nun_out = run_alias(
             &bin_dir,
-            "nru",
-            vec!["-C", npm_proj.to_str().unwrap(), "vite", "--print-command"],
+            "nun",
+            vec![
+                "-C",
+                npm_proj.to_str().unwrap(),
+                "lodash",
+                "--print-command",
+            ],
             &[],
         );
-        assert_eq!(nru_out.trim(), "npm update vite");
-
-        let nci_out = run_alias(
-            &bin_dir,
-            "nci",
-            vec!["-C", npm_proj.to_str().unwrap(), "--print-command"],
-            &[],
-        );
-        assert_eq!(nci_out.trim(), "npm ci");
+        assert_eq!(nun_out.trim(), "npm uninstall lodash");
 
         let nun_global_out = run_alias(
             &bin_dir,
@@ -165,12 +175,20 @@ fn multicall_aliases_resolve_expected_commands() {
                 "-C",
                 npm_proj.to_str().unwrap(),
                 "-g",
-                "eslint",
+                "typescript",
                 "--print-command",
             ],
             &[("HNI_GLOBAL_PACKAGE_MANAGER", "yarn")],
         );
-        assert_eq!(nun_global_out.trim(), "yarn global remove eslint");
+        assert_eq!(nun_global_out.trim(), "yarn global remove typescript");
+
+        let nci_out = run_alias(
+            &bin_dir,
+            "nci",
+            vec!["-C", npm_proj.to_str().unwrap(), "--print-command"],
+            &[],
+        );
+        assert_eq!(nci_out.trim(), "npm ci");
 
         let np_out = run_alias(
             &bin_dir,

@@ -11,6 +11,18 @@ fn routes_known_verbs() {
 }
 
 #[test]
+fn routes_uninstall_verbs() {
+    for verb in ["uninstall", "remove"] {
+        let (mode, args) = node_shim::decide(&[verb.into(), "lodash".into()]);
+        assert!(matches!(
+            mode,
+            NodeShimMode::RouteToIntent(Intent::Uninstall)
+        ));
+        assert_eq!(args, vec!["lodash"]);
+    }
+}
+
+#[test]
 fn passthroughs_unknown_verb() {
     let (mode, args) = node_shim::decide(&["script.js".into()]);
     assert!(matches!(mode, NodeShimMode::PassthroughNode));

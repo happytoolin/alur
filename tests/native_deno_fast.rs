@@ -16,10 +16,10 @@ fn deno_fast_path_uses_fast_task_execution() {
         )
         .unwrap();
 
-        support::with_var_removed("HNI_FAST", || {
+        support::with_var_removed("HNI_FAST_MODE", || {
             let output = run_hni(
                 vec![
-                    "nr",
+                    "run",
                     "-C",
                     work.path().to_str().unwrap(),
                     "--print-command",
@@ -49,7 +49,7 @@ fn deno_pm_mode_still_delegates() {
 
         let output = run_hni(
             vec![
-                "nr",
+                "run",
                 "-C",
                 work.path().to_str().unwrap(),
                 "--pm",
@@ -83,7 +83,7 @@ fn deno_fast_path_ignores_unrelated_malformed_ancestor_manifests() {
 
         let output = run_hni(
             vec![
-                "nr",
+                "run",
                 "-C",
                 project.to_str().unwrap(),
                 "--fast",
@@ -118,7 +118,7 @@ fn deno_jsonc_is_supported() {
 
         let output = run_hni(
             vec![
-                "nr",
+                "run",
                 "-C",
                 work.path().to_str().unwrap(),
                 "--fast",
@@ -150,7 +150,7 @@ fn deno_task_cwd_and_init_cwd_match_deno_behavior() {
         .unwrap();
 
         let output = run_hni(
-            vec!["nr", "-C", nested.to_str().unwrap(), "--fast", "dev"],
+            vec!["run", "-C", nested.to_str().unwrap(), "--fast", "dev"],
             &[("HNI_SKIP_PM_CHECK", "1")],
         );
 
@@ -186,7 +186,7 @@ fn deno_dependencies_run_before_root() {
         .unwrap();
 
         let output = run_hni(
-            vec!["nr", "-C", work.path().to_str().unwrap(), "--fast", "dev"],
+            vec!["run", "-C", work.path().to_str().unwrap(), "--fast", "dev"],
             &[("HNI_SKIP_PM_CHECK", "1")],
         );
 
@@ -222,7 +222,7 @@ fn deno_dependency_only_task_is_valid() {
         .unwrap();
 
         let output = run_hni(
-            vec!["nr", "-C", work.path().to_str().unwrap(), "--fast", "dev"],
+            vec!["run", "-C", work.path().to_str().unwrap(), "--fast", "dev"],
             &[("HNI_SKIP_PM_CHECK", "1")],
         );
 
@@ -256,7 +256,7 @@ fn deno_wildcard_task_selection_runs_matching_tasks() {
 
         let output = run_hni(
             vec![
-                "nr",
+                "run",
                 "-C",
                 work.path().to_str().unwrap(),
                 "--fast",
@@ -298,7 +298,7 @@ fn deno_mixed_project_prefers_deno_task_over_package_json_script() {
         .unwrap();
 
         let output = run_hni(
-            vec!["nr", "-C", work.path().to_str().unwrap(), "--fast", "dev"],
+            vec!["run", "-C", work.path().to_str().unwrap(), "--fast", "dev"],
             &[("HNI_SKIP_PM_CHECK", "1")],
         );
 
@@ -329,7 +329,7 @@ fn deno_package_json_only_match_delegates_to_deno() {
 
         let output = run_hni(
             vec![
-                "nr",
+                "run",
                 "-C",
                 work.path().to_str().unwrap(),
                 "--fast",
@@ -364,7 +364,7 @@ fn deno_cycle_and_workspace_fall_back_to_pm_mode() {
 
         let cycle_out = run_hni(
             vec![
-                "nr",
+                "run",
                 "-C",
                 cycle.path().to_str().unwrap(),
                 "--fast",
@@ -391,7 +391,7 @@ fn deno_cycle_and_workspace_fall_back_to_pm_mode() {
 
         let workspace_out = run_hni(
             vec![
-                "nr",
+                "run",
                 "-C",
                 workspace.path().to_str().unwrap(),
                 "--fast",
@@ -424,7 +424,7 @@ fn deno_nlx_fast_runs_local_bins_and_delegates_remote_exec() {
 
         let local = run_hni(
             vec![
-                "nlx",
+                "exec",
                 "-C",
                 work.path().to_str().unwrap(),
                 "--fast",
@@ -442,7 +442,7 @@ fn deno_nlx_fast_runs_local_bins_and_delegates_remote_exec() {
 
         let remote = run_hni(
             vec![
-                "nlx",
+                "exec",
                 "-C",
                 work.path().to_str().unwrap(),
                 "--fast",

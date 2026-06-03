@@ -12,16 +12,16 @@ mod support;
 fn config_loads_and_env_overrides() {
     support::with_env_lock(|| {
         let dir = tempfile::tempdir().unwrap();
-        let cfg_path = dir.path().join("nirc");
+        let cfg_path = dir.path().join("config.toml");
         fs::write(
             &cfg_path,
-            "defaultPackageManager=pnpm\nglobalPackageManager=yarn\nfastMode=true\n",
+            "default_package_manager = \"pnpm\"\nglobal_package_manager = \"yarn\"\nfast_mode = true\n",
         )
         .unwrap();
 
         support::set_var("HNI_CONFIG_FILE", &cfg_path);
         support::set_var("HNI_GLOBAL_PACKAGE_MANAGER", "npm");
-        support::set_var("HNI_FAST", "false");
+        support::set_var("HNI_FAST_MODE", "false");
 
         let cfg = HniConfig::load().unwrap();
         assert_eq!(cfg.default_package_manager, Some(PackageManager::Pnpm));
@@ -30,7 +30,7 @@ fn config_loads_and_env_overrides() {
 
         support::remove_var("HNI_CONFIG_FILE");
         support::remove_var("HNI_GLOBAL_PACKAGE_MANAGER");
-        support::remove_var("HNI_FAST");
+        support::remove_var("HNI_FAST_MODE");
     });
 }
 
@@ -38,7 +38,7 @@ fn config_loads_and_env_overrides() {
 fn explicit_config_path_must_exist() {
     support::with_env_lock(|| {
         let dir = tempfile::tempdir().unwrap();
-        let missing = dir.path().join("missing-hnirc");
+        let missing = dir.path().join("missing-config.toml");
 
         support::set_var("HNI_CONFIG_FILE", &missing);
         let err = HniConfig::load().unwrap_err();
@@ -86,47 +86,4 @@ fn detect_uses_config_fallback_when_no_lock_or_package_manager() {
     let detected = detect(dir.path(), &cfg).unwrap();
     assert_eq!(detected.agent, Some(PackageManager::Bun));
     assert_eq!(detected.source, DetectionSource::Config);
-}
-
-#[test]
-fn ignores_legacy_ni_environment_variables() {
-    support::with_env_lock(|| {
-        support::set_var("NI_DEFAULT_AGENT", "pnpm");
-        support::set_var("NI_GLOBAL_AGENT", "yarn");
-        support::set_var("NI_USE_SFW", "true");
-        support::set_var("NI_AUTO_INSTALL", "true");
-
-        let cfg = support::with_var_removed("HNI_FAST", HniConfig::load).unwrap();
-
-        support::remove_var("NI_DEFAULT_AGENT");
-        support::remove_var("NI_GLOBAL_AGENT");
-        support::remove_var("NI_USE_SFW");
-        support::remove_var("NI_AUTO_INSTALL");
-
-        assert_eq!(cfg.default_package_manager, None);
-        assert_eq!(cfg.global_package_manager, PackageManager::Npm);
-        assert!(cfg.fast_mode);
-    });
-}
-
-#[test]
-fn ignores_legacy_nirc_fallback() {
-    support::with_env_lock(|| {
-        let dir = tempfile::tempdir().unwrap();
-        let home = dir.path().join("home");
-        fs::create_dir_all(&home).unwrap();
-        fs::write(
-            home.join(".nirc"),
-            "defaultPackageManager=pnpm\nglobalPackageManager=yarn\nfastMode=false\n",
-        )
-        .unwrap();
-
-        support::set_var("HOME", &home);
-        let cfg = support::with_var_removed("HNI_FAST", HniConfig::load).unwrap();
-        support::remove_var("HOME");
-
-        assert_eq!(cfg.default_package_manager, None);
-        assert_eq!(cfg.global_package_manager, PackageManager::Npm);
-        assert!(cfg.fast_mode);
-    });
 }

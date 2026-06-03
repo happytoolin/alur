@@ -31,38 +31,9 @@ use crate::{
 pub fn run_from_env() -> Result<ExitCode> {
     let parsed = parse_from_env()?;
 
-    if !parsed.cwd.exists() {
-        return Err(anyhow!(
-            "execution error: working directory does not exist: {}",
-            parsed.cwd.display()
-        ));
-    }
-
-    let mut config = HniConfig::load()?;
-    if let Some(fast_override) = parsed.fast_override {
-        config.fast_mode = fast_override;
-    }
-    let verify_package_manager_availability =
-        matches!(&parsed.command, ParsedCommand::Execute { .. })
-            && !parsed.print_command
-            && !parsed.explain;
-    let resolve_ctx = ResolveContext::with_package_manager_checks(
-        parsed.cwd.clone(),
-        config,
-        verify_package_manager_availability,
-    );
-
-    match parsed.command {
-        ParsedCommand::PrintVersions => {
-            print_versions(&resolve_ctx);
-            Ok(ExitCode::SUCCESS)
-        }
+    match parsed.command.clone() {
         ParsedCommand::PrintHelp(topic) => {
             print_help(topic);
-            Ok(ExitCode::SUCCESS)
-        }
-        ParsedCommand::Doctor => {
-            print_doctor(&resolve_ctx);
             Ok(ExitCode::SUCCESS)
         }
         ParsedCommand::Completion { shell, program } => {
@@ -78,16 +49,29 @@ pub fn run_from_env() -> Result<ExitCode> {
             println!("{}", path.display());
             Ok(ExitCode::SUCCESS)
         }
+        ParsedCommand::PrintVersions => {
+            let resolve_ctx = resolve_context(&parsed, false)?;
+            print_versions(&resolve_ctx);
+            Ok(ExitCode::SUCCESS)
+        }
+        ParsedCommand::Doctor => {
+            let resolve_ctx = resolve_context(&parsed, false)?;
+            print_doctor(&resolve_ctx);
+            Ok(ExitCode::SUCCESS)
+        }
         ParsedCommand::InternalProfileLoop {
             invocation,
             args,
             iterations,
             timings,
         } => {
+            let resolve_ctx = resolve_context(&parsed, false)?;
             run_profile_loop(invocation, args, iterations, timings, &resolve_ctx)?;
             Ok(ExitCode::SUCCESS)
         }
         ParsedCommand::Execute { invocation, args } => {
+            let verify_package_manager_availability = !parsed.print_command && !parsed.explain;
+            let resolve_ctx = resolve_context(&parsed, verify_package_manager_availability)?;
             let resolved = dispatch_invocation(invocation, args, &resolve_ctx)?;
             let Some(resolved) = resolved else {
                 return Ok(ExitCode::SUCCESS);
@@ -107,6 +91,28 @@ pub fn run_from_env() -> Result<ExitCode> {
             runner::run(&resolved).context("execution error")
         }
     }
+}
+
+fn resolve_context(
+    parsed: &crate::app::cli::ParsedInvocation,
+    verify_package_manager_availability: bool,
+) -> Result<ResolveContext> {
+    if !parsed.cwd.exists() {
+        return Err(anyhow!(
+            "execution error: working directory does not exist: {}",
+            parsed.cwd.display()
+        ));
+    }
+
+    let mut config = HniConfig::load()?;
+    if let Some(fast_override) = parsed.fast_override {
+        config.fast_mode = fast_override;
+    }
+    Ok(ResolveContext::with_package_manager_checks(
+        parsed.cwd.clone(),
+        config,
+        verify_package_manager_availability,
+    ))
 }
 
 fn print_explain(
