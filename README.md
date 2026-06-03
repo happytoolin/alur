@@ -245,6 +245,7 @@ Config file:
 
 - `$XDG_CONFIG_HOME/hni/config.toml`
 - macOS default: `~/Library/Application Support/hni/config.toml`
+- Windows default: `%APPDATA%\hni\config.toml`
 
 Supported keys:
 
