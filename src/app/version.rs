@@ -108,3 +108,68 @@ fn run_version(
         Some(stdout)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::run_version;
+
+    #[cfg(unix)]
+    #[test]
+    fn run_version_returns_trimmed_stdout_for_successful_commands() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let dir = tempfile::tempdir().unwrap();
+        let script = dir.path().join("version-tool");
+        std::fs::write(&script, "#!/bin/sh\nprintf 'v1.2.3\\n'\n").unwrap();
+        let mut permissions = std::fs::metadata(&script).unwrap().permissions();
+        permissions.set_mode(0o755);
+        std::fs::set_permissions(&script, permissions).unwrap();
+
+        assert_eq!(
+            run_version(
+                script.to_string_lossy().to_string(),
+                Vec::new(),
+                dir.path(),
+                None
+            ),
+            Some("v1.2.3".to_string())
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn run_version_returns_none_for_failed_or_empty_commands() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let dir = tempfile::tempdir().unwrap();
+        let empty = dir.path().join("empty-tool");
+        let fail = dir.path().join("fail-tool");
+        std::fs::write(&empty, "#!/bin/sh\n").unwrap();
+        std::fs::write(&fail, "#!/bin/sh\nexit 1\n").unwrap();
+
+        for script in [&empty, &fail] {
+            let mut permissions = std::fs::metadata(script).unwrap().permissions();
+            permissions.set_mode(0o755);
+            std::fs::set_permissions(script, permissions).unwrap();
+        }
+
+        assert_eq!(
+            run_version(
+                empty.to_string_lossy().to_string(),
+                Vec::new(),
+                dir.path(),
+                None
+            ),
+            None
+        );
+        assert_eq!(
+            run_version(
+                fail.to_string_lossy().to_string(),
+                Vec::new(),
+                dir.path(),
+                None
+            ),
+            None
+        );
+    }
+}

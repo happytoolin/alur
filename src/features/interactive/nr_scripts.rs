@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use anyhow::{Result, anyhow};
+use anyhow::{Context, Result, anyhow};
 use dialoguer::{FuzzySelect, theme::ColorfulTheme};
 
 use crate::core::resolve::ResolveContext;
@@ -34,7 +34,7 @@ pub fn choose_script_interactive(ctx: &ResolveContext) -> Result<String> {
         .items(&labels)
         .default(0)
         .interact_opt()
-        .map_err(|error| anyhow!("interactive error: failed to read script selection: {error}"))?
+        .context("interactive error: failed to read script selection")?
         .ok_or_else(|| anyhow!("interactive error: script selection canceled"))?;
 
     Ok(scripts[idx].name.clone())

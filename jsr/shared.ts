@@ -3,24 +3,24 @@ import { dirname, join } from "jsr:@std/path@^1.1.4";
 const REPO = "happytoolin/hni";
 const VERSION = "0.0.3";
 const TAG = VERSION.startsWith("v") ? VERSION : `v${VERSION}`;
-const DOWNLOAD_ROOT =
-  Deno.env.get("HNI_DOWNLOAD_ROOT") ??
-  "https://happytoolin.com/hni/releases/download";
-const FALLBACK_DOWNLOAD_ROOT =
-  Deno.env.get("HNI_FALLBACK_DOWNLOAD_ROOT") ??
+const DEFAULT_DOWNLOAD_ROOT = "https://happytoolin.com/hni/releases/download";
+const DEFAULT_FALLBACK_DOWNLOAD_ROOT =
   `https://github.com/${REPO}/releases/download`;
 
-export type Invocation =
-  | "hni"
-  | "ni"
-  | "nr"
-  | "nlx"
-  | "nru"
-  | "nun"
-  | "nci"
-  | "na"
-  | "np"
-  | "ns";
+export const INVOCATIONS = [
+  "hni",
+  "ni",
+  "nr",
+  "nlx",
+  "nru",
+  "nun",
+  "nci",
+  "na",
+  "np",
+  "ns",
+] as const;
+
+export type Invocation = typeof INVOCATIONS[number];
 
 interface TargetInfo {
   target: string;
@@ -53,9 +53,11 @@ export async function ensureBinary(): Promise<{ binaryPath: string }> {
   await Deno.mkdir(installDir, { recursive: true });
 
   if (!(await isCurrentInstall(binaryPath, markerPath, marker))) {
+    const primaryRoot = trimTrailingSlash(downloadRoot());
+    const fallbackRoot = trimTrailingSlash(fallbackDownloadRoot());
     const rawAsset = `hni-${TAG}-${targetInfo.target}${targetInfo.ext}`;
-    const rawPrimaryUrl = `${trimTrailingSlash(DOWNLOAD_ROOT)}/${TAG}/${rawAsset}`;
-    const rawFallbackUrl = `${trimTrailingSlash(FALLBACK_DOWNLOAD_ROOT)}/${TAG}/${rawAsset}`;
+    const rawPrimaryUrl = `${primaryRoot}/${TAG}/${rawAsset}`;
+    const rawFallbackUrl = `${fallbackRoot}/${TAG}/${rawAsset}`;
     const rawPayload = await downloadWithFallback(
       rawPrimaryUrl,
       rawFallbackUrl,
@@ -69,8 +71,8 @@ export async function ensureBinary(): Promise<{ binaryPath: string }> {
     } else {
       const archiveExt = targetInfo.ext === ".exe" ? ".zip" : ".tar.gz";
       const archiveAsset = `hni-${TAG}-${targetInfo.target}${archiveExt}`;
-      const archivePrimaryUrl = `${trimTrailingSlash(DOWNLOAD_ROOT)}/${TAG}/${archiveAsset}`;
-      const archiveFallbackUrl = `${trimTrailingSlash(FALLBACK_DOWNLOAD_ROOT)}/${TAG}/${archiveAsset}`;
+      const archivePrimaryUrl = `${primaryRoot}/${TAG}/${archiveAsset}`;
+      const archiveFallbackUrl = `${fallbackRoot}/${TAG}/${archiveAsset}`;
       const archivePayload = await downloadWithFallback(
         archivePrimaryUrl,
         archiveFallbackUrl,
@@ -92,6 +94,15 @@ export async function ensureBinary(): Promise<{ binaryPath: string }> {
   }
 
   return { binaryPath };
+}
+
+function downloadRoot(): string {
+  return Deno.env.get("HNI_DOWNLOAD_ROOT") ?? DEFAULT_DOWNLOAD_ROOT;
+}
+
+function fallbackDownloadRoot(): string {
+  return Deno.env.get("HNI_FALLBACK_DOWNLOAD_ROOT") ??
+    DEFAULT_FALLBACK_DOWNLOAD_ROOT;
 }
 
 function resolveTarget(): TargetInfo {
@@ -216,7 +227,8 @@ async function installFromArchive(
     if (archiveExt === ".tar.gz") {
       await runCommand("tar", ["-xzf", archivePath, "-C", extractDir]);
     } else {
-      const psScript = `Expand-Archive -Path "${archivePath}" -DestinationPath "${extractDir}" -Force`;
+      const psScript =
+        `Expand-Archive -Path "${archivePath}" -DestinationPath "${extractDir}" -Force`;
       try {
         await runCommand("powershell", ["-NoProfile", "-Command", psScript]);
       } catch (_error) {

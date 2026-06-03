@@ -1,5 +1,6 @@
 use crate::core::types::PackageManager;
 
+#[must_use]
 pub fn exclude_flag(mut args: Vec<String>, flag: &str) -> Vec<String> {
     if let Some(pos) = args.iter().position(|arg| arg == flag) {
         args.remove(pos);

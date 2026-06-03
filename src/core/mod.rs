@@ -1,6 +1,5 @@
 pub mod batch;
 pub mod config;
-pub mod deno;
 pub mod detect;
 pub mod native;
 pub mod package;

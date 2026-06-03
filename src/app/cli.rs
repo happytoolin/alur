@@ -1,6 +1,6 @@
 use std::{env, ffi::OsStr, path::PathBuf};
 
-use anyhow::{Result, anyhow};
+use anyhow::{Context, Result, anyhow};
 use clap::{Arg, ArgAction, ArgMatches, Command, builder::PossibleValuesParser};
 
 use crate::app::{
@@ -59,6 +59,30 @@ struct SharedFlags {
     version: bool,
 }
 
+impl SharedFlags {
+    fn into_invocation(
+        self,
+        command: ParsedCommand,
+        deprecated_debug_alias_used: bool,
+    ) -> Result<ParsedInvocation> {
+        Ok(ParsedInvocation {
+            cwd: resolve_cwd(&self.cwd)?,
+            debug: self.debug,
+            explain: self.explain,
+            fast_override: self.fast_override,
+            command,
+            deprecated_debug_alias_used,
+        })
+    }
+}
+
+/// Parse CLI arguments from the current process environment.
+///
+/// # Errors
+///
+/// Returns an error when argv is unavailable, shared flags conflict or use an
+/// invalid working directory, clap rejects command arguments, help/internal
+/// topics are unknown, or changing to the requested current directory fails.
 pub fn parse_from_env() -> Result<ParsedInvocation> {
     let argv = env::args().collect::<Vec<_>>();
     let Some(argv0) = argv.first() else {
@@ -108,14 +132,7 @@ fn parse_hni(
             command = ParsedCommand::PrintHelp(help_target_from_command(&command));
         }
 
-        return Ok(ParsedInvocation {
-            cwd: resolve_cwd(&shared_flags.cwd)?,
-            debug: shared_flags.debug,
-            explain: shared_flags.explain,
-            fast_override: shared_flags.fast_override,
-            command,
-            deprecated_debug_alias_used,
-        });
+        return shared_flags.into_invocation(command, deprecated_debug_alias_used);
     }
 
     let program = normalized_program_name(argv0);
@@ -125,7 +142,7 @@ fn parse_hni(
 
     let matches = hni_parser()
         .try_get_matches_from(clap_args)
-        .map_err(|error| anyhow!("parse error: {error}"))?;
+        .context("parse error")?;
 
     let mut command = if let Some((name, sub_matches)) = matches.subcommand() {
         if let Some(spec) = command_spec_by_name(name) {
@@ -157,14 +174,7 @@ fn parse_hni(
         command = ParsedCommand::PrintHelp(help_target_from_command(&command));
     }
 
-    Ok(ParsedInvocation {
-        cwd: resolve_cwd(&shared_flags.cwd)?,
-        debug: shared_flags.debug,
-        explain: shared_flags.explain,
-        fast_override: shared_flags.fast_override,
-        command,
-        deprecated_debug_alias_used,
-    })
+    shared_flags.into_invocation(command, deprecated_debug_alias_used)
 }
 
 fn parse_alias(
@@ -198,14 +208,7 @@ fn parse_alias(
         }
     }
 
-    Ok(ParsedInvocation {
-        cwd: resolve_cwd(&shared_flags.cwd)?,
-        debug: shared_flags.debug,
-        explain: shared_flags.explain,
-        fast_override: shared_flags.fast_override,
-        command,
-        deprecated_debug_alias_used,
-    })
+    shared_flags.into_invocation(command, deprecated_debug_alias_used)
 }
 
 fn execute_from_subcommand(invocation: InvocationKind, sub_matches: &ArgMatches) -> ParsedCommand {
@@ -242,18 +245,14 @@ fn values_from<'a, T: Clone + 'a>(values: Option<clap::parser::ValuesRef<'a, T>>
 
 fn resolve_cwd(cwd_flags: &[PathBuf]) -> Result<PathBuf> {
     if cwd_flags.is_empty() {
-        return env::current_dir().map_err(|error| {
-            anyhow!("execution error: failed to read current directory: {error}")
-        });
+        return env::current_dir().context("execution error: failed to read current directory");
     }
 
     let absolute_index = cwd_flags.iter().rposition(|segment| segment.is_absolute());
     let (mut cwd, start_index): (PathBuf, usize) = match absolute_index {
         Some(index) => (cwd_flags[index].clone(), index + 1),
         None => (
-            env::current_dir().map_err(|error| {
-                anyhow!("execution error: failed to read current directory: {error}")
-            })?,
+            env::current_dir().context("execution error: failed to read current directory")?,
             0,
         ),
     };
@@ -342,6 +341,7 @@ fn hni_parser() -> Command {
     cmd
 }
 
+#[must_use]
 pub fn command_parser(name: &'static str) -> Command {
     Command::new(name).arg(command_args_arg())
 }

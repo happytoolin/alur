@@ -10,21 +10,13 @@ mod support;
 fn completion_query_filters_scripts_by_prefix() {
     support::with_env_lock(|| {
         let work = tempfile::tempdir().unwrap();
-        let project = work.path().join("proj");
-        fs::create_dir_all(&project).unwrap();
-        fs::write(
-            project.join("package.json"),
-            r#"{"name":"x","scripts":{"dev":"vite","build":"vite build","test":"vitest"}}"#,
-        )
-        .unwrap();
-
+        let project = prepare_script_project(work.path());
         let bin_dir = prepare_nr_alias_dir(work.path());
-        let envs = vec![("COMP_CWORD".to_string(), "2".to_string())];
 
         let out = run_nr(
             &bin_dir,
             vec!["-C", project.to_str().unwrap(), "--completion", "d"],
-            &envs,
+            &[("COMP_CWORD", "2")],
         );
         assert!(out.status.success());
 
@@ -32,6 +24,64 @@ fn completion_query_filters_scripts_by_prefix() {
         let lines = stdout.lines().collect::<Vec<_>>();
         assert_eq!(lines, vec!["dev"]);
     });
+}
+
+#[test]
+fn completion_query_uses_second_completion_arg_for_early_comp_word() {
+    support::with_env_lock(|| {
+        let work = tempfile::tempdir().unwrap();
+        let project = prepare_script_project(work.path());
+        let bin_dir = prepare_nr_alias_dir(work.path());
+
+        let out = run_nr(
+            &bin_dir,
+            vec![
+                "-C",
+                project.to_str().unwrap(),
+                "--completion",
+                "ignored",
+                "b",
+            ],
+            &[("COMP_CWORD", "1")],
+        );
+        assert!(out.status.success());
+
+        let stdout = String::from_utf8_lossy(&out.stdout);
+        assert_eq!(stdout.lines().collect::<Vec<_>>(), vec!["build"]);
+    });
+}
+
+#[test]
+fn completion_query_without_prefix_lists_sorted_scripts() {
+    support::with_env_lock(|| {
+        let work = tempfile::tempdir().unwrap();
+        let project = prepare_script_project(work.path());
+        let bin_dir = prepare_nr_alias_dir(work.path());
+
+        let out = run_nr(
+            &bin_dir,
+            vec!["-C", project.to_str().unwrap(), "--completion"],
+            &[],
+        );
+        assert!(out.status.success());
+
+        let stdout = String::from_utf8_lossy(&out.stdout);
+        assert_eq!(
+            stdout.lines().collect::<Vec<_>>(),
+            vec!["build", "dev", "test"]
+        );
+    });
+}
+
+fn prepare_script_project(workdir: &Path) -> PathBuf {
+    let project = workdir.join("proj");
+    fs::create_dir_all(&project).unwrap();
+    fs::write(
+        project.join("package.json"),
+        r#"{"name":"x","scripts":{"dev":"vite","build":"vite build","test":"vitest"}}"#,
+    )
+    .unwrap();
+    project
 }
 
 fn prepare_nr_alias_dir(workdir: &Path) -> PathBuf {
@@ -47,7 +97,7 @@ fn prepare_nr_alias_dir(workdir: &Path) -> PathBuf {
     dir
 }
 
-fn run_nr(bin_dir: &Path, args: Vec<&str>, extra_env: &[(String, String)]) -> Output {
+fn run_nr(bin_dir: &Path, args: Vec<&str>, extra_env: &[(&str, &str)]) -> Output {
     let alias = if cfg!(windows) { "nr.exe" } else { "nr" };
 
     let mut cmd = Command::new(bin_dir.join(alias));

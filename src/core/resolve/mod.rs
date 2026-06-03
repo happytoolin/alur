@@ -4,10 +4,8 @@ mod detect;
 mod flags;
 mod map;
 
-pub use build::{
-    resolve_na, resolve_nci, resolve_ni, resolve_nlx, resolve_node_passthrough,
-    resolve_node_routed, resolve_nr, resolve_nru, resolve_nun,
-};
+pub(crate) use build::{resolve_na, resolve_node_passthrough, resolve_node_routed};
+pub use build::{resolve_nci, resolve_ni, resolve_nlx, resolve_nr, resolve_nru, resolve_nun};
 pub use context::ResolveContext;
 pub(crate) use context::{LocalBinProjectState, ProjectState};
 pub use detect::detected_package_manager;

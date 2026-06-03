@@ -54,7 +54,7 @@ pub(super) fn apply_local_bin_environment(
     command: &mut Command,
     exec: &NativeLocalBinExecution,
     invocation_cwd: &Path,
-) -> Result<()> {
+) {
     if let Ok(path) = merged_path_with_bins(&exec.bin_paths) {
         command.env("PATH", path);
     }
@@ -79,8 +79,6 @@ pub(super) fn apply_local_bin_environment(
             synthetic_user_agent(exec.package_manager),
         );
     }
-
-    Ok(())
 }
 
 pub(super) fn merged_path_with_bins(bin_paths: &[PathBuf]) -> Result<String> {
@@ -119,4 +117,92 @@ fn package_manager_execpath(pm: PackageManager) -> String {
 
 fn synthetic_user_agent(pm: PackageManager) -> String {
     format!("{}/0.0.0 hni/fast", pm.bin())
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{path::PathBuf, process::Command};
+
+    use crate::core::types::{
+        NativeLocalBinExecution, NativeLocalBinLauncher, NativeScriptExecution, PackageManager,
+    };
+
+    use super::{apply_local_bin_environment, merged_path_with_bins, native_script_env};
+
+    #[test]
+    fn native_script_env_sets_npm_run_contract_values() {
+        let dir = tempfile::tempdir().unwrap();
+        let bin_dir = dir.path().join("node_modules/.bin");
+        let package_json_path = dir.path().join("package.json");
+        let exec = NativeScriptExecution {
+            package_root: dir.path().to_path_buf(),
+            package_json_path: package_json_path.clone(),
+            script_name: "build".to_string(),
+            steps: Vec::new(),
+            forwarded_args: Vec::new(),
+            bin_paths: vec![bin_dir.clone()],
+        };
+
+        let envs = native_script_env(&exec, dir.path()).unwrap();
+
+        assert!(envs.contains(&(
+            "INIT_CWD".to_string(),
+            dir.path().to_string_lossy().to_string()
+        )));
+        assert!(envs.contains(&(
+            "npm_package_json".to_string(),
+            package_json_path.to_string_lossy().to_string()
+        )));
+        assert!(envs.contains(&("npm_command".to_string(), "run-script".to_string())));
+        assert!(
+            envs.iter()
+                .any(|(key, value)| key == "PATH" && value.contains(&*bin_dir.to_string_lossy()))
+        );
+    }
+
+    #[test]
+    fn apply_local_bin_environment_sets_exec_contract_values() {
+        let dir = tempfile::tempdir().unwrap();
+        let exec = NativeLocalBinExecution {
+            bin_name: "demo".to_string(),
+            launcher: NativeLocalBinLauncher::Binary(PathBuf::from("demo")),
+            forwarded_args: Vec::new(),
+            bin_paths: vec![dir.path().join("node_modules/.bin")],
+            package_manager: PackageManager::Pnpm,
+        };
+        let mut command = Command::new("demo");
+
+        apply_local_bin_environment(&mut command, &exec, dir.path());
+        let envs = command
+            .get_envs()
+            .map(|(key, value)| {
+                (
+                    key.to_string_lossy().to_string(),
+                    value.map(|value| value.to_string_lossy().to_string()),
+                )
+            })
+            .collect::<Vec<_>>();
+
+        assert!(envs.contains(&(
+            "INIT_CWD".to_string(),
+            Some(dir.path().to_string_lossy().to_string())
+        )));
+        assert!(envs.contains(&("npm_command".to_string(), Some("exec".to_string()))));
+        assert!(envs.iter().any(|(key, value)| {
+            key == "npm_config_user_agent" && value.as_deref() == Some("pnpm/0.0.0 hni/fast")
+        }));
+    }
+
+    #[test]
+    fn merged_path_with_bins_keeps_requested_bins_first() {
+        let dir = tempfile::tempdir().unwrap();
+        let first = dir.path().join("first-bin");
+        let second = dir.path().join("second-bin");
+
+        let path = merged_path_with_bins(&[first.clone(), second.clone()]).unwrap();
+        let entries = std::env::split_paths(&path).collect::<Vec<_>>();
+
+        assert_eq!(entries.first(), Some(&first));
+        assert_eq!(entries.get(1), Some(&second));
+    }
 }

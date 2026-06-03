@@ -1,6 +1,6 @@
 use std::process::ExitCode;
 
-use anyhow::{Result, anyhow};
+use anyhow::{Context, Result, anyhow};
 
 use crate::{
     app::{
@@ -14,7 +14,6 @@ use crate::{
     },
     core::{
         config::HniConfig,
-        detect::detect,
         resolve::ResolveContext,
         runner,
         types::{ExecutionMode, InvocationKind, ResolvedExecution},
@@ -22,6 +21,13 @@ use crate::{
     platform::node::resolve_real_node_path,
 };
 
+/// Run the current process invocation.
+///
+/// # Errors
+///
+/// Returns an error when parsing fails, the requested working directory is
+/// invalid, configuration or project detection fails, command resolution fails,
+/// or the selected runner cannot format or execute the resolved command.
 pub fn run_from_env() -> Result<ExitCode> {
     let parsed = parse_from_env()?;
     if parsed.deprecated_debug_alias_used {
@@ -47,7 +53,7 @@ pub fn run_from_env() -> Result<ExitCode> {
             && !parsed.explain;
     let resolve_ctx = ResolveContext::with_package_manager_checks(
         parsed.cwd.clone(),
-        config.clone(),
+        config,
         verify_package_manager_availability,
     );
 
@@ -73,9 +79,8 @@ pub fn run_from_env() -> Result<ExitCode> {
             Ok(ExitCode::SUCCESS)
         }
         ParsedCommand::InternalRealNodePath => {
-            if let Ok(path) = resolve_real_node_path() {
-                println!("{}", path.display());
-            }
+            let path = resolve_real_node_path().context("execution error")?;
+            println!("{}", path.display());
             Ok(ExitCode::SUCCESS)
         }
         ParsedCommand::InternalProfileLoop {
@@ -94,18 +99,17 @@ pub fn run_from_env() -> Result<ExitCode> {
             };
 
             if parsed.explain {
-                print_explain(invocation, &resolved, &resolve_ctx, &config)?;
+                print_explain(invocation, &resolved, &resolve_ctx)?;
                 return Ok(ExitCode::SUCCESS);
             }
 
             if parsed.debug {
-                let debug_rendered = runner::format_debug(&resolved)
-                    .map_err(|error| anyhow!("execution error: {error}"))?;
+                let debug_rendered = runner::format_debug(&resolved).context("execution error")?;
                 println!("{debug_rendered}");
                 return Ok(ExitCode::SUCCESS);
             }
 
-            runner::run(&resolved).map_err(|error| anyhow!("execution error: {error}"))
+            runner::run(&resolved).context("execution error")
         }
     }
 }
@@ -114,14 +118,13 @@ fn print_explain(
     invocation: InvocationKind,
     resolved: &ResolvedExecution,
     ctx: &ResolveContext,
-    config: &HniConfig,
 ) -> Result<()> {
     println!("hni explain");
     println!("invocation: {}", invocation_name(invocation));
     println!("cwd: {}", ctx.cwd().display());
-    println!("fast_mode: {}", config.fast_mode);
+    println!("fast_mode: {}", ctx.config.fast_mode);
     println!("execution_mode: {}", resolved.execution_mode_name());
-    if config.fast_mode {
+    if ctx.config.fast_mode {
         let fast_status = if resolved.fast_fallback_reason.is_some() {
             "fallback"
         } else if matches!(resolved.mode, ExecutionMode::Fast) {
@@ -136,10 +139,10 @@ fn print_explain(
     }
     println!(
         "resolved: {}",
-        runner::format_debug(resolved).map_err(|error| anyhow!("execution error: {error}"))?
+        runner::format_debug(resolved).context("execution error")?
     );
 
-    if let Ok(detection) = ctx.detect().or_else(|_| detect(ctx.cwd(), &ctx.config)) {
+    if let Ok(detection) = ctx.detect() {
         println!(
             "detected_agent: {}",
             detection
@@ -171,10 +174,7 @@ fn run_profile_loop(
         if let Some(resolved) = resolved {
             std::hint::black_box(crate::core::profile::measure(
                 "runner.format_debug",
-                || {
-                    runner::format_debug(&resolved)
-                        .map_err(|error| anyhow!("execution error: {error}"))
-                },
+                || runner::format_debug(&resolved).context("execution error"),
             )?);
         }
     }

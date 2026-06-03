@@ -88,7 +88,6 @@ fn with_global_flags(cmd: Command) -> Command {
         .disable_version_flag(true)
         .arg(
             Arg::new("debug")
-                .short('?')
                 .long("debug-resolved")
                 .help("print resolved command and exit (aliases: --dry-run, --print-command)")
                 .action(ArgAction::SetTrue),

@@ -606,6 +606,21 @@ fn nci_uses_immutable_for_yarn_berry() {
 }
 
 #[test]
+fn nci_locked_project_preserves_install_flags() {
+    with_skip_pm_check(|| {
+        let dir = tempfile::tempdir().unwrap();
+        write_package_json(dir.path(), r#"{"packageManager":"npm@10.0.0"}"#);
+        fs::write(dir.path().join("package-lock.json"), "lock").unwrap();
+
+        let ctx = ResolveContext::new(dir.path().to_path_buf(), HniConfig::default());
+        let resolved = resolve::resolve_nci(vec!["--prefer-offline".into()], &ctx).unwrap();
+
+        assert_eq!(resolved.program, "npm");
+        assert_eq!(resolved.args, vec!["ci", "--prefer-offline"]);
+    });
+}
+
+#[test]
 fn nci_without_lockfile_falls_back_to_install() {
     with_skip_pm_check(|| {
         let dir = tempfile::tempdir().unwrap();

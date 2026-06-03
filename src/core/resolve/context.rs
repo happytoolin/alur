@@ -19,10 +19,12 @@ pub struct ResolveContext {
 }
 
 impl ResolveContext {
+    #[must_use]
     pub fn new(cwd: PathBuf, config: HniConfig) -> Self {
         Self::with_package_manager_checks(cwd, config, true)
     }
 
+    #[must_use]
     pub fn with_package_manager_checks(
         cwd: PathBuf,
         config: HniConfig,
@@ -41,20 +43,27 @@ impl ResolveContext {
         })
     }
 
-    pub(crate) fn local_bin_project_state(&self) -> LocalBinProjectState {
+    pub(crate) fn local_bin_project_state(&self) -> Result<LocalBinProjectState> {
         crate::core::profile::measure("local_bin.scan_project", || {
             LocalBinProjectState::scan(&self.cwd, &self.config)
         })
     }
 
+    /// Detects the package-manager context for the current working directory.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when project discovery or package-manager detection fails.
     pub fn detect(&self) -> Result<crate::core::types::DetectionResult> {
         crate::core::profile::measure("detect.total", || detect(&self.cwd, &self.config))
     }
 
+    #[must_use]
     pub fn cwd(&self) -> &Path {
         &self.cwd
     }
 
+    #[must_use]
     pub(crate) fn should_verify_package_manager_availability(&self) -> bool {
         self.verify_package_manager_availability
     }
@@ -88,44 +97,50 @@ impl ProjectState {
         })
     }
 
+    #[must_use]
     pub(crate) fn nearest_package(&self) -> Option<NearestPackage> {
         self.nearest_package.clone()
     }
 
+    #[must_use]
     pub(crate) fn bin_dirs(&self) -> &[PathBuf] {
         &self.bin_dirs
     }
 
+    #[must_use]
     pub(crate) fn has_yarn_pnp_loader(&self) -> bool {
         self.has_yarn_pnp_loader
     }
 
+    #[must_use]
     pub(crate) fn detection(&self) -> DetectionResult {
         self.detection.clone()
     }
 }
 
 impl LocalBinProjectState {
-    pub(crate) fn scan(cwd: &Path, config: &HniConfig) -> Self {
-        let discovery = ProjectDiscovery::scan(cwd, config, ScanMode::LocalBinsOnly)
-            .expect("local bin scan should only inspect filesystem");
+    pub(crate) fn scan(cwd: &Path, config: &HniConfig) -> Result<Self> {
+        let discovery = ProjectDiscovery::scan(cwd, config, ScanMode::LocalBinsOnly)?;
 
-        Self {
+        Ok(Self {
             ancestors: discovery.ancestors,
             bin_dirs: discovery.bin_dirs,
             detection: discovery.detection,
             has_yarn_pnp_loader: discovery.has_yarn_pnp_loader,
-        }
+        })
     }
 
+    #[must_use]
     pub(crate) fn bin_dirs(&self) -> &[PathBuf] {
         &self.bin_dirs
     }
 
+    #[must_use]
     pub(crate) fn has_yarn_pnp_loader(&self) -> bool {
         self.has_yarn_pnp_loader
     }
 
+    #[must_use]
     pub(crate) fn detection(&self) -> DetectionResult {
         self.detection.clone()
     }

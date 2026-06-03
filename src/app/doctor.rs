@@ -129,3 +129,43 @@ fn detection_source_label(value: DetectionSource) -> &'static str {
         DetectionSource::None => "none",
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::core::types::DetectionSource;
+
+    use super::{detection_source_label, node_shim_active};
+
+    #[test]
+    fn detection_source_labels_are_stable() {
+        let cases = [
+            (DetectionSource::PackageManagerField, "packageManager field"),
+            (DetectionSource::Lockfile, "lockfile"),
+            (
+                DetectionSource::DevEnginesField,
+                "devEngines.packageManager field",
+            ),
+            (DetectionSource::InstallMetadata, "install metadata"),
+            (DetectionSource::Config, "config defaultPackageManager"),
+            (DetectionSource::Fallback, "fallback (npm in PATH)"),
+            (DetectionSource::None, "none"),
+        ];
+
+        for (source, label) in cases {
+            assert_eq!(detection_source_label(source), label);
+        }
+    }
+
+    #[test]
+    fn node_shim_active_requires_both_paths_to_match() {
+        let dir = tempfile::tempdir().unwrap();
+        let node = dir.path().join("node");
+        let shim = dir.path().join("shim");
+        std::fs::write(&node, "").unwrap();
+        std::fs::write(&shim, "").unwrap();
+
+        assert!(node_shim_active(Some(&node), Some(&node)));
+        assert!(!node_shim_active(Some(&node), Some(&shim)));
+        assert!(!node_shim_active(Some(&node), None));
+    }
+}

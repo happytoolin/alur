@@ -4,7 +4,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use anyhow::{Result, anyhow};
+use anyhow::{Context, Result};
 use serde::Deserialize;
 
 #[derive(Debug, Clone, Deserialize, Default)]
@@ -87,17 +87,78 @@ pub fn read_package_json(cwd: &Path) -> Result<Option<PackageJson>> {
         Ok(content) => content,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
         Err(e) => {
-            return Err(anyhow!(
-                "config error: failed to read {}: {e}",
-                path.display()
-            ));
+            return Err(e)
+                .with_context(|| format!("config error: failed to read {}", path.display()));
         }
     };
 
     let parsed: PackageJson =
         crate::core::profile::measure("package_json.parse_serde", || serde_json::from_slice(&raw))
-            .map_err(|error| {
-                anyhow!("config error: failed to parse {}: {error}", path.display())
-            })?;
+            .with_context(|| format!("config error: failed to parse {}", path.display()))?;
     Ok(Some(parsed))
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{collections::BTreeMap, fs};
+
+    use super::{PackageBin, PackageJson, package_json_path, read_package_json};
+
+    #[test]
+    fn package_json_path_points_at_package_manifest() {
+        let dir = tempfile::tempdir().unwrap();
+
+        assert_eq!(
+            package_json_path(dir.path()),
+            dir.path().join("package.json")
+        );
+    }
+
+    #[test]
+    fn bin_command_path_handles_single_and_mapped_bins() {
+        let single = PackageJson {
+            name: Some("@scope/tool".to_string()),
+            bin: PackageBin::Single("bin/tool.js".to_string()),
+            ..PackageJson::default()
+        };
+        assert_eq!(single.bin_command_path("tool"), Some("bin/tool.js"));
+        assert_eq!(single.bin_command_path("@scope/tool"), None);
+
+        let mapped = PackageJson {
+            bin: PackageBin::Map(BTreeMap::from([(
+                "hni".to_string(),
+                "dist/index.js".to_string(),
+            )])),
+            ..PackageJson::default()
+        };
+        assert_eq!(mapped.bin_command_path("hni"), Some("dist/index.js"));
+        assert_eq!(mapped.bin_command_path("missing"), None);
+    }
+
+    #[test]
+    fn read_package_json_distinguishes_missing_parse_and_success() {
+        let dir = tempfile::tempdir().unwrap();
+        assert!(read_package_json(dir.path()).unwrap().is_none());
+
+        fs::write(dir.path().join("package.json"), "{ invalid").unwrap();
+        let error = read_package_json(dir.path()).unwrap_err().to_string();
+        assert!(error.contains("failed to parse"));
+
+        fs::write(
+            dir.path().join("package.json"),
+            r#"{"name":"demo","bin":{"demo":"bin/demo.js"}}"#,
+        )
+        .unwrap();
+        let parsed = read_package_json(dir.path()).unwrap().unwrap();
+        assert_eq!(parsed.bin_command_path("demo"), Some("bin/demo.js"));
+    }
+
+    #[test]
+    fn read_package_json_reports_read_errors() {
+        let dir = tempfile::tempdir().unwrap();
+        fs::create_dir(dir.path().join("package.json")).unwrap();
+
+        let error = read_package_json(dir.path()).unwrap_err().to_string();
+        assert!(error.contains("failed to read"));
+    }
 }

@@ -1,7 +1,6 @@
 use anyhow::Result;
 
 use crate::core::{
-    deno::{find_nearest_deno_project, plan_native_deno_task},
     package::resolve_local_bin,
     resolve::{LocalBinProjectState, ProjectState, ResolveContext},
     types::{NativeLocalBinExecution, NativeScriptExecution, NativeScriptStep, PackageManager},
@@ -9,6 +8,7 @@ use crate::core::{
 
 use super::{
     bin_resolver::resolve_local_bin_launcher,
+    deno::{find_nearest_deno_project, plan_native_deno_task},
     plan::{FallbackReason, NativeDecision, NativePlan},
 };
 
@@ -128,7 +128,7 @@ fn plan_deno_nr(
     Ok(
         match plan_native_deno_task(&project, &selection, &forwarded_args, has_if_present) {
             Ok(exec) => NativeDecision::Eligible(NativePlan::DenoTask(exec)),
-            Err(reason) => NativeDecision::Ineligible(FallbackReason::DenoTask(reason)),
+            Err(reason) => NativeDecision::Ineligible(FallbackReason::DenoTask(reason.to_string())),
         },
     )
 }
@@ -225,4 +225,27 @@ fn contains_unsupported_prefixed_env(
     }
 
     false
+}
+
+#[cfg(test)]
+mod tests {
+    use super::unsupported_pattern;
+
+    #[test]
+    fn unsupported_pattern_allows_supported_npm_env_expansions() {
+        assert_eq!(unsupported_pattern("echo $npm_package_json"), None);
+        assert_eq!(unsupported_pattern("echo $npm_config_user_agent"), None);
+    }
+
+    #[test]
+    fn unsupported_pattern_flags_unknown_npm_env_expansions() {
+        assert_eq!(
+            unsupported_pattern("echo $npm_package_name"),
+            Some("npm_package_")
+        );
+        assert_eq!(
+            unsupported_pattern("echo $npm_config_registry"),
+            Some("npm_config_")
+        );
+    }
 }

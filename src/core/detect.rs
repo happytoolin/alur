@@ -29,7 +29,7 @@ pub fn ensure_package_manager_available(
         return Ok(());
     }
 
-    let package = pm.global_package_name();
+    let package = pm.bin();
     let target = match version_hint {
         Some(version) if !version.is_empty() => format!("{package}@{version}"),
         _ => package.to_string(),

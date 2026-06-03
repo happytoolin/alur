@@ -47,3 +47,42 @@ pub fn shell_escape(input: &str) -> String {
         .map(std::borrow::Cow::into_owned)
         .unwrap_or(double_quoted)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{shell_command, shell_escape};
+
+    #[test]
+    fn shell_escape_leaves_safe_tokens_unquoted() {
+        assert_eq!(
+            shell_escape("npm-package/bin:test=value@1.0"),
+            "npm-package/bin:test=value@1.0"
+        );
+    }
+
+    #[test]
+    fn shell_escape_quotes_shell_sensitive_tokens() {
+        assert_eq!(shell_escape("hello world"), "\"hello world\"");
+        assert_eq!(shell_escape("say \"hi\""), "\"say \\\"hi\\\"\"");
+    }
+
+    #[test]
+    fn shell_command_uses_platform_shell() {
+        let command = shell_command("echo hi");
+
+        #[cfg(windows)]
+        assert_eq!(command.get_program(), "cmd");
+
+        #[cfg(not(windows))]
+        {
+            assert_eq!(command.get_program(), "sh");
+            assert_eq!(
+                command
+                    .get_args()
+                    .map(std::ffi::OsStr::to_string_lossy)
+                    .collect::<Vec<_>>(),
+                ["-c", "echo hi"]
+            );
+        }
+    }
+}

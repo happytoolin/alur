@@ -68,9 +68,8 @@ pub fn render_init(shell: InitShell, path_dir: &Path) -> String {
 }
 
 fn current_binary_path() -> Result<PathBuf> {
-    let exe_path = std::env::current_exe().map_err(|error| {
-        anyhow!("execution error: failed to determine current executable path: {error}")
-    })?;
+    let exe_path = std::env::current_exe()
+        .context("execution error: failed to determine current executable path")?;
     Ok(dunce::canonicalize(&exe_path).unwrap_or(exe_path))
 }
 
@@ -80,9 +79,9 @@ fn ensure_node_shim(exe_path: &Path) -> Result<PathBuf> {
     })?;
     let managed_node = managed_dir.join(node_binary_name());
 
-    fs::create_dir_all(&managed_dir).map_err(|error| {
-        anyhow!(
-            "execution error: failed to create managed hni shim directory at {}: {error}",
+    fs::create_dir_all(&managed_dir).with_context(|| {
+        format!(
+            "execution error: failed to create managed hni shim directory at {}",
             managed_dir.display()
         )
     })?;
@@ -95,9 +94,9 @@ fn ensure_node_shim(exe_path: &Path) -> Result<PathBuf> {
         remove_node_shim(&managed_node)?;
     }
 
-    create_node_shim(exe_path, &managed_node).map_err(|error| {
-        anyhow!(
-            "execution error: failed to create managed node shim at {}: {error}",
+    create_node_shim(exe_path, &managed_node).with_context(|| {
+        format!(
+            "execution error: failed to create managed node shim at {}",
             managed_node.display()
         )
     })?;

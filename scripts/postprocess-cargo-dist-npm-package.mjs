@@ -9,12 +9,45 @@ const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(scriptDir, "..");
 const aliasesPath = path.join(repoRoot, "aliases.json");
 
-function readJson(filePath) {
-  return JSON.parse(fs.readFileSync(filePath, "utf8"));
+function errorMessage(error) {
+  return error instanceof Error ? error.message : String(error);
 }
 
-function writeJson(filePath, value) {
-  fs.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`, "utf8");
+function withFileContext(label, action, filePath, callback) {
+  try {
+    return callback();
+  } catch (error) {
+    throw new Error(
+      `${label}: failed to ${action} ${filePath}: ${errorMessage(error)}`,
+      { cause: error },
+    );
+  }
+}
+
+function readJson(filePath, label) {
+  const raw = withFileContext(label, "read", filePath, () =>
+    fs.readFileSync(filePath, "utf8")
+  );
+  return withFileContext(label, "parse JSON from", filePath, () =>
+    JSON.parse(raw)
+  );
+}
+
+function writeText(filePath, value, label, options = "utf8") {
+  withFileContext(label, "write", filePath, () =>
+    fs.writeFileSync(filePath, value, options)
+  );
+}
+
+function writeJson(filePath, value, label) {
+  const payload = withFileContext(label, "serialize JSON for", filePath, () =>
+    `${JSON.stringify(value, null, 2)}\n`
+  );
+  writeText(filePath, payload, label);
+}
+
+function makeExecutable(filePath, label) {
+  withFileContext(label, "chmod", filePath, () => fs.chmodSync(filePath, 0o755));
 }
 
 function wrapperSource(alias) {
@@ -33,8 +66,8 @@ function main() {
   }
 
   const packageJsonPath = path.join(packageDir, "package.json");
-  const packageJson = readJson(packageJsonPath);
-  const aliases = readJson(aliasesPath).hni ?? [];
+  const packageJson = readJson(packageJsonPath, "generated package manifest");
+  const aliases = readJson(aliasesPath, "alias manifest").hni ?? [];
 
   if (!packageJson.bin?.hni) {
     throw new Error("generated npm package is missing bin.hni");
@@ -45,11 +78,13 @@ function main() {
     const wrapper = `run-${alias}.js`;
     packageJson.bin[alias] = wrapper;
     const wrapperPath = path.join(packageDir, wrapper);
-    fs.writeFileSync(wrapperPath, wrapperSource(alias), { mode: 0o755 });
-    fs.chmodSync(wrapperPath, 0o755);
+    writeText(wrapperPath, wrapperSource(alias), `alias wrapper ${alias}`, {
+      mode: 0o755,
+    });
+    makeExecutable(wrapperPath, `alias wrapper ${alias}`);
   }
 
-  writeJson(packageJsonPath, packageJson);
+  writeJson(packageJsonPath, packageJson, "generated package manifest");
 }
 
 try {

@@ -1,4 +1,5 @@
 mod bin_resolver;
+mod deno;
 mod eligibility;
 mod env;
 mod exec;
@@ -29,7 +30,7 @@ pub(crate) fn is_node_program(program: &str) -> bool {
         })
 }
 
-pub enum NativeAttempt {
+pub(crate) enum NativeAttempt {
     Eligible(Box<ResolvedExecution>),
     Ineligible(String),
 }
@@ -44,7 +45,9 @@ pub(crate) fn attempt_nr_from_state(
     let decision = crate::core::profile::measure("native.plan_nr", || {
         eligibility::plan_nr_from_state(pm, args, ctx, state, has_if_present)
     })?;
-    crate::core::profile::measure("native.materialize", || into_attempt(decision, ctx.cwd()))
+    Ok(crate::core::profile::measure("native.materialize", || {
+        into_attempt(decision, ctx.cwd())
+    }))
 }
 
 pub(crate) fn attempt_nlx_from_local_bin_state(
@@ -56,36 +59,39 @@ pub(crate) fn attempt_nlx_from_local_bin_state(
     let decision = crate::core::profile::measure("native.plan_nlx", || {
         eligibility::plan_nlx_from_local_bin_state(pm, args, state)
     })?;
-    crate::core::profile::measure("native.materialize", || into_attempt(decision, ctx.cwd()))
+    Ok(crate::core::profile::measure("native.materialize", || {
+        into_attempt(decision, ctx.cwd())
+    }))
 }
 
-pub fn run_script(
+pub(crate) fn run_script(
     exec: &crate::core::types::NativeScriptExecution,
     invocation_cwd: &Path,
 ) -> Result<std::process::ExitCode> {
     exec::run_script(exec, invocation_cwd)
 }
 
-pub fn run_deno_task(
+pub(crate) fn run_deno_task(
     exec: &NativeDenoTaskExecution,
     invocation_cwd: &Path,
 ) -> Result<std::process::ExitCode> {
     exec::run_deno_task(exec, invocation_cwd)
 }
 
-pub fn run_local_bin(
+pub(crate) fn run_local_bin(
     exec: &crate::core::types::NativeLocalBinExecution,
     cwd: &Path,
 ) -> Result<std::process::ExitCode> {
     exec::run_local_bin(exec, cwd)
 }
 
-pub fn format_debug(exec: &ResolvedExecution) -> String {
+#[must_use]
+pub(crate) fn format_debug(exec: &ResolvedExecution) -> String {
     exec::format_debug(exec)
 }
 
-fn into_attempt(decision: NativeDecision, cwd: &Path) -> Result<NativeAttempt> {
-    Ok(match decision {
+fn into_attempt(decision: NativeDecision, cwd: &Path) -> NativeAttempt {
+    match decision {
         NativeDecision::Eligible(plan) => NativeAttempt::Eligible(Box::new(match plan {
             NativePlan::Script(exec) => {
                 ResolvedExecution::native_script(exec.script_name.clone(), cwd.to_path_buf(), exec)
@@ -98,5 +104,26 @@ fn into_attempt(decision: NativeDecision, cwd: &Path) -> Result<NativeAttempt> {
             }
         })),
         NativeDecision::Ineligible(reason) => NativeAttempt::Ineligible(reason.to_string()),
-    })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{is_node_program, looks_like_env_assignment};
+
+    #[test]
+    fn env_assignment_detection_requires_equals_and_non_flag_token() {
+        assert!(looks_like_env_assignment("NODE_ENV=test"));
+        assert!(!looks_like_env_assignment("--flag=value"));
+        assert!(!looks_like_env_assignment("plain"));
+    }
+
+    #[test]
+    fn node_program_detection_matches_node_binary_names_only() {
+        assert!(is_node_program("node"));
+        assert!(is_node_program("/usr/local/bin/node"));
+        assert!(is_node_program("node.exe"));
+        assert!(!is_node_program("nodejs"));
+        assert!(!is_node_program("/usr/local/bin/npm"));
+    }
 }

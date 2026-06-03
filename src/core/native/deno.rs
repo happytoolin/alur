@@ -4,12 +4,12 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use anyhow::{Result, anyhow};
+use anyhow::{Context, Result, anyhow, bail};
 use indexmap::IndexMap;
 use jsonc_parser::{ParseOptions, parse_to_serde_value};
 use serde::Deserialize;
 
-use super::{
+use crate::core::{
     project::node_modules_bin_dirs,
     types::{NativeDenoTaskExecution, NativeDenoTaskStage, NativeDenoTaskStep},
 };
@@ -17,7 +17,6 @@ use super::{
 #[derive(Debug, Clone)]
 pub(crate) struct DenoProject {
     pub root: PathBuf,
-    pub config_path: Option<PathBuf>,
     pub deno_tasks: IndexMap<String, DenoTaskDefinition>,
     pub has_workspace: bool,
 }
@@ -31,20 +30,14 @@ pub(crate) struct DenoTaskDefinition {
 
 pub(crate) fn find_nearest_deno_project(cwd: &Path) -> Result<Option<DenoProject>> {
     for dir in cwd.ancestors() {
-        let deno = read_deno_config(dir)?;
-        if deno.is_none() {
+        let Some(config) = read_deno_config(dir)? else {
             continue;
-        }
-
-        let (config_path, deno_tasks, has_workspace) = deno
-            .map(|config| (Some(config.path), config.tasks, config.has_workspace))
-            .unwrap_or_else(|| (None, IndexMap::new(), false));
+        };
 
         return Ok(Some(DenoProject {
             root: dir.to_path_buf(),
-            config_path,
-            deno_tasks,
-            has_workspace,
+            deno_tasks: config.tasks,
+            has_workspace: config.has_workspace,
         }));
     }
 
@@ -56,9 +49,9 @@ pub(crate) fn plan_native_deno_task(
     selection: &str,
     forwarded_args: &[String],
     has_if_present: bool,
-) -> Result<NativeDenoTaskExecution, String> {
+) -> Result<NativeDenoTaskExecution> {
     if project.has_workspace {
-        return Err("deno workspace task execution stays in package-manager mode".to_string());
+        bail!("deno workspace task execution stays in package-manager mode");
     }
 
     let deno_matches = match_deno_tasks(&project.deno_tasks, selection);
@@ -66,7 +59,6 @@ pub(crate) fn plan_native_deno_task(
         let stages = build_deno_task_stages(&project.deno_tasks, &deno_matches, forwarded_args)?;
         return Ok(NativeDenoTaskExecution {
             project_root: project.root.clone(),
-            config_path: project.config_path.clone(),
             selection: selection.to_string(),
             stages,
             forwarded_args: forwarded_args.to_vec(),
@@ -74,10 +66,9 @@ pub(crate) fn plan_native_deno_task(
         });
     }
 
-    if has_if_present && project.config_path.is_some() {
+    if has_if_present {
         return Ok(NativeDenoTaskExecution {
             project_root: project.root.clone(),
-            config_path: project.config_path.clone(),
             selection: selection.to_string(),
             stages: Vec::new(),
             forwarded_args: forwarded_args.to_vec(),
@@ -85,16 +76,14 @@ pub(crate) fn plan_native_deno_task(
         });
     }
 
-    Err(format!(
-        "task '{selection}' was not found in the nearest deno project"
-    ))
+    bail!("task '{selection}' was not found in the nearest deno project")
 }
 
 fn build_deno_task_stages(
     tasks: &IndexMap<String, DenoTaskDefinition>,
     roots: &[String],
     forwarded_args: &[String],
-) -> Result<Vec<NativeDenoTaskStage>, String> {
+) -> Result<Vec<NativeDenoTaskStage>> {
     #[derive(Clone, Copy, PartialEq, Eq)]
     enum VisitState {
         Visiting,
@@ -115,17 +104,17 @@ fn build_deno_task_stages(
     fn resolve_pattern(
         tasks: &IndexMap<String, DenoTaskDefinition>,
         pattern: &str,
-    ) -> Result<Vec<String>, String> {
+    ) -> Result<Vec<String>> {
         if pattern.contains('*') {
             let matches = match_deno_tasks(tasks, pattern);
             if matches.is_empty() {
-                return Err(format!("task pattern '{pattern}' matched no deno tasks"));
+                bail!("task pattern '{pattern}' matched no deno tasks");
             }
             return Ok(matches);
         }
 
         if !tasks.contains_key(pattern) {
-            return Err(format!("task '{pattern}' was not found in deno.json"));
+            bail!("task '{pattern}' was not found in deno.json");
         }
 
         Ok(vec![pattern.to_string()])
@@ -139,21 +128,21 @@ fn build_deno_task_stages(
         indegree: &mut HashMap<String, usize>,
         outgoing: &mut HashMap<String, Vec<String>>,
         stack: &mut Vec<String>,
-    ) -> Result<(), String> {
+    ) -> Result<()> {
         if let Some(state) = visit_states.get(task_name) {
             return match state {
                 VisitState::Visited => Ok(()),
                 VisitState::Visiting => {
                     let mut cycle = stack.clone();
                     cycle.push(task_name.to_string());
-                    Err(format!("task cycle detected: {}", cycle.join(" -> ")))
+                    bail!("task cycle detected: {}", cycle.join(" -> "))
                 }
             };
         }
 
         let task = tasks
             .get(task_name)
-            .ok_or_else(|| format!("task '{task_name}' was not found in deno.json"))?;
+            .ok_or_else(|| anyhow!("task '{task_name}' was not found in deno.json"))?;
         visit_states.insert(task_name.to_string(), VisitState::Visiting);
         selected.insert(task_name.to_string());
         indegree.entry(task_name.to_string()).or_insert(0);
@@ -183,8 +172,10 @@ fn build_deno_task_stages(
         Ok(())
     }
 
+    let mut root_set = HashSet::<String>::new();
     for root in roots {
         for matched in resolve_pattern(tasks, root)? {
+            root_set.insert(matched.clone());
             visit_task(
                 &matched,
                 tasks,
@@ -199,8 +190,6 @@ fn build_deno_task_stages(
 
     let mut completed = HashSet::<String>::new();
     let mut stages = Vec::new();
-    let root_set = roots.iter().cloned().collect::<HashSet<_>>();
-    let last_root = roots.last().cloned();
 
     while completed.len() < selected.len() {
         let mut ready = selected
@@ -212,7 +201,7 @@ fn build_deno_task_stages(
         ready.sort_by_key(|name| positions.get(name).copied().unwrap_or(usize::MAX));
 
         if ready.is_empty() {
-            return Err("task cycle detected".to_string());
+            bail!("task cycle detected");
         }
 
         let mut steps = Vec::new();
@@ -220,9 +209,7 @@ fn build_deno_task_stages(
             if let Some(task) = tasks.get(name)
                 && let Some(command) = &task.command
             {
-                let forward_args = !forwarded_args.is_empty()
-                    && root_set.contains(name)
-                    && last_root.as_ref() == Some(name);
+                let forward_args = !forwarded_args.is_empty() && root_set.contains(name);
                 steps.push(NativeDenoTaskStep {
                     task_name: name.clone(),
                     command: command.clone(),
@@ -308,7 +295,6 @@ fn wildcard_matches(pattern: &str, value: &str) -> bool {
 
 #[derive(Debug, Clone)]
 struct ParsedDenoConfig {
-    path: PathBuf,
     tasks: IndexMap<String, DenoTaskDefinition>,
     has_workspace: bool,
 }
@@ -342,9 +328,10 @@ fn read_deno_config(dir: &Path) -> Result<Option<ParsedDenoConfig>> {
     };
 
     let raw = fs::read_to_string(&path)
-        .map_err(|error| anyhow!("config error: failed to read {}: {error}", path.display()))?;
+        .with_context(|| format!("config error: failed to read {}", path.display()))?;
     let config = parse_to_serde_value::<RawDenoConfig>(&raw, &ParseOptions::default())
-        .map_err(|error| anyhow!("config error: failed to parse {}: {error}", path.display()))?;
+        .map_err(anyhow::Error::msg)
+        .with_context(|| format!("config error: failed to parse {}", path.display()))?;
     let tasks = config
         .tasks
         .into_iter()
@@ -370,7 +357,6 @@ fn read_deno_config(dir: &Path) -> Result<Option<ParsedDenoConfig>> {
         .collect();
 
     Ok(Some(ParsedDenoConfig {
-        path,
         tasks,
         has_workspace: config.workspace.is_some(),
     }))
@@ -389,6 +375,42 @@ mod tests {
         assert!(wildcard_matches("build-*-dev", "build-a-dev"));
         assert!(!wildcard_matches("build-*", "test-a"));
         assert!(!wildcard_matches("build-*-dev", "build-dev"));
+    }
+
+    #[test]
+    fn wildcard_root_tasks_all_receive_forwarded_args() {
+        let mut tasks = IndexMap::new();
+        tasks.insert("prepare".to_string(), task("echo prepare", &[]));
+        tasks.insert("build-a".to_string(), task("echo a", &["prepare"]));
+        tasks.insert("build-b".to_string(), task("echo b", &[]));
+
+        let stages = build_deno_task_stages(
+            &tasks,
+            &[String::from("build-*")],
+            &[String::from("--flag")],
+        )
+        .unwrap();
+        let steps = stages
+            .into_iter()
+            .flat_map(|stage| stage.steps)
+            .map(|step| (step.task_name, step.forward_args))
+            .collect::<Vec<_>>();
+
+        assert_eq!(steps.len(), 3);
+        assert!(steps.contains(&("prepare".to_string(), false)));
+        assert!(steps.contains(&("build-a".to_string(), true)));
+        assert!(steps.contains(&("build-b".to_string(), true)));
+    }
+
+    fn task(command: &str, dependencies: &[&str]) -> DenoTaskDefinition {
+        DenoTaskDefinition {
+            command: Some(command.to_string()),
+            description: None,
+            dependencies: dependencies
+                .iter()
+                .map(|dependency| (*dependency).to_string())
+                .collect(),
+        }
     }
 
     #[test]

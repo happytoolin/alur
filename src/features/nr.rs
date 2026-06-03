@@ -1,5 +1,3 @@
-use std::env;
-
 use anyhow::Result;
 
 use crate::{
@@ -7,63 +5,14 @@ use crate::{
         resolve::{self, ResolveContext},
         types::ResolvedExecution,
     },
-    features::interactive::{
-        completion::{
-            completion_candidates, completion_script_bash, completion_script_fish,
-            completion_script_zsh,
-        },
-        nr_scripts::{choose_script_interactive, read_scripts},
-    },
+    features::interactive::nr_scripts::choose_script_interactive,
 };
 
 pub fn handle(mut args: Vec<String>, ctx: &ResolveContext) -> Result<Option<ResolvedExecution>> {
-    if let Some(first) = args.first() {
-        if let Some(script) = completion_script_for(first) {
-            println!("{script}");
-            return Ok(None);
-        }
-
-        if first == "--completion" {
-            handle_completion_query(&args[1..], ctx)?;
-            return Ok(None);
-        }
-    }
-
     if args.is_empty() {
         args.push(choose_script_interactive(ctx)?);
     }
 
     let resolved = resolve::resolve_nr(args, ctx)?;
     Ok(Some(resolved))
-}
-
-fn handle_completion_query(args: &[String], ctx: &ResolveContext) -> Result<()> {
-    let scripts = read_scripts(ctx)?;
-    let script_names = scripts.into_iter().map(|s| s.name).collect::<Vec<_>>();
-
-    let comp_word = env::var("COMP_CWORD")
-        .ok()
-        .and_then(|v| v.parse::<usize>().ok())
-        .unwrap_or(0);
-
-    let prefix = if comp_word > 1 {
-        args.last().cloned().unwrap_or_default()
-    } else {
-        args.get(1).cloned().unwrap_or_default()
-    };
-
-    for candidate in completion_candidates(&prefix, script_names) {
-        println!("{candidate}");
-    }
-
-    Ok(())
-}
-
-fn completion_script_for(flag: &str) -> Option<String> {
-    match flag {
-        "--completion-bash" => Some(completion_script_bash("nr")),
-        "--completion-zsh" => Some(completion_script_zsh("nr")),
-        "--completion-fish" => Some(completion_script_fish("nr")),
-        _ => None,
-    }
 }

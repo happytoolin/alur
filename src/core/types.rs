@@ -66,10 +66,29 @@ pub enum ExecutionMode {
     Internal,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BatchMode {
+    Parallel,
+    Sequential,
+}
+
+impl BatchMode {
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Parallel => "parallel",
+            Self::Sequential => "sequential",
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ExecutionStrategy {
     External,
     Native(NativeExecution),
+    InternalBatch {
+        mode: BatchMode,
+        commands: Vec<String>,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -99,7 +118,6 @@ pub struct NativeScriptStep {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NativeDenoTaskExecution {
     pub project_root: PathBuf,
-    pub config_path: Option<PathBuf>,
     pub selection: String,
     pub stages: Vec<NativeDenoTaskStage>,
     pub forwarded_args: Vec<String>,
@@ -184,25 +202,6 @@ impl ResolvedExecution {
         }
     }
 
-    pub fn external_with_native_fallback(
-        program: impl Into<String>,
-        args: Vec<String>,
-        cwd: PathBuf,
-        passthrough: bool,
-        reason: impl Into<String>,
-    ) -> Self {
-        Self {
-            program: program.into(),
-            args,
-            cwd,
-            passthrough,
-            mode: ExecutionMode::PackageManager,
-            strategy: ExecutionStrategy::External,
-            fast_requested: true,
-            fast_fallback_reason: Some(reason.into()),
-        }
-    }
-
     pub fn native_script(
         script_name: impl Into<String>,
         cwd: PathBuf,
@@ -256,6 +255,19 @@ impl ResolvedExecution {
         }
     }
 
+    pub fn internal_batch(mode: BatchMode, commands: Vec<String>, cwd: PathBuf) -> Self {
+        Self {
+            program: "hni".to_string(),
+            args: commands.clone(),
+            cwd,
+            passthrough: false,
+            mode: ExecutionMode::Internal,
+            strategy: ExecutionStrategy::InternalBatch { mode, commands },
+            fast_requested: false,
+            fast_fallback_reason: None,
+        }
+    }
+
     pub fn is_native(&self) -> bool {
         matches!(self.strategy, ExecutionStrategy::Native(_))
     }
@@ -276,12 +288,6 @@ pub enum NodeShimMode {
     RunParallel,
     RunSequential,
     PassthroughNode,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct NodeShimDecision {
-    pub mode: NodeShimMode,
-    pub reason: String,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, EnumString)]
@@ -316,10 +322,6 @@ impl PackageManager {
             Self::Bun => "bun",
             Self::Deno => "deno",
         }
-    }
-
-    pub fn global_package_name(self) -> &'static str {
-        self.bin()
     }
 
     pub fn from_name(value: &str) -> Option<Self> {

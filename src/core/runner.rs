@@ -3,7 +3,7 @@ use std::process::{Command, ExitCode, Stdio};
 use anyhow::{Context, Result};
 
 use super::{
-    batch::{BatchMode, format_batch_debug, run_batch},
+    batch::{format_batch_debug, run_batch},
     native,
     shell::shell_escape,
     types::{ExecutionStrategy, NativeExecution, ResolvedExecution},
@@ -12,15 +12,15 @@ use super::{
 use crate::platform::node::{REAL_NODE_ENV, path_with_real_node_priority, resolve_real_node_path};
 
 pub fn format_debug(exec: &ResolvedExecution) -> Result<String> {
-    if let Some(mode) = BatchMode::from_internal_program(&exec.program) {
-        return Ok(format_batch_debug(mode, &exec.args));
+    if let ExecutionStrategy::InternalBatch { mode, commands } = &exec.strategy {
+        return Ok(format_batch_debug(*mode, commands));
     }
 
     if exec.is_native() {
         return Ok(native::format_debug(exec));
     }
 
-    let (program, args, _) = materialize(exec)?;
+    let (program, args) = materialize(exec)?;
     let rendered = std::iter::once(shell_escape(&program))
         .chain(args.iter().map(|arg| shell_escape(arg)))
         .collect::<Vec<_>>()
@@ -29,8 +29,8 @@ pub fn format_debug(exec: &ResolvedExecution) -> Result<String> {
 }
 
 pub fn run(exec: &ResolvedExecution) -> Result<ExitCode> {
-    if let Some(mode) = BatchMode::from_internal_program(&exec.program) {
-        return run_batch(mode, &exec.args, &exec.cwd);
+    if let ExecutionStrategy::InternalBatch { mode, commands } = &exec.strategy {
+        return run_batch(*mode, commands, &exec.cwd);
     }
 
     if let ExecutionStrategy::Native(native_exec) = &exec.strategy {
@@ -41,7 +41,7 @@ pub fn run(exec: &ResolvedExecution) -> Result<ExitCode> {
         };
     }
 
-    let (program, args, _passthrough) = materialize(exec)?;
+    let (program, args) = materialize(exec)?;
 
     let mut command = Command::new(&program);
     command
@@ -65,16 +65,14 @@ pub fn run(exec: &ResolvedExecution) -> Result<ExitCode> {
     Ok(exit_code_from_status(status.code()))
 }
 
-fn materialize(exec: &ResolvedExecution) -> Result<(String, Vec<String>, bool)> {
+fn materialize(exec: &ResolvedExecution) -> Result<(String, Vec<String>)> {
     let mut program = exec.program.clone();
     let args = exec.args.clone();
-    let mut passthrough = exec.passthrough;
 
     if exec.passthrough && exec.program == "node" {
         let real = resolve_real_node_path()?;
         program = real.to_string_lossy().to_string();
-        passthrough = true;
     }
 
-    Ok((program, args, passthrough))
+    Ok((program, args))
 }

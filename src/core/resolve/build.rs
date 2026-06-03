@@ -17,6 +17,9 @@ use super::{
     },
 };
 
+/// # Errors
+///
+/// Fails when package-manager detection or availability checks fail.
 pub fn resolve_ni(args: Vec<String>, ctx: &ResolveContext) -> Result<ResolvedExecution> {
     let use_global = args.iter().any(|arg| arg == "-g");
     let detected = detect_for_action(ctx, use_global)?;
@@ -25,71 +28,39 @@ pub fn resolve_ni(args: Vec<String>, ctx: &ResolveContext) -> Result<ResolvedExe
 
     if use_global {
         let args = exclude_flag(args, "-g");
-        return Ok(build_exec(
-            detected.pm,
-            Intent::Install,
-            args,
-            ctx.cwd(),
-            true,
-            detected.has_lock,
-        ));
+        return Ok(build_install_exec(detected.pm, args, ctx.cwd(), true));
     }
 
     if args.iter().any(|a| a == "--frozen-if-present") {
         let args = exclude_flag(args, "--frozen-if-present");
         if detected.has_lock {
-            return Ok(build_exec(
+            Ok(build_clean_install_exec(
                 detected.pm,
-                Intent::CleanInstall,
                 args,
                 ctx.cwd(),
-                false,
-                true,
-            ));
+                detected.has_lock,
+            ))
+        } else {
+            Ok(build_install_exec(detected.pm, args, ctx.cwd(), false))
         }
-        return Ok(build_exec(
-            detected.pm,
-            Intent::Install,
-            args,
-            ctx.cwd(),
-            false,
-            false,
-        ));
-    }
-
-    if args.iter().any(|a| a == "--frozen") {
+    } else if args.iter().any(|a| a == "--frozen") {
         let args = exclude_flag(args, "--frozen");
-        return Ok(build_exec(
+        Ok(build_clean_install_exec(detected.pm, args, ctx.cwd(), true))
+    } else if args.is_empty() || args.iter().all(|a| a.starts_with('-')) {
+        Ok(build_install_exec(detected.pm, args, ctx.cwd(), false))
+    } else {
+        Ok(build_simple_intent_exec(
             detected.pm,
-            Intent::CleanInstall,
+            SimpleIntent::Add,
             args,
             ctx.cwd(),
-            false,
-            true,
-        ));
+        ))
     }
-
-    if args.is_empty() || args.iter().all(|a| a.starts_with('-')) {
-        return Ok(build_exec(
-            detected.pm,
-            Intent::Install,
-            args,
-            ctx.cwd(),
-            false,
-            detected.has_lock,
-        ));
-    }
-
-    Ok(build_exec(
-        detected.pm,
-        Intent::Add,
-        args,
-        ctx.cwd(),
-        false,
-        detected.has_lock,
-    ))
 }
 
+/// # Errors
+///
+/// Fails when project scanning, package-manager detection, or native command materialization fails.
 pub fn resolve_nr(mut args: Vec<String>, ctx: &ResolveContext) -> Result<ResolvedExecution> {
     resolve_run_like(&mut args, ctx)
 }
@@ -133,14 +104,8 @@ fn resolve_run_like(args: &mut Vec<String>, ctx: &ResolveContext) -> Result<Reso
     let detected = detect_for_action(ctx, false)?;
     ensure_detected_available(&detected, ctx)?;
 
-    let mut resolved = build_exec(
-        detected.pm,
-        Intent::Run,
-        normalized_args,
-        ctx.cwd(),
-        false,
-        detected.has_lock,
-    );
+    let mut resolved =
+        build_simple_intent_exec(detected.pm, SimpleIntent::Run, normalized_args, ctx.cwd());
 
     if has_if_present {
         insert_if_present(&mut resolved);
@@ -149,23 +114,20 @@ fn resolve_run_like(args: &mut Vec<String>, ctx: &ResolveContext) -> Result<Reso
     Ok(resolved)
 }
 
+/// # Errors
+///
+/// Fails when local-bin scanning, package-manager detection, or availability checks fail.
 pub fn resolve_nlx(args: Vec<String>, ctx: &ResolveContext) -> Result<ResolvedExecution> {
     if ctx.config.fast_mode {
-        let state = ctx.local_bin_project_state();
+        let state = ctx.local_bin_project_state()?;
         let detected_hint = state.detection().agent;
         match native::attempt_nlx_from_local_bin_state(detected_hint, &args, ctx, &state)? {
             NativeAttempt::Eligible(exec) => return Ok(*exec),
             NativeAttempt::Ineligible(reason) => {
                 let detected = detect_for_action(ctx, false)?;
                 ensure_detected_available(&detected, ctx)?;
-                let mut resolved = build_exec(
-                    detected.pm,
-                    Intent::Execute,
-                    args,
-                    ctx.cwd(),
-                    false,
-                    detected.has_lock,
-                );
+                let mut resolved =
+                    build_simple_intent_exec(detected.pm, SimpleIntent::Execute, args, ctx.cwd());
                 resolved.fast_requested = true;
                 resolved.fast_fallback_reason = Some(reason);
                 return Ok(resolved);
@@ -175,13 +137,11 @@ pub fn resolve_nlx(args: Vec<String>, ctx: &ResolveContext) -> Result<ResolvedEx
 
     let detected = detect_for_action(ctx, false)?;
     ensure_detected_available(&detected, ctx)?;
-    Ok(build_exec(
+    Ok(build_simple_intent_exec(
         detected.pm,
-        Intent::Execute,
+        SimpleIntent::Execute,
         args,
         ctx.cwd(),
-        false,
-        detected.has_lock,
     ))
 }
 
@@ -194,14 +154,7 @@ fn build_run_fallback(
     let detected = agent_resolution_from_detection(ctx, false, detection)?;
     ensure_detected_available(&detected, ctx)?;
 
-    let mut resolved = build_exec(
-        detected.pm,
-        Intent::Run,
-        args,
-        ctx.cwd(),
-        false,
-        detected.has_lock,
-    );
+    let mut resolved = build_simple_intent_exec(detected.pm, SimpleIntent::Run, args, ctx.cwd());
 
     if has_if_present {
         insert_if_present(&mut resolved);
@@ -210,6 +163,9 @@ fn build_run_fallback(
     Ok(resolved)
 }
 
+/// # Errors
+///
+/// Fails when detection fails or the selected package manager cannot perform the requested upgrade mode.
 pub fn resolve_nru(mut args: Vec<String>, ctx: &ResolveContext) -> Result<ResolvedExecution> {
     let detected = detect_for_action(ctx, false)?;
     let interactive = args
@@ -224,6 +180,9 @@ pub fn resolve_nru(mut args: Vec<String>, ctx: &ResolveContext) -> Result<Resolv
     build_upgrade_exec(detected.pm, args, ctx.cwd(), interactive)
 }
 
+/// # Errors
+///
+/// Fails when detection fails, the command has no target dependency, or the selected package manager is unavailable.
 pub fn resolve_nun(args: Vec<String>, ctx: &ResolveContext) -> Result<ResolvedExecution> {
     let use_global = args.iter().any(|arg| arg == "-g");
     let detected = detect_for_action(ctx, use_global)?;
@@ -240,55 +199,41 @@ pub fn resolve_nun(args: Vec<String>, ctx: &ResolveContext) -> Result<ResolvedEx
     }
 
     ensure_detected_available(&detected, ctx)?;
-    Ok(build_exec(
+    Ok(build_uninstall_exec(
         detected.pm,
-        Intent::Uninstall,
         args,
         ctx.cwd(),
         use_global,
-        detected.has_lock,
     ))
 }
 
+/// # Errors
+///
+/// Fails when package-manager detection or availability checks fail.
 pub fn resolve_nci(args: Vec<String>, ctx: &ResolveContext) -> Result<ResolvedExecution> {
     let detected = detect_for_action(ctx, false)?;
     ensure_detected_available(&detected, ctx)?;
 
-    if detected.has_lock {
-        Ok(build_exec(
-            detected.pm,
-            Intent::CleanInstall,
-            args,
-            ctx.cwd(),
-            false,
-            true,
-        ))
-    } else {
-        Ok(build_exec(
-            detected.pm,
-            Intent::Install,
-            args,
-            ctx.cwd(),
-            false,
-            false,
-        ))
-    }
-}
-
-pub fn resolve_na(args: Vec<String>, ctx: &ResolveContext) -> Result<ResolvedExecution> {
-    let detected = detect_for_action(ctx, false)?;
-    ensure_detected_available(&detected, ctx)?;
-    Ok(build_exec(
+    Ok(build_clean_install_exec(
         detected.pm,
-        Intent::AgentAlias,
         args,
         ctx.cwd(),
-        false,
         detected.has_lock,
     ))
 }
 
-pub fn resolve_node_passthrough(args: Vec<String>, cwd: &Path) -> ResolvedExecution {
+pub(crate) fn resolve_na(args: Vec<String>, ctx: &ResolveContext) -> Result<ResolvedExecution> {
+    let detected = detect_for_action(ctx, false)?;
+    ensure_detected_available(&detected, ctx)?;
+    Ok(build_simple_intent_exec(
+        detected.pm,
+        SimpleIntent::AgentAlias,
+        args,
+        ctx.cwd(),
+    ))
+}
+
+pub(crate) fn resolve_node_passthrough(args: Vec<String>, cwd: &Path) -> ResolvedExecution {
     ResolvedExecution::external_with_mode(
         "node",
         args,
@@ -298,7 +243,7 @@ pub fn resolve_node_passthrough(args: Vec<String>, cwd: &Path) -> ResolvedExecut
     )
 }
 
-pub fn resolve_node_routed(
+pub(crate) fn resolve_node_routed(
     intent: Intent,
     args: Vec<String>,
     ctx: &ResolveContext,
@@ -323,13 +268,11 @@ fn resolve_detected_intent(
 ) -> Result<ResolvedExecution> {
     let detected = detect_for_action(ctx, false)?;
     ensure_detected_available(&detected, ctx)?;
-    Ok(build_exec(
+    Ok(build_simple_intent_exec(
         detected.pm,
-        intent,
+        SimpleIntent::from_detected(intent),
         args,
         ctx.cwd(),
-        false,
-        detected.has_lock,
     ))
 }
 
@@ -367,52 +310,97 @@ fn build_upgrade_exec(
     ))
 }
 
-fn build_exec(
+#[derive(Clone, Copy)]
+enum SimpleIntent {
+    Add,
+    Run,
+    Execute,
+    Upgrade,
+    AgentAlias,
+}
+
+impl SimpleIntent {
+    fn from_detected(intent: Intent) -> Self {
+        match intent {
+            Intent::Add => Self::Add,
+            Intent::Run => Self::Run,
+            Intent::Execute => Self::Execute,
+            Intent::Upgrade => Self::Upgrade,
+            Intent::AgentAlias => Self::AgentAlias,
+            Intent::Install
+            | Intent::Uninstall
+            | Intent::CleanInstall
+            | Intent::PassthroughNode => {
+                unreachable!("policy-bearing intents use dedicated builders")
+            }
+        }
+    }
+}
+
+fn build_install_exec(
     pm: PackageManager,
-    intent: Intent,
     args: Vec<String>,
     cwd: &Path,
     use_global: bool,
-    has_lock: bool,
 ) -> ResolvedExecution {
-    let (program, args) = match intent {
-        Intent::Install => {
-            if use_global {
-                global_install_command(pm, args)
-            } else {
-                install_command(pm, args)
-            }
-        }
-        Intent::Add => add_command(pm, args),
-        Intent::Run => run_command(pm, args),
-        Intent::Execute => execute_command(pm, args),
-        Intent::Upgrade => upgrade_command(pm, args),
-        Intent::Uninstall => {
-            if use_global {
-                global_uninstall_command(pm, args)
-            } else {
-                uninstall_command(pm, args)
-            }
-        }
-        Intent::CleanInstall => {
-            if has_lock {
-                frozen_command(pm)
-            } else {
-                install_command(pm, args)
-            }
-        }
-        Intent::AgentAlias => (pm.bin().to_string(), args),
-        Intent::PassthroughNode => {
-            return ResolvedExecution::external_with_mode(
-                "node",
-                args,
-                cwd.to_path_buf(),
-                true,
-                ExecutionMode::PassthroughNode,
-            );
-        }
+    let command = if use_global {
+        global_install_command(pm, args)
+    } else {
+        install_command(pm, args)
     };
 
+    external_execution(command, cwd)
+}
+
+fn build_uninstall_exec(
+    pm: PackageManager,
+    args: Vec<String>,
+    cwd: &Path,
+    use_global: bool,
+) -> ResolvedExecution {
+    let command = if use_global {
+        global_uninstall_command(pm, args)
+    } else {
+        uninstall_command(pm, args)
+    };
+
+    external_execution(command, cwd)
+}
+
+fn build_clean_install_exec(
+    pm: PackageManager,
+    args: Vec<String>,
+    cwd: &Path,
+    has_lock: bool,
+) -> ResolvedExecution {
+    let command = if has_lock {
+        frozen_command(pm, args)
+    } else {
+        install_command(pm, args)
+    };
+
+    external_execution(command, cwd)
+}
+
+fn build_simple_intent_exec(
+    pm: PackageManager,
+    intent: SimpleIntent,
+    args: Vec<String>,
+    cwd: &Path,
+) -> ResolvedExecution {
+    let (program, args) = match intent {
+        SimpleIntent::Add => add_command(pm, args),
+        SimpleIntent::Run => run_command(pm, args),
+        SimpleIntent::Execute => execute_command(pm, args),
+        SimpleIntent::Upgrade => upgrade_command(pm, args),
+        SimpleIntent::AgentAlias => (pm.bin().to_string(), args),
+    };
+
+    ResolvedExecution::external(program, args, cwd.to_path_buf(), false)
+}
+
+fn external_execution(command: (String, Vec<String>), cwd: &Path) -> ResolvedExecution {
+    let (program, args) = command;
     ResolvedExecution::external(program, args, cwd.to_path_buf(), false)
 }
 

@@ -2,17 +2,19 @@ use anyhow::{Result, anyhow};
 
 use crate::{
     core::{
-        batch::{self, BatchMode},
+        batch,
         resolve::{self, ResolveContext},
-        types::ResolvedExecution,
+        types::{BatchMode, ResolvedExecution},
     },
     features::{
         interactive::{
             ni_search::augment_ni_args_interactive, nun_select::choose_dependencies_for_uninstall,
         },
-        node_shim, nr,
+        nr,
     },
 };
+
+use super::completion::{nr_completion_script_for, print_nr_completion_query};
 
 pub fn handle_ni(args: Vec<String>, ctx: &ResolveContext) -> Result<Option<ResolvedExecution>> {
     let args = augment_ni_args_interactive(args, ctx)?;
@@ -20,6 +22,19 @@ pub fn handle_ni(args: Vec<String>, ctx: &ResolveContext) -> Result<Option<Resol
 }
 
 pub fn handle_nr(args: Vec<String>, ctx: &ResolveContext) -> Result<Option<ResolvedExecution>> {
+    if let Some(script) = args
+        .first()
+        .and_then(|first| nr_completion_script_for(first.as_str()))
+    {
+        println!("{script}");
+        return Ok(None);
+    }
+
+    if args.first().is_some_and(|first| first == "--completion") {
+        print_nr_completion_query(&args[1..], ctx)?;
+        return Ok(None);
+    }
+
     nr::handle(args, ctx)
 }
 
@@ -86,8 +101,4 @@ pub fn handle_ns(args: Vec<String>, ctx: &ResolveContext) -> Result<Option<Resol
         args,
         ctx.cwd(),
     )))
-}
-
-pub fn handle_node(args: Vec<String>, ctx: &ResolveContext) -> Result<Option<ResolvedExecution>> {
-    node_shim::handle(args, ctx)
 }

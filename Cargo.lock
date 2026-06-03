@@ -225,8 +225,6 @@ dependencies = [
  "console",
  "fuzzy-matcher",
  "shell-words",
- "tempfile",
- "zeroize",
 ]
 
 [[package]]

@@ -63,3 +63,53 @@ impl fmt::Display for FallbackReason {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::FallbackReason;
+
+    #[test]
+    fn fallback_reason_display_strings_are_stable() {
+        let cases = [
+            (
+                FallbackReason::DenoTask("cycle detected".to_string()),
+                "cycle detected",
+            ),
+            (
+                FallbackReason::MissingNearestDenoProject,
+                "fast deno execution requires a nearest deno project",
+            ),
+            (
+                FallbackReason::MissingNearestPackage,
+                "fast script execution requires a nearest package.json",
+            ),
+            (
+                FallbackReason::YarnBerryPnp,
+                "yarn berry Plug'n'Play does not expose node_modules/.bin; falling back to yarn execution",
+            ),
+            (
+                FallbackReason::MissingScript("build".to_string()),
+                "script 'build' was not found in the nearest package.json",
+            ),
+            (
+                FallbackReason::UnsupportedScriptEnv {
+                    event_name: "build".to_string(),
+                    pattern: "npm_package_",
+                },
+                "script 'build' uses unsupported fast environment expansion (npm_package_)",
+            ),
+            (
+                FallbackReason::MissingLocalBin,
+                "local binary not found in node_modules/.bin or package.json bin entries; falling back to package-manager exec",
+            ),
+            (
+                FallbackReason::MissingLocalBinCommand,
+                "fast local bin execution requires a command",
+            ),
+        ];
+
+        for (reason, expected) in cases {
+            assert_eq!(reason.to_string(), expected);
+        }
+    }
+}

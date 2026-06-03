@@ -93,7 +93,6 @@ This writes SVGs into [`benchmark/profiles/`](profiles/).
 
 ## Output
 
-- aggregated JSON results in [`benchmark/results/`](results/)
 - per-run Markdown reports in [`benchmark/results/`](results/)
 - raw per-case `hyperfine` JSON in `benchmark/results/raw/<track>/`
 - latest tracked snapshot in [`benchmark/LATEST.md`](LATEST.md)

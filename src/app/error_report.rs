@@ -2,18 +2,22 @@ use anyhow::Error;
 
 #[must_use = "the error string must be used"]
 pub fn render_error(error: &Error) -> String {
-    let full = error.to_string();
-    if let Some((primary, context)) = split_categorized(&full) {
-        let mut rendered = format!("hni: {primary}");
-        if let Some(context) = context {
-            rendered.push('\n');
-            rendered.push_str("context: ");
-            rendered.push_str(context);
+    let messages = error.chain().map(ToString::to_string).collect::<Vec<_>>();
+    if messages.len() <= 1 {
+        let full = error.to_string();
+        if let Some((primary, context)) = split_categorized(&full) {
+            let mut rendered = format!("hni: {primary}");
+            if let Some(context) = context {
+                rendered.push('\n');
+                rendered.push_str("context: ");
+                rendered.push_str(context);
+            }
+            return rendered;
         }
-        return rendered;
+
+        return format!("hni: {error}");
     }
 
-    let messages = error.chain().map(ToString::to_string).collect::<Vec<_>>();
     let Some(primary_index) = messages.iter().position(|message| is_categorized(message)) else {
         return format!("hni: {error}");
     };
@@ -55,15 +59,34 @@ fn is_categorized(message: &str) -> bool {
 
 fn categorized_index(message: &str) -> Option<usize> {
     [
-        "parse error:",
-        "config error:",
-        "detection error:",
-        "execution error:",
-        "interactive error:",
-        "network error:",
-        "storage error:",
+        "parse error",
+        "config error",
+        "detection error",
+        "execution error",
+        "interactive error",
+        "network error",
+        "storage error",
     ]
     .iter()
     .filter_map(|prefix| message.find(prefix))
     .min()
+}
+
+#[cfg(test)]
+mod tests {
+    use anyhow::{Context, anyhow};
+
+    use super::render_error;
+
+    #[test]
+    fn renders_context_chain_under_primary_category() {
+        let error = Err::<(), _>(anyhow!("storage error: runner detail"))
+            .context("execution error")
+            .unwrap_err();
+
+        assert_eq!(
+            render_error(&error),
+            "hni: execution error\ncontext: storage error: runner detail"
+        );
+    }
 }

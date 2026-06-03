@@ -107,10 +107,10 @@ fn resolve_shim_path_token(token: &str, shim_dir: &Path) -> Option<PathBuf> {
 fn looks_like_node_script_path(path: &Path) -> bool {
     matches!(
         path.extension()
-            .and_then(|value| value.to_str())
+            .and_then(std::ffi::OsStr::to_str)
             .map(|value| value.to_ascii_lowercase())
             .as_deref(),
-        Some("js") | Some("cjs") | Some("mjs")
+        Some("js" | "cjs" | "mjs")
     )
 }
 

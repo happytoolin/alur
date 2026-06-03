@@ -10,10 +10,12 @@ use super::paths_equal;
 
 pub const REAL_NODE_ENV: &str = "HNI_REAL_NODE";
 
+#[must_use]
 pub fn node_binary_name() -> &'static str {
     if cfg!(windows) { "node.exe" } else { "node" }
 }
 
+#[must_use]
 pub fn managed_node_shim_dir() -> Option<PathBuf> {
     local_data_dir()
         .or_else(config_dir)
@@ -45,10 +47,17 @@ fn env_path(name: &str) -> Option<PathBuf> {
         .map(PathBuf::from)
 }
 
+#[must_use]
 pub fn managed_node_shim_path() -> Option<PathBuf> {
     managed_node_shim_dir().map(|dir| dir.join(node_binary_name()))
 }
 
+/// Resolves the real Node.js binary that hni should delegate to.
+///
+/// # Errors
+///
+/// Returns an error when `HNI_REAL_NODE` points to a missing path or no non-hni Node.js binary can
+/// be found on `PATH`.
 pub fn resolve_real_node_path() -> Result<PathBuf> {
     if let Some(from_env) = env::var_os(REAL_NODE_ENV) {
         let path = PathBuf::from(from_env);
@@ -57,17 +66,13 @@ pub fn resolve_real_node_path() -> Result<PathBuf> {
         }
 
         return Err(anyhow!(
-            "{} points to a missing path: {}",
-            REAL_NODE_ENV,
+            "{REAL_NODE_ENV} points to a missing path: {}",
             path.display()
         ));
     }
 
     resolve_real_node_path_from_sources().ok_or_else(|| {
-        anyhow!(
-            "unable to locate real node binary. Set {}=/absolute/path/to/node",
-            REAL_NODE_ENV
-        )
+        anyhow!("unable to locate real node binary. Set {REAL_NODE_ENV}=/absolute/path/to/node")
     })
 }
 
@@ -93,6 +98,7 @@ fn scan_path_for_real_node() -> Option<PathBuf> {
     None
 }
 
+#[must_use]
 pub fn path_with_real_node_priority(
     real_node: &Path,
     current_path: Option<OsString>,
@@ -135,7 +141,7 @@ fn should_skip_node_candidate(
             .as_deref()
             .and_then(Path::file_name)
             .and_then(|name| name.to_str()),
-        Some("hni") | Some("hni.exe")
+        Some("hni" | "hni.exe")
     )
 }
 
@@ -237,11 +243,14 @@ mod tests {
         let fake_node = dir.path().join("node");
         fs::write(&fake_node, b"node").unwrap();
 
+        // SAFETY: ENV_LOCK serializes this test's process-wide environment mutation.
         unsafe { env::set_var(REAL_NODE_ENV, &fake_node) };
         assert_eq!(resolve_real_node_path().unwrap(), fake_node);
 
         match original {
+            // SAFETY: ENV_LOCK is still held while restoring the environment.
             Some(value) => unsafe { env::set_var(REAL_NODE_ENV, value) },
+            // SAFETY: ENV_LOCK is still held while restoring the environment.
             None => unsafe { env::remove_var(REAL_NODE_ENV) },
         }
     }

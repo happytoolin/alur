@@ -1,5 +1,7 @@
 use std::path::{Component, Path, PathBuf};
 
+use crate::core::util::file_is_runnable;
+
 pub fn resolve_local_bin(bin_name: &str, bin_dirs: &[PathBuf]) -> Option<PathBuf> {
     crate::core::profile::measure("local_bin.lookup", || {
         if !is_safe_bin_name(bin_name) {
@@ -14,7 +16,7 @@ pub fn resolve_local_bin(bin_name: &str, bin_dirs: &[PathBuf]) -> Option<PathBuf
         for dir in bin_dirs {
             for suffix in SUFFIXES {
                 let candidate = dir.join(format!("{bin_name}{suffix}"));
-                if is_runnable_file(&candidate) {
+                if file_is_runnable(&candidate) {
                     return Some(candidate);
                 }
             }
@@ -27,20 +29,6 @@ pub fn resolve_local_bin(bin_name: &str, bin_dirs: &[PathBuf]) -> Option<PathBuf
 fn is_safe_bin_name(bin_name: &str) -> bool {
     let mut components = Path::new(bin_name).components();
     matches!(components.next(), Some(Component::Normal(_))) && components.next().is_none()
-}
-
-#[cfg(unix)]
-fn is_runnable_file(path: &Path) -> bool {
-    use std::os::unix::fs::PermissionsExt;
-
-    path.metadata()
-        .map(|metadata| metadata.is_file() && metadata.permissions().mode() & 0o111 != 0)
-        .unwrap_or(false)
-}
-
-#[cfg(not(unix))]
-fn is_runnable_file(path: &Path) -> bool {
-    path.is_file()
 }
 
 #[cfg(test)]

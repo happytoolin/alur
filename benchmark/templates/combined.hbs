@@ -2,15 +2,13 @@
 
 Generated: {{timestamp}}
 
-Combined JSON: [{{combinedJsonBasename}}]({{combinedJsonRelative}})
-
 ## Tracks
 
 {{#each tracks}}
 ### {{capitalize @key}}
 {{trackOverviewLine}}
 
-Artifacts: [{{markdownBasename}}]({{markdownRelative}}) · [{{jsonBasename}}]({{jsonRelative}})
+Artifact: [{{markdownBasename}}]({{markdownRelative}})
 {{#if summaryOnly}}
 Detailed per-case results are kept in the track artifact.
 {{/if}}

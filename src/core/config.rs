@@ -3,7 +3,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use anyhow::{Result, anyhow};
+use anyhow::{Context, Result, anyhow};
 use configparser::ini::Ini;
 
 use super::types::PackageManager;
@@ -35,13 +35,13 @@ impl HniConfig {
 
         if let Some(path) = explicit_path {
             let loaded = parse_hnirc_file(&path, &mut cfg, true)
-                .map_err(|error| anyhow!("failed to load {}: {error}", path.display()))?;
+                .with_context(|| format!("failed to load {}", path.display()))?;
             if loaded {
                 cfg.config_path = Some(path);
             }
         } else if let Some(path) = default_config_path() {
             let loaded = parse_hnirc_file(&path, &mut cfg, false)
-                .map_err(|error| anyhow!("failed to load {}: {error}", path.display()))?;
+                .with_context(|| format!("failed to load {}", path.display()))?;
             if loaded {
                 cfg.config_path = Some(path);
             }
@@ -80,16 +80,19 @@ fn parse_hnirc_file(path: &Path, config: &mut HniConfig, required: bool) -> Resu
             ));
         }
         Err(error) => {
-            return Err(anyhow!(
-                "config error: failed to read config file {}: {error}",
-                path.display()
-            ));
+            return Err(error).with_context(|| {
+                format!(
+                    "config error: failed to read config file {}",
+                    path.display()
+                )
+            });
         }
     };
 
     let mut ini = Ini::new();
     ini.read(raw)
-        .map_err(|error| anyhow!("config error: failed to parse {}: {error}", path.display()))?;
+        .map_err(anyhow::Error::msg)
+        .with_context(|| format!("config error: failed to parse {}", path.display()))?;
 
     if let Some(v) = ini.get("default", "defaultpackagemanager") {
         config.default_package_manager = Some(parse_pm(v.trim())?);
