@@ -234,7 +234,7 @@ hni doctor
 These work across `hni` and the multicall aliases:
 
 ```bash
---debug-resolved
+--print-command
 --explain
 -C <dir>
 -v --version
@@ -303,7 +303,7 @@ Invoke-Expression (& hni init powershell)
 ### Check what `hni` resolved
 
 ```bash
-ni vite --debug-resolved
+ni vite --print-command
 nr dev --explain
 hni doctor
 ```
@@ -408,7 +408,7 @@ For startup/version checks, `hni` is faster:
 | -------------- | -------: | ----: | -------: |
 | `ni --version` |   149 ms | 92 ms | **1.6x** |
 
-_Current compare track keeps only version startup because `hni` no longer carries legacy `?` debug compatibility._
+_Current compare track keeps only version startup because `hni` no longer carries legacy `?` command-printing compatibility._
 
 #### 4. Runtime comparison vs Bun and Deno
 

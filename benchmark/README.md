@@ -101,7 +101,7 @@ This writes SVGs into [`benchmark/profiles/`](profiles/).
 
 ## Notes
 
-- `compare` is intentionally tiny and presentational; it does not exercise legacy `?` debug compatibility.
+- `compare` is intentionally tiny and presentational; it does not exercise legacy `?` command-printing compatibility.
 - `fast` is the engineering benchmark for fast-mode wins and regressions.
 - `runtime` keeps `bun` and `deno` separate from the Antfu comparison so the story stays fair.
 - `direct` measures the end-user value prop directly: whether `hni --fast` beats invoking the package manager the way most users normally would.

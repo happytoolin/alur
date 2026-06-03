@@ -87,8 +87,8 @@ fn with_global_flags(cmd: Command) -> Command {
     cmd.disable_help_flag(true)
         .disable_version_flag(true)
         .arg(
-            Arg::new("debug")
-                .long("debug-resolved")
+            Arg::new("print-command")
+                .long("print-command")
                 .help("print resolved command and exit")
                 .action(ArgAction::SetTrue),
         )

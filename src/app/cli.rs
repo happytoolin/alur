@@ -16,7 +16,7 @@ use crate::core::types::{HelpTopic, InvocationKind};
 #[derive(Debug, Clone)]
 pub struct ParsedInvocation {
     pub cwd: PathBuf,
-    pub debug: bool,
+    pub print_command: bool,
     pub explain: bool,
     pub fast_override: Option<bool>,
     pub command: ParsedCommand,
@@ -51,7 +51,7 @@ pub enum ParsedCommand {
 #[allow(clippy::struct_excessive_bools)]
 struct SharedFlags {
     cwd: Vec<PathBuf>,
-    debug: bool,
+    print_command: bool,
     explain: bool,
     fast_override: Option<bool>,
     help: bool,
@@ -62,7 +62,7 @@ impl SharedFlags {
     fn into_invocation(self, command: ParsedCommand) -> Result<ParsedInvocation> {
         Ok(ParsedInvocation {
             cwd: resolve_cwd(&self.cwd)?,
-            debug: self.debug,
+            print_command: self.print_command,
             explain: self.explain,
             fast_override: self.fast_override,
             command,
@@ -344,7 +344,7 @@ fn normalized_program_name(argv0: &str) -> String {
 fn extract_shared_flags(args: &[String]) -> Result<(SharedFlags, Vec<String>)> {
     let mut flags = SharedFlags {
         cwd: Vec::new(),
-        debug: false,
+        print_command: false,
         explain: false,
         fast_override: None,
         help: false,
@@ -370,8 +370,8 @@ fn extract_shared_flags(args: &[String]) -> Result<(SharedFlags, Vec<String>)> {
         }
 
         match arg.as_str() {
-            "--debug-resolved" => {
-                flags.debug = true;
+            "--print-command" => {
+                flags.print_command = true;
                 idx += 1;
             }
             "--explain" => {
@@ -447,19 +447,17 @@ mod tests {
     }
 
     #[test]
-    fn only_debug_resolved_is_consumed_as_debug_flag() {
+    fn only_print_command_is_consumed_as_print_flag() {
         let (flags, rest) = extract_shared_flags(&[
             "ni".to_string(),
             "?".to_string(),
             "-?".to_string(),
-            "--dry-run".to_string(),
             "--print-command".to_string(),
-            "--debug-resolved".to_string(),
         ])
         .unwrap();
 
-        assert!(flags.debug);
-        assert_eq!(rest, vec!["ni", "?", "-?", "--dry-run", "--print-command"]);
+        assert!(flags.print_command);
+        assert_eq!(rest, vec!["ni", "?", "-?"]);
     }
 
     #[test]
@@ -510,7 +508,7 @@ mod tests {
     fn alias_help_with_args_is_forwarded() {
         let shared_flags = SharedFlags {
             cwd: vec![],
-            debug: false,
+            print_command: false,
             explain: false,
             fast_override: None,
             help: true,
@@ -532,7 +530,7 @@ mod tests {
     fn alias_help_without_args_prints_help() {
         let shared_flags = SharedFlags {
             cwd: vec![],
-            debug: false,
+            print_command: false,
             explain: false,
             fast_override: None,
             help: true,

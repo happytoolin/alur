@@ -80,7 +80,7 @@ fn compare_pm_mode_with_installed_antfu_when_available() {
                     &our_bin_path,
                     &fixture.path,
                     &case.args,
-                    "--debug-resolved",
+                    "--print-command",
                     &[("HNI_SKIP_PM_CHECK", "1"), ("HNI_FAST", "false")],
                 );
 
@@ -335,13 +335,13 @@ fn run(
     bin: &Path,
     fixture: &Path,
     args: &[String],
-    debug_arg: &str,
+    print_arg: &str,
     envs: &[(&str, &str)],
 ) -> String {
     let mut cmd = Command::new(bin);
     cmd.arg("-C").arg(fixture);
     cmd.args(args);
-    cmd.arg(debug_arg);
+    cmd.arg(print_arg);
 
     for (k, v) in envs {
         cmd.env(k, v);

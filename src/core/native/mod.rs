@@ -86,8 +86,8 @@ pub(crate) fn run_local_bin(
 }
 
 #[must_use]
-pub(crate) fn format_debug(exec: &ResolvedExecution) -> String {
-    exec::format_debug(exec)
+pub(crate) fn format_command(exec: &ResolvedExecution) -> String {
+    exec::format_command(exec)
 }
 
 fn into_attempt(decision: NativeDecision, cwd: &Path) -> NativeAttempt {

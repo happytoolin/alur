@@ -3,7 +3,7 @@ use std::process::{Command, ExitCode, Stdio};
 use anyhow::{Context, Result};
 
 use super::{
-    batch::{format_batch_debug, run_batch},
+    batch::{format_batch_command, run_batch},
     native,
     shell::shell_escape,
     types::{ExecutionStrategy, NativeExecution, ResolvedExecution},
@@ -11,13 +11,13 @@ use super::{
 };
 use crate::platform::node::{REAL_NODE_ENV, path_with_real_node_priority, resolve_real_node_path};
 
-pub fn format_debug(exec: &ResolvedExecution) -> Result<String> {
+pub fn format_command(exec: &ResolvedExecution) -> Result<String> {
     if let ExecutionStrategy::InternalBatch { mode, commands } = &exec.strategy {
-        return Ok(format_batch_debug(*mode, commands));
+        return Ok(format_batch_command(*mode, commands));
     }
 
     if exec.is_native() {
-        return Ok(native::format_debug(exec));
+        return Ok(native::format_command(exec));
     }
 
     let (program, args) = materialize(exec)?;

@@ -31,7 +31,7 @@ fn passthrough_uses_explicit_real_node_env() {
         let exec =
             ResolvedExecution::external("node", vec!["-v".into()], dir.path().to_path_buf(), true);
 
-        let rendered = runner::format_debug(&exec).unwrap();
+        let rendered = runner::format_command(&exec).unwrap();
         assert!(rendered.contains(real_node.to_string_lossy().as_ref()));
 
         support::remove_var(REAL_NODE_ENV);
