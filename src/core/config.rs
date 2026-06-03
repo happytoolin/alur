@@ -1,10 +1,12 @@
-use std::{
-    env, fs, io,
-    path::{Path, PathBuf},
-};
+use std::{env, path::PathBuf};
 
-use anyhow::{Context, Result, anyhow};
-use configparser::ini::Ini;
+use anyhow::{Context, Result};
+use figment::{
+    Figment,
+    providers::{Env, Format, Toml},
+};
+use serde::Deserialize;
+use thiserror::Error;
 
 use super::types::PackageManager;
 
@@ -27,154 +29,103 @@ impl Default for HniConfig {
     }
 }
 
+#[derive(Debug, Default, Deserialize)]
+#[serde(default)]
+struct HniConfigValues {
+    default_package_manager: Option<PackageManager>,
+    global_package_manager: Option<PackageManager>,
+    fast_mode: Option<bool>,
+}
+
+#[derive(Debug, Error)]
+enum ConfigError {
+    #[error("config error: config file not found: {0}")]
+    FileNotFound(PathBuf),
+}
+
 impl HniConfig {
     pub fn load() -> Result<Self> {
-        let mut cfg = Self::default();
-
-        let explicit_path = env::var("HNI_CONFIG_FILE").ok().map(PathBuf::from);
-
-        if let Some(path) = explicit_path {
-            let loaded = parse_hnirc_file(&path, &mut cfg, true)
-                .with_context(|| format!("failed to load {}", path.display()))?;
-            if loaded {
-                cfg.config_path = Some(path);
+        let explicit_path = env::var_os("HNI_CONFIG_FILE").map(PathBuf::from);
+        let config_path = match explicit_path {
+            Some(path) if path.exists() => Some(path),
+            Some(path) => {
+                let display = path.display().to_string();
+                return Err(anyhow::Error::new(ConfigError::FileNotFound(path)))
+                    .with_context(|| format!("failed to load {display}"));
             }
-        } else if let Some(path) = default_config_path() {
-            let loaded = parse_hnirc_file(&path, &mut cfg, false)
-                .with_context(|| format!("failed to load {}", path.display()))?;
-            if loaded {
-                cfg.config_path = Some(path);
-            }
+            None => default_config_path().filter(|path| path.exists()),
+        };
+
+        let mut figment = Figment::new();
+        if let Some(path) = &config_path {
+            figment = figment.merge(Toml::file(path));
         }
 
-        if let Ok(v) = env::var("HNI_DEFAULT_PACKAGE_MANAGER") {
-            cfg.default_package_manager = Some(parse_pm(&v)?);
-        }
+        let values: HniConfigValues = figment
+            .merge(Env::prefixed("HNI_"))
+            .extract()
+            .context("config error: failed to load configuration")?;
 
-        if let Ok(v) = env::var("HNI_GLOBAL_PACKAGE_MANAGER") {
-            cfg.global_package_manager = parse_pm(&v)?;
-        }
-
-        if let Ok(v) = env::var("HNI_FAST") {
-            cfg.fast_mode = parse_bool(&v)?;
-        }
-
-        Ok(cfg)
+        let default = Self::default();
+        Ok(Self {
+            default_package_manager: values.default_package_manager,
+            global_package_manager: values
+                .global_package_manager
+                .unwrap_or(default.global_package_manager),
+            fast_mode: values.fast_mode.unwrap_or(default.fast_mode),
+            config_path,
+        })
     }
 }
 
 fn default_config_path() -> Option<PathBuf> {
-    let home = dirs::home_dir()?;
-    let hni = home.join(".hnirc");
-    hni.exists().then_some(hni)
-}
-
-fn parse_hnirc_file(path: &Path, config: &mut HniConfig, required: bool) -> Result<bool> {
-    let raw = match fs::read_to_string(path) {
-        Ok(content) => content,
-        Err(error) if error.kind() == io::ErrorKind::NotFound && !required => return Ok(false),
-        Err(error) if error.kind() == io::ErrorKind::NotFound && required => {
-            return Err(anyhow!(
-                "config error: config file not found: {}",
-                path.display()
-            ));
-        }
-        Err(error) => {
-            return Err(error).with_context(|| {
-                format!(
-                    "config error: failed to read config file {}",
-                    path.display()
-                )
-            });
-        }
-    };
-
-    let mut ini = Ini::new();
-    ini.read(raw)
-        .map_err(anyhow::Error::msg)
-        .with_context(|| format!("config error: failed to parse {}", path.display()))?;
-
-    if let Some(v) = ini.get("default", "defaultpackagemanager") {
-        config.default_package_manager = Some(parse_pm(v.trim())?);
-    }
-    if let Some(v) = ini.get("default", "globalpackagemanager") {
-        config.global_package_manager = parse_pm(v.trim())?;
-    }
-    if let Some(v) = ini.get("default", "fastmode") {
-        config.fast_mode = parse_bool(v.trim())?;
-    }
-
-    Ok(true)
-}
-
-fn parse_pm(value: &str) -> Result<PackageManager> {
-    PackageManager::from_name(&value.to_ascii_lowercase())
-        .ok_or_else(|| anyhow!("config error: unsupported package manager: {value}"))
-}
-
-fn parse_bool(value: &str) -> Result<bool> {
-    match value.trim().to_ascii_lowercase().as_str() {
-        "1" | "true" | "yes" | "on" => Ok(true),
-        "0" | "false" | "no" | "off" => Ok(false),
-        _ => Err(anyhow!("config error: invalid boolean: {value}")),
-    }
+    Some(dirs::config_dir()?.join("hni").join("config.toml"))
 }
 
 #[cfg(test)]
-fn default_config_path_with_home(home: &Path) -> Option<PathBuf> {
-    let hni = home.join(".hnirc");
-    hni.exists().then_some(hni)
+fn default_config_path_with_config_dir(config_dir: &std::path::Path) -> PathBuf {
+    config_dir.join("hni").join("config.toml")
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use figment::{
+        Figment,
+        providers::{Format, Toml},
+    };
+    use std::fs;
     use tempfile::tempdir;
 
     #[test]
-    fn parses_hnirc_values() {
+    fn parses_toml_values() {
         let dir = tempdir().unwrap();
-        let path = dir.path().join(".hnirc");
+        let path = dir.path().join("config.toml");
         fs::write(
             &path,
-            "defaultPackageManager=pnpm\nglobalPackageManager=yarn\nfastMode=false\n",
+            "default_package_manager = \"pnpm\"\nglobal_package_manager = \"yarn\"\nfast_mode = false\n",
         )
         .unwrap();
 
-        let mut cfg = HniConfig::default();
-        parse_hnirc_file(&path, &mut cfg, true).unwrap();
+        let values: HniConfigValues = Figment::new().merge(Toml::file(&path)).extract().unwrap();
 
-        assert_eq!(cfg.default_package_manager, Some(PackageManager::Pnpm));
-        assert_eq!(cfg.global_package_manager, PackageManager::Yarn);
-        assert!(!cfg.fast_mode);
+        assert_eq!(values.default_package_manager, Some(PackageManager::Pnpm));
+        assert_eq!(values.global_package_manager, Some(PackageManager::Yarn));
+        assert_eq!(values.fast_mode, Some(false));
     }
 
     #[test]
     fn explicit_missing_config_is_error() {
         let dir = tempdir().unwrap();
-        let path = dir.path().join("missing-hnirc");
-        let mut cfg = HniConfig::default();
-        let err = parse_hnirc_file(&path, &mut cfg, true).unwrap_err();
+        let path = dir.path().join("missing-config.toml");
+        let err = ConfigError::FileNotFound(path).to_string();
         assert!(err.to_string().contains("config file not found"));
     }
 
     #[test]
-    fn default_config_path_only_considers_hnirc() {
+    fn default_config_path_uses_config_toml() {
         let dir = tempdir().unwrap();
-        let home = dir.path();
-        fs::write(home.join(".nirc"), "defaultPackageManager=pnpm\n").unwrap();
-        fs::write(home.join(".hnirc"), "defaultPackageManager=bun\n").unwrap();
-
-        let resolved = default_config_path_with_home(home).unwrap();
-        assert_eq!(resolved, home.join(".hnirc"));
-    }
-
-    #[test]
-    fn default_config_path_ignores_nirc_when_hnirc_missing() {
-        let dir = tempdir().unwrap();
-        let home = dir.path();
-        fs::write(home.join(".nirc"), "defaultPackageManager=pnpm\n").unwrap();
-
-        assert_eq!(default_config_path_with_home(home), None);
+        let resolved = default_config_path_with_config_dir(dir.path());
+        assert_eq!(resolved, dir.path().join("hni").join("config.toml"));
     }
 }

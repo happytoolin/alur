@@ -61,20 +61,6 @@ pub(super) fn execute_command(pm: PackageManager, args: Vec<String>) -> (String,
     }
 }
 
-pub(super) fn upgrade_command(pm: PackageManager, args: Vec<String>) -> (String, Vec<String>) {
-    match pm {
-        PackageManager::Npm => ("npm".to_string(), prepend("update", args)),
-        PackageManager::Yarn => ("yarn".to_string(), prepend("upgrade", args)),
-        PackageManager::YarnBerry => ("yarn".to_string(), prepend("up", args)),
-        PackageManager::Pnpm => ("pnpm".to_string(), prepend("update", args)),
-        PackageManager::Bun => ("bun".to_string(), prepend("update", args)),
-        PackageManager::Deno => (
-            "deno".to_string(),
-            prepend("outdated", prepend("--update", args)),
-        ),
-    }
-}
-
 pub(super) fn uninstall_command(pm: PackageManager, args: Vec<String>) -> (String, Vec<String>) {
     match pm {
         PackageManager::Npm => ("npm".to_string(), prepend("uninstall", args)),

@@ -1,6 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::Result;
+use semver::Comparator;
 
 use crate::core::{
     config::HniConfig,
@@ -311,53 +312,65 @@ fn parse_declared_package_manager(
         .trim_start_matches(['^', '~'])
         .to_ascii_lowercase();
     let raw_version = version.map(str::trim).filter(|value| !value.is_empty());
-    let normalized_version = raw_version.and_then(normalize_version_hint);
+    let parsed_version = raw_version.and_then(parse_version_hint);
 
     let mut pm = PackageManager::from_name(&lower)?;
     if pm == PackageManager::Yarn
         && (raw_version.is_some_and(|value| value.eq_ignore_ascii_case("berry"))
-            || normalized_version
-                .as_deref()
-                .and_then(parse_major)
-                .is_some_and(|major| major >= 2))
+            || parsed_version
+                .as_ref()
+                .is_some_and(|version| version.major >= 2))
     {
         pm = PackageManager::YarnBerry;
     }
 
     let version_hint = if pm == PackageManager::YarnBerry
-        && raw_version.is_some_and(|value| value.eq_ignore_ascii_case("berry"))
+        && parsed_version
+            .as_ref()
+            .is_some_and(|version| version.berry_keyword)
     {
         None
     } else {
-        normalized_version
+        parsed_version.map(|version| version.value)
     };
 
     Some((pm, version_hint))
 }
 
-fn normalize_version_hint(value: &str) -> Option<String> {
-    let trimmed = value.trim();
-    if trimmed.eq_ignore_ascii_case("berry") {
-        return Some("berry".to_string());
-    }
-
-    let start = trimmed.find(|char: char| char.is_ascii_digit())?;
-    let suffix = &trimmed[start..];
-    let len = suffix
-        .chars()
-        .take_while(|char| char.is_ascii_digit() || *char == '.')
-        .map(char::len_utf8)
-        .sum::<usize>();
-
-    (len > 0).then(|| suffix[..len].to_string())
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct VersionHint {
+    value: String,
+    major: u64,
+    berry_keyword: bool,
 }
 
-fn parse_major(version: &str) -> Option<u64> {
-    if version.eq_ignore_ascii_case("berry") {
-        return Some(2);
+fn parse_version_hint(value: &str) -> Option<VersionHint> {
+    let trimmed = value.trim();
+    if trimmed.eq_ignore_ascii_case("berry") {
+        return Some(VersionHint {
+            value: "berry".to_string(),
+            major: 2,
+            berry_keyword: true,
+        });
     }
 
-    version.split('.').next()?.parse::<u64>().ok()
+    let comparator = Comparator::parse(trimmed).ok()?;
+    let mut normalized = match (comparator.minor, comparator.patch) {
+        (Some(minor), Some(patch)) => format!("{}.{}.{}", comparator.major, minor, patch),
+        (Some(minor), None) => format!("{}.{}", comparator.major, minor),
+        (None, _) => comparator.major.to_string(),
+    };
+
+    if !comparator.pre.is_empty() {
+        normalized.push('-');
+        normalized.push_str(comparator.pre.as_str());
+    }
+
+    Some(VersionHint {
+        value: normalized,
+        major: comparator.major,
+        berry_keyword: false,
+    })
 }
 
 pub(crate) fn collect_bin_dirs(dir: &Path, bin_dirs: &mut Vec<PathBuf>) {

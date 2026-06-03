@@ -1,7 +1,8 @@
 use clap::{Arg, ArgAction, Command, builder::PossibleValuesParser, value_parser};
 
 use crate::app::{
-    command_registry::{CommandSpec, command_subcommands, help_command_for_topic},
+    cli::hni_command,
+    command_registry::{CommandSpec, help_command_for_topic},
     init::SUPPORTED_SHELL_NAMES,
 };
 use crate::core::types::HelpTopic;
@@ -13,43 +14,7 @@ pub fn print_help(topic: HelpTopic) {
 }
 
 pub fn top_level_help() -> Command {
-    let mut cmd = with_global_flags(
-        Command::new("hni")
-            .about("use the right package manager")
-            .long_about(
-                "hni is a multicall package-manager router.\n\
-                 It powers commands like ni, nr, nlx, nru, nun, nci, na, np, ns, and node.\n\
-                 Fast mode is the default for eligible nr and nlx commands.",
-            )
-            .subcommand(Command::new("init").about("print shell init code"))
-            .subcommand(Command::new("doctor").about("print environment and detection diagnostics"))
-            .subcommand(Command::new("completion").about("print shell completion script"))
-            .after_help(
-                "Quick examples:\n\
-                 \n\
-                 ni vite\n\
-                 ni --explain react -D\n\
-                 nr dev\n\
-                 nr --pm dev\n\
-                 nr dev -- --port=3000\n\
-                 nlx create-vite@latest\n\
-                 nru --interactive\n\
-                 nun --multi-select\n\
-                 np \"echo one\" \"echo two\"\n\
-                 ns \"npm run build\" \"npm run test\"\n\
-                 hni init bash\n\
-                 hni doctor\n\
-                 hni help ni\n\
-                 hni completion zsh\n\
-                 node install react",
-            ),
-    );
-
-    for subcommand in command_subcommands() {
-        cmd = cmd.subcommand(subcommand);
-    }
-
-    cmd
+    hni_command()
 }
 
 pub fn command_help(spec: &CommandSpec) -> Command {

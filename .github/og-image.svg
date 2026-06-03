@@ -40,7 +40,7 @@
     <text x="98" y="300" fill="#2B547F" font-family="Space Grotesk, Segoe UI, sans-serif" font-size="42" font-weight="600">One CLI.</text>
     <text x="98" y="346" fill="#2B547F" font-family="Space Grotesk, Segoe UI, sans-serif" font-size="42" font-weight="600">Any package manager.</text>
 
-    <text x="98" y="430" fill="#3A5F86" font-family="Space Grotesk, Segoe UI, sans-serif" font-size="30" font-weight="500">ni · nr · nlx · nu · nun · nci · na · np · ns</text>
+    <text x="98" y="430" fill="#3A5F86" font-family="Space Grotesk, Segoe UI, sans-serif" font-size="30" font-weight="500">ni · nr · nlx · nun · nci · np · ns</text>
     <text x="98" y="474" fill="#446788" font-family="Space Grotesk, Segoe UI, sans-serif" font-size="28" font-weight="500">npm · yarn · pnpm · bun · deno</text>
   </g>
 

@@ -58,16 +58,16 @@ pub fn print_doctor(ctx: &ResolveContext) {
             .map_or_else(|| "none".to_string(), |p| p.display().to_string())
     );
     println!(
-        "defaultPackageManager: {}",
+        "default_package_manager: {}",
         config
             .default_package_manager
             .map_or("none", |pm| pm.display_name())
     );
     println!(
-        "globalPackageManager: {}",
+        "global_package_manager: {}",
         config.global_package_manager.display_name()
     );
-    println!("fastMode: {}", config.fast_mode);
+    println!("fast_mode: {}", config.fast_mode);
     println!();
 
     match ctx.detect() {
@@ -124,7 +124,7 @@ fn detection_source_label(value: DetectionSource) -> &'static str {
         DetectionSource::Lockfile => "lockfile",
         DetectionSource::DevEnginesField => "devEngines.packageManager field",
         DetectionSource::InstallMetadata => "install metadata",
-        DetectionSource::Config => "config defaultPackageManager",
+        DetectionSource::Config => "config default_package_manager",
         DetectionSource::Fallback => "fallback (npm in PATH)",
         DetectionSource::None => "none",
     }
@@ -146,7 +146,7 @@ mod tests {
                 "devEngines.packageManager field",
             ),
             (DetectionSource::InstallMetadata, "install metadata"),
-            (DetectionSource::Config, "config defaultPackageManager"),
+            (DetectionSource::Config, "config default_package_manager"),
             (DetectionSource::Fallback, "fallback (npm in PATH)"),
             (DetectionSource::None, "none"),
         ];

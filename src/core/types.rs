@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use serde::{Deserialize, Deserializer, de};
 use strum::EnumString;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -8,10 +9,8 @@ pub enum HelpTopic {
     Ni,
     Nr,
     Nlx,
-    Nru,
     Nun,
     Nci,
-    Na,
     Np,
     Ns,
     Node,
@@ -24,10 +23,8 @@ pub enum InvocationKind {
     Ni,
     Nr,
     Nlx,
-    Nru,
     Nun,
     Nci,
-    Na,
     Np,
     Ns,
     NodeShim,
@@ -39,11 +36,8 @@ pub enum Intent {
     Add,
     Run,
     Execute,
-    Upgrade,
     Uninstall,
     CleanInstall,
-    AgentAlias,
-    PassthroughNode,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -326,6 +320,17 @@ impl PackageManager {
 
     pub fn from_name(value: &str) -> Option<Self> {
         value.parse().ok()
+    }
+}
+
+impl<'de> Deserialize<'de> for PackageManager {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let value = String::deserialize(deserializer)?;
+        Self::from_name(&value.to_ascii_lowercase())
+            .ok_or_else(|| de::Error::custom(format!("unsupported package manager: {value}")))
     }
 }
 

@@ -1,6 +1,7 @@
 use std::{env, path::Path};
 
-use anyhow::{Result, anyhow};
+use anyhow::Result;
+use thiserror::Error;
 
 use super::{
     config::HniConfig,
@@ -36,23 +37,41 @@ pub fn ensure_package_manager_available(
     };
 
     if package == "npm" {
-        return Err(anyhow!(
-            "detected {} but it is not installed.\nInstall Node.js/npm first: https://nodejs.org/",
-            pm.display_name(),
-        ));
+        return Err(PackageManagerAvailabilityError::Npm {
+            display_name: pm.display_name(),
+        }
+        .into());
     }
 
     if matches!(pm, PackageManager::Deno) {
-        return Err(anyhow!(
-            "detected {} but it is not installed.\nInstall Deno manually: https://deno.com/",
-            pm.display_name(),
-        ));
+        return Err(PackageManagerAvailabilityError::Deno {
+            display_name: pm.display_name(),
+        }
+        .into());
     }
 
-    Err(anyhow!(
-        "detected {} but it is not installed.\nTry: npm i -g {target}",
-        pm.display_name(),
-    ))
+    Err(PackageManagerAvailabilityError::InstallViaNpm {
+        display_name: pm.display_name(),
+        target,
+    }
+    .into())
+}
+
+#[derive(Debug, Error)]
+enum PackageManagerAvailabilityError {
+    #[error(
+        "detected {display_name} but it is not installed.\nInstall Node.js/npm first: https://nodejs.org/"
+    )]
+    Npm { display_name: &'static str },
+    #[error(
+        "detected {display_name} but it is not installed.\nInstall Deno manually: https://deno.com/"
+    )]
+    Deno { display_name: &'static str },
+    #[error("detected {display_name} but it is not installed.\nTry: npm i -g {target}")]
+    InstallViaNpm {
+        display_name: &'static str,
+        target: String,
+    },
 }
 
 fn parse_user_agent(value: &str) -> Option<PackageManager> {

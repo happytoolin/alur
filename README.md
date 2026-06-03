@@ -21,7 +21,7 @@ The supported interface is the CLI; the Rust crate modules are internal and do n
 One install gives you:
 
 - `hni`
-- `ni`, `nr`, `nlx`, `nru`, `nun`, `nci`, `na`, `np`, `ns`
+- `ni`, `nr`, `nlx`, `nun`, `nci`, `np`, `ns`
 - `node` shim via `hni init <shell>` (managed launcher)
 
 ## Install
@@ -33,7 +33,7 @@ npm install -g @happytoolin/hni
 hni --version
 ```
 
-This installs `hni` and the `ni`-family aliases (`ni`, `nr`, `nlx`, `nru`, `nun`, `nci`, `na`, `np`, `ns`) onto your global npm bin path.
+This installs `hni` and the `ni`-family aliases (`ni`, `nr`, `nlx`, `nun`, `nci`, `np`, `ns`) onto your global npm bin path.
 The `node` shim is only enabled through `hni init <shell>`.
 Under the hood, the npm postinstall downloads the matching native `hni` binary from the GitHub release.
 
@@ -115,6 +115,18 @@ Once added, restart your shell. `node` will route known npm verbs through hni
 
 ## Commands
 
+### Canonical `hni` commands
+
+```bash
+hni install vite
+hni uninstall lodash
+hni run dev
+hni exec vitest
+hni ci
+hni parallel "pnpm dev" "pnpm test"
+hni sequential "pnpm lint" "pnpm test"
+```
+
 ### `ni`
 
 Install dependencies or add new ones.
@@ -126,7 +138,6 @@ ni -D vitest
 ni -g eslint
 ni --frozen
 ni --frozen-if-present
-ni --interactive
 ```
 
 ### `nr`
@@ -151,25 +162,13 @@ nlx eslint .
 nlx create-vite@latest
 ```
 
-### `nru`
-
-Upgrade dependencies.
-Named `nru` to avoid shadowing Nushell's `nu` binary.
-
-```bash
-nru
-nru react react-dom
-nru --interactive
-```
-
 ### `nun`
 
-Remove dependencies.
+Uninstall dependencies.
 
 ```bash
 nun lodash
 nun react react-dom
-nun --multi-select
 nun -g typescript
 ```
 
@@ -179,15 +178,6 @@ Run a clean install. If a lockfile exists, `hni` uses the package-manager-specif
 
 ```bash
 nci
-```
-
-### `na`
-
-Print or forward directly to the detected package manager.
-
-```bash
-na --version
-na config get registry
 ```
 
 ### `np` / `ns`
@@ -206,6 +196,7 @@ Enable it by adding `hni init <shell>` to your shell config first.
 
 ```bash
 node install vite
+node uninstall lodash
 node run dev
 node exec vitest
 node ci
@@ -244,7 +235,7 @@ These work across `hni` and the multicall aliases:
 Use `--` to forward flags to the underlying package manager or script:
 
 ```bash
-hni ni -- --help
+hni install -- --help
 nr test -- --watch
 ```
 
@@ -252,14 +243,16 @@ nr test -- --watch
 
 Config file:
 
-- `~/.hnirc`
+- `$XDG_CONFIG_HOME/hni/config.toml`
+- macOS default: `~/Library/Application Support/hni/config.toml`
+- Windows default: `%APPDATA%\hni\config.toml`
 
 Supported keys:
 
-```ini
-defaultPackageManager=pnpm
-globalPackageManager=npm
-fastMode=true
+```toml
+default_package_manager = "pnpm"
+global_package_manager = "npm"
+fast_mode = true
 ```
 
 Environment overrides:
@@ -267,7 +260,7 @@ Environment overrides:
 - `HNI_CONFIG_FILE`
 - `HNI_DEFAULT_PACKAGE_MANAGER`
 - `HNI_GLOBAL_PACKAGE_MANAGER`
-- `HNI_FAST`
+- `HNI_FAST_MODE`
 
 ## How It Works
 
@@ -284,8 +277,9 @@ Then it maps the command family to the right underlying command:
 - `ni` -> install or add
 - `nr` -> run or task
 - `nlx` -> `npx` / `pnpm dlx` / `yarn dlx` / `bun x`
-- `nru` -> update / upgrade
+- `nun` -> uninstall or remove
 - `nci` -> frozen install when lockfiles exist
+- `np` / `ns` -> parallel or sequential shell commands
 
 ## Troubleshooting
 

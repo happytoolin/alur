@@ -8,10 +8,8 @@
     "./ni": "./jsr/ni.ts",
     "./nr": "./jsr/nr.ts",
     "./nlx": "./jsr/nlx.ts",
-    "./nru": "./jsr/nru.ts",
     "./nun": "./jsr/nun.ts",
     "./nci": "./jsr/nci.ts",
-    "./na": "./jsr/na.ts",
     "./np": "./jsr/np.ts",
     "./ns": "./jsr/ns.ts"
   },

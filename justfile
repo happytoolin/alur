@@ -22,14 +22,14 @@ lint:
 test: test-pm test-fast
 
 test-pm:
-    HNI_FAST=false cargo test --all-targets --all-features
+    HNI_FAST_MODE=false cargo test --all-targets --all-features
 
 test-fast:
-    HNI_FAST=true cargo test --all-targets --all-features
+    HNI_FAST_MODE=true cargo test --all-targets --all-features
 
 test-modes:
-    HNI_FAST=false cargo test --all-targets --all-features
-    HNI_FAST=true cargo test --all-targets --all-features
+    HNI_FAST_MODE=false cargo test --all-targets --all-features
+    HNI_FAST_MODE=true cargo test --all-targets --all-features
 
 ci: fmt-check lint test
 

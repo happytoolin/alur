@@ -28,7 +28,7 @@ fn native_nr_runs_hooks_from_nearest_package_and_forwards_args() {
 
         let output = run_hni(
             vec![
-                "nr",
+                "run",
                 "-C",
                 pkg.to_str().unwrap(),
                 "--fast",
@@ -68,7 +68,7 @@ fn native_nlx_runs_local_bin_directly() {
 
         let output = run_hni(
             vec![
-                "nlx",
+                "exec",
                 "-C",
                 project.to_str().unwrap(),
                 "--fast",
@@ -101,7 +101,7 @@ fn native_explain_reports_fallback_reason() {
 
         let output = run_hni(
             vec![
-                "nr",
+                "run",
                 "-C",
                 project.to_str().unwrap(),
                 "--fast",
@@ -138,7 +138,7 @@ fn native_nr_preserves_shell_glob_expansion() {
         fs::write(src_dir.join("b.js"), "").unwrap();
 
         let output = run_hni(
-            vec!["nr", "-C", project.to_str().unwrap(), "--fast", "show"],
+            vec!["run", "-C", project.to_str().unwrap(), "--fast", "show"],
             &[("HNI_SKIP_PM_CHECK", "1")],
         );
 
@@ -167,7 +167,7 @@ fn native_nr_exposes_supported_shared_npm_env() {
         make_executable(&fake_node);
 
         let output = run_hni(
-            vec!["nr", "-C", project.to_str().unwrap(), "--fast", "dev"],
+            vec!["run", "-C", project.to_str().unwrap(), "--fast", "dev"],
             &[
                 ("HNI_SKIP_PM_CHECK", "1"),
                 ("HNI_REAL_NODE", fake_node.to_str().unwrap()),
@@ -208,9 +208,9 @@ fn node_run_uses_native_fast_path() {
         )
         .unwrap();
 
-        let run_output = run_hni(
+        let run_output = support::run_hni_as(
+            "node",
             vec![
-                "node",
                 "-C",
                 project.to_str().unwrap(),
                 "--fast",
@@ -241,9 +241,9 @@ fn node_run_uses_native_fast_path_with_hooks() {
         )
         .unwrap();
 
-        let run_output = run_hni(
+        let run_output = support::run_hni_as(
+            "node",
             vec![
-                "node",
                 "-C",
                 project.to_str().unwrap(),
                 "--fast",
@@ -274,9 +274,9 @@ fn node_run_uses_native_fast_path_with_lifecycle_env() {
         )
         .unwrap();
 
-        let run_output = run_hni(
+        let run_output = support::run_hni_as(
+            "node",
             vec![
-                "node",
                 "-C",
                 project.to_str().unwrap(),
                 "--fast",
@@ -313,7 +313,7 @@ fn native_nlx_sets_exec_compat_env() {
         make_executable(&bin);
 
         let output = run_hni(
-            vec!["nlx", "-C", project.to_str().unwrap(), "--fast", "hello"],
+            vec!["exec", "-C", project.to_str().unwrap(), "--fast", "hello"],
             &[
                 ("HNI_SKIP_PM_CHECK", "1"),
                 ("npm_config_user_agent", "hni-tests/1.0.0"),
@@ -348,9 +348,9 @@ fn node_exec_inherits_native_resolution() {
         fs::write(&bin, "#!/bin/sh\nexit 0\n").unwrap();
         make_executable(&bin);
 
-        let exec_output = run_hni(
+        let exec_output = support::run_hni_as(
+            "node",
             vec![
-                "node",
                 "-C",
                 project.to_str().unwrap(),
                 "--fast",

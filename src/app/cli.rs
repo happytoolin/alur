@@ -1,17 +1,33 @@
 use std::{env, ffi::OsStr, path::PathBuf};
 
 use anyhow::{Context, Result, anyhow};
-use clap::{Arg, ArgAction, ArgMatches, Command, builder::PossibleValuesParser};
+use clap::{
+    ArgAction, Args, Command, CommandFactory, Parser, Subcommand, builder::PossibleValuesParser,
+};
 
 use crate::app::{
-    command_registry::{
-        command_spec_by_name, command_specs, help_topic_by_name, help_topic_for_invocation,
-        invocation_from_name,
-    },
+    command_registry::{help_topic_by_name, help_topic_for_invocation, invocation_from_name},
     help::command_args_arg,
     init::SUPPORTED_SHELL_NAMES,
 };
 use crate::core::types::{HelpTopic, InvocationKind};
+
+const HNI_AFTER_HELP: &str = "Quick examples:\n\
+\n\
+hni install vite\n\
+hni install --explain react -D\n\
+hni uninstall lodash\n\
+hni run dev\n\
+hni run --pm dev\n\
+hni run dev -- --port=3000\n\
+hni exec create-vite@latest\n\
+np \"echo one\" \"echo two\"\n\
+ns \"npm run build\" \"npm run test\"\n\
+hni init bash\n\
+hni doctor\n\
+hni help ni\n\
+hni completion zsh\n\
+node install react";
 
 #[derive(Debug, Clone)]
 pub struct ParsedInvocation {
@@ -58,6 +74,186 @@ struct SharedFlags {
     version: bool,
 }
 
+#[derive(Debug, Parser)]
+#[command(
+    name = "hni",
+    about = "use the right package manager",
+    long_about = "hni is a multicall package-manager router.\nIt powers hni install/uninstall/run/exec/ci/parallel/sequential plus ni, nr, nlx, nun, nci, np, ns, and node.\nFast mode is the default for eligible nr and nlx commands.",
+    after_help = HNI_AFTER_HELP,
+    disable_help_flag = true,
+    disable_version_flag = true,
+    disable_help_subcommand = true
+)]
+struct HniCli {
+    #[command(flatten)]
+    _shared: ClapSharedFlags,
+    #[command(subcommand)]
+    command: Option<HniSubcommand>,
+}
+
+#[derive(Debug, Parser)]
+#[command(
+    name = "hni",
+    about = "use the right package manager",
+    long_about = "hni is a multicall package-manager router.\nIt powers hni install/uninstall/run/exec/ci/parallel/sequential plus ni, nr, nlx, nun, nci, np, ns, and node.\nFast mode is the default for eligible nr and nlx commands.",
+    after_help = HNI_AFTER_HELP,
+    disable_help_flag = true,
+    disable_version_flag = true,
+    disable_help_subcommand = true
+)]
+struct HniPublicCli {
+    #[command(flatten)]
+    _shared: ClapSharedFlags,
+    #[command(subcommand)]
+    _command: Option<HniPublicSubcommand>,
+}
+
+#[derive(Debug, Args)]
+struct ClapSharedFlags {
+    #[arg(long, global = true, help = "print resolved command and exit")]
+    print_command: bool,
+    #[arg(
+        long,
+        global = true,
+        help = "print detection + resolution details and exit"
+    )]
+    explain: bool,
+    #[arg(
+        long,
+        global = true,
+        conflicts_with = "pm",
+        help = "prefer fast mode for eligible run/exec commands"
+    )]
+    fast: bool,
+    #[arg(
+        long,
+        global = true,
+        conflicts_with = "fast",
+        help = "force package-manager mode for this invocation"
+    )]
+    pm: bool,
+    #[arg(
+        short = 'C',
+        long = "cwd",
+        global = true,
+        value_name = "DIR",
+        value_parser = clap::value_parser!(PathBuf),
+        action = ArgAction::Append,
+        help = "run as if in <dir>"
+    )]
+    cwd: Vec<PathBuf>,
+    #[arg(short = 'v', long, global = true, help = "show versions")]
+    version: bool,
+    #[arg(short = 'h', long, global = true, help = "show help")]
+    help: bool,
+}
+
+#[derive(Debug, Subcommand)]
+enum HniSubcommand {
+    #[command(about = "install or add dependencies")]
+    Install(ForwardedArgs),
+    #[command(about = "uninstall dependencies")]
+    Uninstall(ForwardedArgs),
+    #[command(about = "run package scripts")]
+    Run(ForwardedArgs),
+    #[command(about = "execute package binaries")]
+    Exec(ForwardedArgs),
+    #[command(about = "clean install")]
+    Ci(ForwardedArgs),
+    #[command(about = "run shell commands in parallel")]
+    Parallel(ForwardedArgs),
+    #[command(about = "run shell commands sequentially")]
+    Sequential(ForwardedArgs),
+    #[command(about = "print hni or command help")]
+    Help(HelpArgs),
+    #[command(about = "print environment and detection diagnostics")]
+    Doctor,
+    #[command(about = "print shell completion script")]
+    Completion(CompletionArgs),
+    #[command(about = "print shell init code")]
+    Init(InitArgs),
+    #[command(hide = true)]
+    Internal(InternalArgs),
+}
+
+#[derive(Debug, Subcommand)]
+enum HniPublicSubcommand {
+    #[command(about = "install or add dependencies")]
+    Install(ForwardedArgs),
+    #[command(about = "uninstall dependencies")]
+    Uninstall(ForwardedArgs),
+    #[command(about = "run package scripts")]
+    Run(ForwardedArgs),
+    #[command(about = "execute package binaries")]
+    Exec(ForwardedArgs),
+    #[command(about = "clean install")]
+    Ci(ForwardedArgs),
+    #[command(about = "run shell commands in parallel")]
+    Parallel(ForwardedArgs),
+    #[command(about = "run shell commands sequentially")]
+    Sequential(ForwardedArgs),
+    #[command(about = "print hni or command help")]
+    Help(HelpArgs),
+    #[command(about = "print environment and detection diagnostics")]
+    Doctor,
+    #[command(about = "print shell completion script")]
+    Completion(CompletionArgs),
+    #[command(about = "print shell init code")]
+    Init(InitArgs),
+}
+
+#[derive(Debug, Args)]
+struct ForwardedArgs {
+    #[arg(
+        value_name = "ARGS",
+        num_args = 0..,
+        allow_hyphen_values = true,
+        help = "arguments forwarded to the resolved command"
+    )]
+    args: Vec<String>,
+}
+
+#[derive(Debug, Args)]
+struct CompletionArgs {
+    shell: Option<String>,
+}
+
+#[derive(Debug, Args)]
+struct HelpArgs {
+    command: Option<String>,
+}
+
+#[derive(Debug, Args)]
+struct InitArgs {
+    #[arg(value_parser = PossibleValuesParser::new(SUPPORTED_SHELL_NAMES))]
+    shell: String,
+}
+
+#[derive(Debug, Args)]
+struct InternalArgs {
+    #[command(subcommand)]
+    command: Option<InternalSubcommand>,
+}
+
+#[derive(Debug, Subcommand)]
+enum InternalSubcommand {
+    #[command(hide = true)]
+    RealNodePath,
+    #[command(hide = true)]
+    ProfileLoop(ProfileLoopArgs),
+}
+
+#[derive(Debug, Args)]
+struct ProfileLoopArgs {
+    #[arg(long, default_value_t = 2000)]
+    iterations: usize,
+    #[arg(long)]
+    timings: bool,
+    invocation: String,
+    #[arg(value_name = "ARGS", num_args = 0.., allow_hyphen_values = true)]
+    args: Vec<String>,
+}
+
 impl SharedFlags {
     fn into_invocation(self, command: ParsedCommand) -> Result<ParsedInvocation> {
         Ok(ParsedInvocation {
@@ -94,56 +290,16 @@ pub fn parse_from_env() -> Result<ParsedInvocation> {
 }
 
 fn parse_hni(argv0: &str, args: &[String], shared_flags: SharedFlags) -> Result<ParsedInvocation> {
-    if args.first().is_some_and(|token| token == "help") {
-        let requested_topic = args.get(1).cloned();
-        if args.len() > 2 {
-            return Err(anyhow!(
-                "parse error: unexpected arguments for help: {}",
-                args[2..].join(" ")
-            ));
-        }
-
-        let mut command = ParsedCommand::PrintHelp(help_target(requested_topic)?);
-        if shared_flags.version {
-            command = ParsedCommand::PrintVersions;
-        } else if shared_flags.help {
-            command = ParsedCommand::PrintHelp(help_target_from_command(&command));
-        }
-
-        return shared_flags.into_invocation(command);
-    }
-
     let program = normalized_program_name(argv0);
     let mut clap_args = Vec::with_capacity(args.len() + 1);
     clap_args.push(program.clone());
     clap_args.extend(args.iter().cloned());
 
-    let matches = hni_parser()
-        .try_get_matches_from(clap_args)
-        .context("parse error")?;
+    let parsed = HniCli::try_parse_from(clap_args).context("parse error")?;
 
-    let mut command = if let Some((name, sub_matches)) = matches.subcommand() {
-        if let Some(spec) = command_spec_by_name(name) {
-            execute_from_subcommand(spec.invocation, sub_matches)
-        } else {
-            match name {
-                "doctor" => ParsedCommand::Doctor,
-                "completion" => ParsedCommand::Completion {
-                    shell: sub_matches.get_one::<String>("shell").cloned(),
-                    program: program.clone(),
-                },
-                "init" => ParsedCommand::Init {
-                    shell: sub_matches
-                        .get_one::<String>("shell")
-                        .cloned()
-                        .ok_or_else(|| anyhow!("parse error: missing shell for init"))?,
-                },
-                "internal" => parse_internal_command(sub_matches)?,
-                _ => ParsedCommand::PrintHelp(HelpTopic::Hni),
-            }
-        }
-    } else {
-        ParsedCommand::PrintHelp(HelpTopic::Hni)
+    let mut command = match parsed.command {
+        Some(subcommand) => parsed_hni_subcommand(subcommand, program.clone())?,
+        None => ParsedCommand::PrintHelp(HelpTopic::Hni),
     };
 
     if shared_flags.version {
@@ -160,7 +316,7 @@ fn parse_alias(
     args: &[String],
     shared_flags: SharedFlags,
 ) -> Result<ParsedInvocation> {
-    let mut forwarded_args = args.to_vec();
+    let mut forwarded_args = normalize_forwarded_args(invocation, args.to_vec());
     let has_forwarded_args = !forwarded_args.is_empty();
 
     if has_forwarded_args {
@@ -188,36 +344,56 @@ fn parse_alias(
     shared_flags.into_invocation(command)
 }
 
-fn execute_from_subcommand(invocation: InvocationKind, sub_matches: &ArgMatches) -> ParsedCommand {
+fn parsed_hni_subcommand(subcommand: HniSubcommand, program: String) -> Result<ParsedCommand> {
+    match subcommand {
+        HniSubcommand::Install(args) => Ok(execute_from_args(InvocationKind::Ni, args)),
+        HniSubcommand::Run(args) => Ok(execute_from_args(InvocationKind::Nr, args)),
+        HniSubcommand::Exec(args) => Ok(execute_from_args(InvocationKind::Nlx, args)),
+        HniSubcommand::Uninstall(args) => Ok(execute_from_args(InvocationKind::Nun, args)),
+        HniSubcommand::Ci(args) => Ok(execute_from_args(InvocationKind::Nci, args)),
+        HniSubcommand::Parallel(args) => Ok(execute_from_args(InvocationKind::Np, args)),
+        HniSubcommand::Sequential(args) => Ok(execute_from_args(InvocationKind::Ns, args)),
+        HniSubcommand::Help(args) => Ok(ParsedCommand::PrintHelp(help_target(args.command)?)),
+        HniSubcommand::Doctor => Ok(ParsedCommand::Doctor),
+        HniSubcommand::Completion(args) => Ok(ParsedCommand::Completion {
+            shell: args.shell,
+            program,
+        }),
+        HniSubcommand::Init(args) => Ok(ParsedCommand::Init { shell: args.shell }),
+        HniSubcommand::Internal(args) => parse_internal_command(args),
+    }
+}
+
+fn execute_from_args(invocation: InvocationKind, args: ForwardedArgs) -> ParsedCommand {
     ParsedCommand::Execute {
         invocation,
-        args: values_from(sub_matches.get_many::<String>("args")),
+        args: normalize_forwarded_args(invocation, args.args),
     }
 }
 
-fn parse_internal_command(sub_matches: &ArgMatches) -> Result<ParsedCommand> {
-    match sub_matches.subcommand() {
-        Some(("real-node-path", _)) => Ok(ParsedCommand::InternalRealNodePath),
-        Some(("profile-loop", matches)) => Ok(ParsedCommand::InternalProfileLoop {
-            invocation: internal_invocation(
-                matches
-                    .get_one::<String>("invocation")
-                    .ok_or_else(|| anyhow!("parse error: missing internal invocation"))?,
-            )?,
-            args: values_from(matches.get_many::<String>("args")),
-            iterations: *matches
-                .get_one::<usize>("iterations")
-                .ok_or_else(|| anyhow!("parse error: missing iterations"))?,
-            timings: matches.get_flag("timings"),
+fn normalize_forwarded_args(invocation: InvocationKind, mut args: Vec<String>) -> Vec<String> {
+    if matches!(
+        invocation,
+        InvocationKind::Ni | InvocationKind::Nun | InvocationKind::Nci
+    ) && let Some(separator) = args.iter().position(|arg| arg == "--")
+    {
+        args.remove(separator);
+    }
+
+    args
+}
+
+fn parse_internal_command(args: InternalArgs) -> Result<ParsedCommand> {
+    match args.command {
+        Some(InternalSubcommand::RealNodePath) => Ok(ParsedCommand::InternalRealNodePath),
+        Some(InternalSubcommand::ProfileLoop(args)) => Ok(ParsedCommand::InternalProfileLoop {
+            invocation: internal_invocation(&args.invocation)?,
+            args: args.args,
+            iterations: args.iterations,
+            timings: args.timings,
         }),
-        _ => Ok(ParsedCommand::PrintHelp(HelpTopic::Hni)),
+        None => Ok(ParsedCommand::PrintHelp(HelpTopic::Hni)),
     }
-}
-
-fn values_from<'a, T: Clone + 'a>(values: Option<clap::parser::ValuesRef<'a, T>>) -> Vec<T> {
-    values
-        .map(|entries| entries.cloned().collect::<Vec<_>>())
-        .unwrap_or_default()
 }
 
 fn resolve_cwd(cwd_flags: &[PathBuf]) -> Result<PathBuf> {
@@ -264,58 +440,8 @@ fn help_target_from_command(command: &ParsedCommand) -> HelpTopic {
     }
 }
 
-fn init_parser() -> Command {
-    Command::new("init").arg(
-        Arg::new("shell")
-            .required(true)
-            .value_parser(PossibleValuesParser::new(SUPPORTED_SHELL_NAMES)),
-    )
-}
-
-fn internal_parser() -> Command {
-    Command::new("internal")
-        .hide(true)
-        .subcommand(Command::new("real-node-path").hide(true))
-        .subcommand(
-            Command::new("profile-loop")
-                .hide(true)
-                .arg(
-                    Arg::new("iterations")
-                        .long("iterations")
-                        .value_parser(clap::value_parser!(usize))
-                        .default_value("2000"),
-                )
-                .arg(
-                    Arg::new("timings")
-                        .long("timings")
-                        .action(ArgAction::SetTrue),
-                )
-                .arg(
-                    Arg::new("invocation")
-                        .required(true)
-                        .value_parser(PossibleValuesParser::new(
-                            command_specs().iter().map(|spec| spec.name),
-                        )),
-                )
-                .arg(command_args_arg()),
-        )
-}
-
-fn hni_parser() -> Command {
-    let mut cmd = Command::new("hni")
-        .disable_help_flag(true)
-        .disable_version_flag(true)
-        .disable_help_subcommand(true)
-        .subcommand(Command::new("doctor"))
-        .subcommand(Command::new("completion").arg(Arg::new("shell").num_args(0..=1)))
-        .subcommand(init_parser())
-        .subcommand(internal_parser());
-
-    for spec in command_specs() {
-        cmd = cmd.subcommand(command_parser(spec.name));
-    }
-
-    cmd
+pub fn hni_command() -> Command {
+    HniPublicCli::command()
 }
 
 #[must_use]
@@ -437,86 +563,95 @@ fn set_fast_override(flags: &mut SharedFlags, value: bool) -> Result<()> {
 mod tests {
     use super::*;
 
-    #[test]
-    fn extracts_fast_alias_as_fast_override() {
-        let (flags, rest) =
-            extract_shared_flags(&["--fast".to_string(), "dev".to_string()]).unwrap();
+    fn strings(values: &[&str]) -> Vec<String> {
+        values.iter().map(|value| value.to_string()).collect()
+    }
 
-        assert_eq!(flags.fast_override, Some(true));
-        assert_eq!(rest, vec!["dev"]);
+    fn parse_args(argv: &[&str]) -> Result<ParsedInvocation> {
+        let owned = strings(argv);
+        let argv0 = owned
+            .first()
+            .ok_or_else(|| anyhow!("parse error: missing argv[0]"))?;
+        let invocation = invocation_from_argv0(argv0);
+        let (shared_flags, args) = extract_shared_flags(&owned[1..])?;
+
+        if invocation == InvocationKind::Hni {
+            parse_hni(argv0, &args, shared_flags)
+        } else {
+            parse_alias(invocation, &args, shared_flags)
+        }
     }
 
     #[test]
-    fn only_print_command_is_consumed_as_print_flag() {
-        let (flags, rest) = extract_shared_flags(&[
-            "ni".to_string(),
-            "?".to_string(),
-            "-?".to_string(),
-            "--print-command".to_string(),
-        ])
-        .unwrap();
+    fn hni_fast_flag_sets_fast_override() {
+        let parsed = parse_args(&["hni", "run", "--fast", "dev"]).unwrap();
 
-        assert!(flags.print_command);
-        assert_eq!(rest, vec!["ni", "?", "-?"]);
+        assert_eq!(parsed.fast_override, Some(true));
+        match parsed.command {
+            ParsedCommand::Execute { args, .. } => assert_eq!(args, vec!["dev"]),
+            _ => panic!("expected execute command"),
+        }
     }
 
     #[test]
-    fn extracts_shared_flags_from_any_position_before_passthrough() {
-        let (flags, rest) = extract_shared_flags(&[
-            "ni".to_string(),
-            "vite".to_string(),
-            "--help".to_string(),
-            "--".to_string(),
-            "--version".to_string(),
-        ])
-        .unwrap();
+    fn hni_print_command_after_positional_is_consumed_as_shared_flag() {
+        let parsed = parse_args(&["hni", "install", "vite", "--print-command"]).unwrap();
 
-        assert!(flags.help);
-        assert_eq!(rest, vec!["ni", "vite", "--", "--version"]);
+        assert!(parsed.print_command);
+        match parsed.command {
+            ParsedCommand::Execute { args, .. } => assert_eq!(args, vec!["vite"]),
+            _ => panic!("expected execute command"),
+        }
     }
 
     #[test]
-    fn extracts_short_and_long_cwd_flag_forms() {
-        let (flags, rest) = extract_shared_flags(&[
-            "ni".to_string(),
-            "-Ctmp".to_string(),
-            "--cwd=project".to_string(),
-            "vite".to_string(),
+    fn hni_flags_after_passthrough_separator_are_forwarded() {
+        let parsed = parse_args(&[
+            "hni",
+            "install",
+            "vite",
+            "--print-command",
+            "--",
+            "--version",
         ])
         .unwrap();
+
+        assert!(parsed.print_command);
+        match parsed.command {
+            ParsedCommand::Execute { args, .. } => assert_eq!(args, vec!["vite", "--version"]),
+            _ => panic!("expected execute command"),
+        }
+    }
+
+    #[test]
+    fn hni_extracts_short_and_long_cwd_flag_forms() {
+        let parsed = parse_args(&["hni", "install", "-Ctmp", "--cwd=project", "vite"]).unwrap();
 
         assert_eq!(
-            flags.cwd,
-            vec![PathBuf::from("tmp"), PathBuf::from("project")]
+            parsed.cwd,
+            env::current_dir().unwrap().join("tmp").join("project")
         );
-        assert_eq!(rest, vec!["ni", "vite"]);
+        match parsed.command {
+            ParsedCommand::Execute { args, .. } => assert_eq!(args, vec!["vite"]),
+            _ => panic!("expected execute command"),
+        }
     }
 
     #[test]
     fn missing_cwd_value_is_parse_error() {
-        let err = extract_shared_flags(&["ni".to_string(), "-C".to_string()]).unwrap_err();
-        assert!(err.to_string().contains("missing value for -C"));
+        let err = parse_args(&["hni", "install", "-C"]).unwrap_err();
+        assert!(err.to_string().contains("parse error"));
     }
 
     #[test]
     fn conflicting_fast_and_pm_flags_are_rejected() {
-        let err = extract_shared_flags(&["--fast".to_string(), "--pm".to_string()]).unwrap_err();
+        let err = parse_args(&["hni", "run", "--fast", "--pm", "dev"]).unwrap_err();
         assert!(err.to_string().contains("conflicts"));
     }
 
     #[test]
     fn alias_help_with_args_is_forwarded() {
-        let shared_flags = SharedFlags {
-            cwd: vec![],
-            print_command: false,
-            explain: false,
-            fast_override: None,
-            help: true,
-            version: false,
-        };
-
-        let parsed =
-            parse_alias(InvocationKind::Nlx, &["vitest".to_string()], shared_flags).unwrap();
+        let parsed = parse_args(&["nlx", "vitest", "--help"]).unwrap();
 
         match parsed.command {
             ParsedCommand::Execute { args, .. } => {
@@ -528,16 +663,7 @@ mod tests {
 
     #[test]
     fn alias_help_without_args_prints_help() {
-        let shared_flags = SharedFlags {
-            cwd: vec![],
-            print_command: false,
-            explain: false,
-            fast_override: None,
-            help: true,
-            version: false,
-        };
-
-        let parsed = parse_alias(InvocationKind::Nlx, &[], shared_flags).unwrap();
+        let parsed = parse_args(&["nlx", "--help"]).unwrap();
 
         match parsed.command {
             ParsedCommand::PrintHelp(HelpTopic::Nlx) => {}

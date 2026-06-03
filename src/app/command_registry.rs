@@ -9,7 +9,6 @@ use crate::{
 pub use crate::core::types::HelpTopic;
 
 use super::{
-    cli::command_parser,
     commands,
     help::{command_help, init_help},
 };
@@ -40,7 +39,6 @@ const COMMAND_SPECS: &[CommandSpec] = &[
              ni                   Install dependencies\n\
              ni vite              Add dependency\n\
              ni -D vitest         Add dev dependency\n\
-             ni --interactive     Search and choose a package interactively\n\
              ni --frozen          Use lockfile-only install (nci behavior)\n\
              ni -- --help         Forward --help to underlying package manager\n\
              ni -g npm-check-updates",
@@ -77,29 +75,15 @@ const COMMAND_SPECS: &[CommandSpec] = &[
         handler: commands::handle_nlx,
     },
     CommandSpec {
-        name: "nru",
-        invocation: InvocationKind::Nru,
-        help_topic: HelpTopic::Nru,
-        about: "upgrade dependencies",
-        long_about: "Upgrades dependencies using package-manager-specific update commands.",
-        examples: "Examples:\n\
-             \n\
-             nru\n\
-             nru react react-dom\n\
-             nru --interactive      Interactive mode when supported",
-        handler: commands::handle_nru,
-    },
-    CommandSpec {
         name: "nun",
         invocation: InvocationKind::Nun,
         help_topic: HelpTopic::Nun,
-        about: "remove dependencies",
-        long_about: "Uninstalls dependencies. Supports interactive multi-select mode.",
+        about: "uninstall dependencies",
+        long_about: "Removes dependencies using the package manager detected from packageManager or lockfile.",
         examples: "Examples:\n\
              \n\
              nun lodash\n\
              nun react react-dom\n\
-             nun --multi-select    Interactive multi-select\n\
              nun -g typescript",
         handler: commands::handle_nun,
     },
@@ -114,19 +98,6 @@ const COMMAND_SPECS: &[CommandSpec] = &[
              nci\n\
              nci --prefer-offline",
         handler: commands::handle_nci,
-    },
-    CommandSpec {
-        name: "na",
-        invocation: InvocationKind::Na,
-        help_topic: HelpTopic::Na,
-        about: "package manager alias",
-        long_about: "Forwards arguments directly to the detected package manager binary.",
-        examples: "Examples:\n\
-             \n\
-             na --version\n\
-             na config get registry\n\
-             na cache clean --force",
-        handler: commands::handle_na,
     },
     CommandSpec {
         name: "np",
@@ -168,10 +139,11 @@ const COMMAND_SPECS: &[CommandSpec] = &[
                      Routed examples:\n\
                      \n\
                      node install vite\n\
+                     node uninstall lodash\n\
                      node run dev -- --port=3000\n\
                      node p \"echo one\" \"echo two\"\n\
                      \n\
-                     Routed verbs: p, s, install|i, add, run, exec|x|dlx, update|upgrade, uninstall|remove, ci",
+                     Routed verbs: p, s, install|i, add, uninstall|remove, run, exec|x|dlx, ci",
         handler: node_shim::handle,
     },
 ];
@@ -198,6 +170,13 @@ pub fn help_topic_by_name(name: &str) -> Option<HelpTopic> {
     match name {
         "hni" | "doctor" | "completion" | "help" => Some(HelpTopic::Hni),
         "init" => Some(HelpTopic::Init),
+        "install" => Some(HelpTopic::Ni),
+        "run" => Some(HelpTopic::Nr),
+        "exec" => Some(HelpTopic::Nlx),
+        "uninstall" => Some(HelpTopic::Nun),
+        "ci" => Some(HelpTopic::Nci),
+        "parallel" => Some(HelpTopic::Np),
+        "sequential" => Some(HelpTopic::Ns),
         _ => command_spec_by_name(name).map(|spec| spec.help_topic),
     }
 }
@@ -224,10 +203,4 @@ pub fn help_command_for_topic(topic: HelpTopic) -> Command {
             command_help(spec)
         }
     }
-}
-
-pub fn command_subcommands() -> impl Iterator<Item = Command> {
-    command_specs()
-        .iter()
-        .map(|spec| command_parser(spec.name).about(spec.about))
 }

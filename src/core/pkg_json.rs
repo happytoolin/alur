@@ -17,15 +17,6 @@ pub struct PackageJson {
     #[serde(default)]
     pub bin: PackageBin,
     pub scripts: Option<BTreeMap<String, String>>,
-    #[serde(rename = "scripts-info")]
-    pub scripts_info: Option<BTreeMap<String, String>>,
-    pub dependencies: Option<BTreeMap<String, String>>,
-    #[serde(rename = "devDependencies")]
-    pub dev_dependencies: Option<BTreeMap<String, String>>,
-    #[serde(rename = "peerDependencies")]
-    pub peer_dependencies: Option<BTreeMap<String, String>>,
-    #[serde(rename = "optionalDependencies")]
-    pub optional_dependencies: Option<BTreeMap<String, String>>,
 }
 
 #[derive(Debug, Clone, Deserialize, Default)]

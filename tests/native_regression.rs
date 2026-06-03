@@ -368,7 +368,7 @@ fn oracle_args(case: NativeRegressionCase) -> Vec<String> {
 
 fn hni_args(case: NativeRegressionCase, cwd: &Path) -> Vec<String> {
     let mut args = vec![
-        "nr".to_string(),
+        "run".to_string(),
         "-C".to_string(),
         cwd.to_string_lossy().to_string(),
         "--fast".to_string(),
@@ -380,7 +380,7 @@ fn hni_args(case: NativeRegressionCase, cwd: &Path) -> Vec<String> {
 
 fn hni_explain_args(case: NativeRegressionCase, cwd: &Path) -> Vec<String> {
     let mut args = vec![
-        "nr".to_string(),
+        "run".to_string(),
         "-C".to_string(),
         cwd.to_string_lossy().to_string(),
         "--fast".to_string(),
@@ -393,7 +393,7 @@ fn hni_explain_args(case: NativeRegressionCase, cwd: &Path) -> Vec<String> {
 
 fn hni_print_command_args(case: NativeRegressionCase, cwd: &Path) -> Vec<String> {
     let mut args = vec![
-        "nr".to_string(),
+        "run".to_string(),
         "-C".to_string(),
         cwd.to_string_lossy().to_string(),
         "--fast".to_string(),

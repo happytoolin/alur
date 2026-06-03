@@ -7,7 +7,10 @@ use std::{
 
 use anyhow::{Context, Result};
 use deno_task_shell::{KillSignal, execute, parser::parse};
-use tokio::{runtime::Builder, task::LocalSet};
+use tokio::{
+    runtime::{Builder, Runtime},
+    task::LocalSet,
+};
 
 use crate::{
     core::{
@@ -75,6 +78,11 @@ pub(super) fn run_deno_task(
     invocation_cwd: &Path,
 ) -> Result<ExitCode> {
     let envs = deno_task_env(exec, invocation_cwd)?;
+    let runtime = Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .context("failed to build tokio runtime")?;
+    let local_set = LocalSet::new();
 
     for stage in &exec.stages {
         for step in &stage.steps {
@@ -85,7 +93,8 @@ pub(super) fn run_deno_task(
             continue;
         };
 
-        let exit_code = execute_deno_shell_command(&command, &exec.project_root, &envs)?;
+        let exit_code =
+            execute_deno_shell_command(&runtime, &local_set, &command, &exec.project_root, &envs)?;
         if exit_code != 0 {
             return Ok(exit_code_from_status(Some(exit_code)));
         }
@@ -224,16 +233,13 @@ fn print_deno_task_line(step: &NativeDenoTaskStep, forwarded_args: &[String]) {
 }
 
 fn execute_deno_shell_command(
+    runtime: &Runtime,
+    local_set: &LocalSet,
     command: &str,
     cwd: &Path,
     envs: &HashMap<OsString, OsString>,
 ) -> Result<i32> {
     let parsed = parse(command).context("failed to parse deno task command")?;
-    let runtime = Builder::new_current_thread()
-        .enable_all()
-        .build()
-        .context("failed to build tokio runtime")?;
-    let local_set = LocalSet::new();
 
     Ok(runtime.block_on(local_set.run_until(execute(
         parsed,

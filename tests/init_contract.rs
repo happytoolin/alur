@@ -365,7 +365,7 @@ impl TestHome {
         cmd.env_remove("HNI_CONFIG_FILE")
             .env_remove("HNI_DEFAULT_PACKAGE_MANAGER")
             .env_remove("HNI_GLOBAL_PACKAGE_MANAGER")
-            .env_remove("HNI_FAST")
+            .env_remove("HNI_FAST_MODE")
             .env_remove("HNI_REAL_NODE")
             .env("HNI_SKIP_PM_CHECK", "1")
             .env("HOME", &self.home)

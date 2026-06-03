@@ -1,6 +1,5 @@
-use std::fmt;
-
 use crate::core::types::{NativeDenoTaskExecution, NativeLocalBinExecution, NativeScriptExecution};
+use thiserror::Error;
 
 pub(super) enum NativeDecision {
     Eligible(NativePlan),
@@ -13,55 +12,31 @@ pub(super) enum NativePlan {
     LocalBin(NativeLocalBinExecution),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub(super) enum FallbackReason {
+    #[error("{0}")]
     DenoTask(String),
+    #[error("fast deno execution requires a nearest deno project")]
     MissingNearestDenoProject,
+    #[error("fast script execution requires a nearest package.json")]
     MissingNearestPackage,
+    #[error(
+        "yarn berry Plug'n'Play does not expose node_modules/.bin; falling back to yarn execution"
+    )]
     YarnBerryPnp,
+    #[error("script '{0}' was not found in the nearest package.json")]
     MissingScript(String),
+    #[error("script '{event_name}' uses unsupported fast environment expansion ({pattern})")]
     UnsupportedScriptEnv {
         event_name: String,
         pattern: &'static str,
     },
+    #[error(
+        "local binary not found in node_modules/.bin or package.json bin entries; falling back to package-manager exec"
+    )]
     MissingLocalBin,
+    #[error("fast local bin execution requires a command")]
     MissingLocalBinCommand,
-}
-
-impl fmt::Display for FallbackReason {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::DenoTask(reason) => write!(f, "{reason}"),
-            Self::MissingNearestDenoProject => {
-                write!(f, "fast deno execution requires a nearest deno project")
-            }
-            Self::MissingNearestPackage => {
-                write!(f, "fast script execution requires a nearest package.json")
-            }
-            Self::YarnBerryPnp => write!(
-                f,
-                "yarn berry Plug'n'Play does not expose node_modules/.bin; falling back to yarn execution"
-            ),
-            Self::MissingScript(script_name) => write!(
-                f,
-                "script '{script_name}' was not found in the nearest package.json"
-            ),
-            Self::UnsupportedScriptEnv {
-                event_name,
-                pattern,
-            } => write!(
-                f,
-                "script '{event_name}' uses unsupported fast environment expansion ({pattern})"
-            ),
-            Self::MissingLocalBin => write!(
-                f,
-                "local binary not found in node_modules/.bin or package.json bin entries; falling back to package-manager exec"
-            ),
-            Self::MissingLocalBinCommand => {
-                write!(f, "fast local bin execution requires a command")
-            }
-        }
-    }
 }
 
 #[cfg(test)]

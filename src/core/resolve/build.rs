@@ -10,10 +10,10 @@ use crate::core::{
 use super::{
     context::ResolveContext,
     detect::{agent_resolution_from_detection, detect_for_action, ensure_detected_available},
-    flags::{exclude_flag, normalize_ni_args, prepend},
+    flags::{exclude_flag, normalize_ni_args},
     map::{
         add_command, execute_command, frozen_command, global_install_command,
-        global_uninstall_command, install_command, run_command, uninstall_command, upgrade_command,
+        global_uninstall_command, install_command, run_command, uninstall_command,
     },
 };
 
@@ -145,6 +145,33 @@ pub fn resolve_nlx(args: Vec<String>, ctx: &ResolveContext) -> Result<ResolvedEx
     ))
 }
 
+/// # Errors
+///
+/// Fails when detection fails, the command has no target dependency, or the selected package manager is unavailable.
+pub fn resolve_nun(args: Vec<String>, ctx: &ResolveContext) -> Result<ResolvedExecution> {
+    let use_global = args.iter().any(|arg| arg == "-g");
+    let detected = detect_for_action(ctx, use_global)?;
+    let args = if use_global {
+        exclude_flag(args, "-g")
+    } else {
+        args
+    };
+
+    if args.is_empty() {
+        return Err(anyhow!(
+            "execution error: nun requires a dependency to uninstall.\nTry: nun lodash"
+        ));
+    }
+
+    ensure_detected_available(&detected, ctx)?;
+    Ok(build_uninstall_exec(
+        detected.pm,
+        args,
+        ctx.cwd(),
+        use_global,
+    ))
+}
+
 fn build_run_fallback(
     ctx: &ResolveContext,
     args: Vec<String>,
@@ -165,50 +192,6 @@ fn build_run_fallback(
 
 /// # Errors
 ///
-/// Fails when detection fails or the selected package manager cannot perform the requested upgrade mode.
-pub fn resolve_nru(mut args: Vec<String>, ctx: &ResolveContext) -> Result<ResolvedExecution> {
-    let detected = detect_for_action(ctx, false)?;
-    let interactive = args
-        .iter()
-        .any(|a| matches!(a.as_str(), "-i" | "--interactive"));
-    if interactive {
-        args = exclude_flag(args, "-i");
-        args = exclude_flag(args, "--interactive");
-    }
-
-    ensure_detected_available(&detected, ctx)?;
-    build_upgrade_exec(detected.pm, args, ctx.cwd(), interactive)
-}
-
-/// # Errors
-///
-/// Fails when detection fails, the command has no target dependency, or the selected package manager is unavailable.
-pub fn resolve_nun(args: Vec<String>, ctx: &ResolveContext) -> Result<ResolvedExecution> {
-    let use_global = args.iter().any(|arg| arg == "-g");
-    let detected = detect_for_action(ctx, use_global)?;
-    let args = if use_global {
-        exclude_flag(args, "-g")
-    } else {
-        args
-    };
-
-    if args.is_empty() {
-        return Err(anyhow!(
-            "execution error: no dependencies selected for uninstall"
-        ));
-    }
-
-    ensure_detected_available(&detected, ctx)?;
-    Ok(build_uninstall_exec(
-        detected.pm,
-        args,
-        ctx.cwd(),
-        use_global,
-    ))
-}
-
-/// # Errors
-///
 /// Fails when package-manager detection or availability checks fail.
 pub fn resolve_nci(args: Vec<String>, ctx: &ResolveContext) -> Result<ResolvedExecution> {
     let detected = detect_for_action(ctx, false)?;
@@ -219,17 +202,6 @@ pub fn resolve_nci(args: Vec<String>, ctx: &ResolveContext) -> Result<ResolvedEx
         args,
         ctx.cwd(),
         detected.has_lock,
-    ))
-}
-
-pub(crate) fn resolve_na(args: Vec<String>, ctx: &ResolveContext) -> Result<ResolvedExecution> {
-    let detected = detect_for_action(ctx, false)?;
-    ensure_detected_available(&detected, ctx)?;
-    Ok(build_simple_intent_exec(
-        detected.pm,
-        SimpleIntent::AgentAlias,
-        args,
-        ctx.cwd(),
     ))
 }
 
@@ -253,11 +225,8 @@ pub(crate) fn resolve_node_routed(
         Intent::Add => resolve_detected_intent(intent, args, ctx),
         Intent::Execute => resolve_nlx(args, ctx),
         Intent::Run => resolve_nr(args, ctx),
-        Intent::Upgrade => resolve_nru(args, ctx),
         Intent::Uninstall => resolve_nun(args, ctx),
         Intent::CleanInstall => resolve_nci(args, ctx),
-        Intent::AgentAlias => resolve_na(args, ctx),
-        Intent::PassthroughNode => Ok(resolve_node_passthrough(args, ctx.cwd())),
     }
 }
 
@@ -276,47 +245,11 @@ fn resolve_detected_intent(
     ))
 }
 
-fn build_upgrade_exec(
-    pm: PackageManager,
-    args: Vec<String>,
-    cwd: &Path,
-    interactive: bool,
-) -> Result<ResolvedExecution> {
-    let (program, args) = if interactive {
-        match pm {
-            PackageManager::Npm | PackageManager::Bun => {
-                return Err(anyhow!(
-                    "interactive error: interactive upgrade is not supported for {}",
-                    pm.display_name()
-                ));
-            }
-            PackageManager::Yarn => ("yarn".to_string(), prepend("upgrade-interactive", args)),
-            PackageManager::YarnBerry => ("yarn".to_string(), prepend("up", prepend("-i", args))),
-            PackageManager::Pnpm => ("pnpm".to_string(), prepend("update", prepend("-i", args))),
-            PackageManager::Deno => (
-                "deno".to_string(),
-                prepend("outdated", prepend("--update", args)),
-            ),
-        }
-    } else {
-        upgrade_command(pm, args)
-    };
-
-    Ok(ResolvedExecution::external(
-        program,
-        args,
-        cwd.to_path_buf(),
-        false,
-    ))
-}
-
 #[derive(Clone, Copy)]
 enum SimpleIntent {
     Add,
     Run,
     Execute,
-    Upgrade,
-    AgentAlias,
 }
 
 impl SimpleIntent {
@@ -325,12 +258,7 @@ impl SimpleIntent {
             Intent::Add => Self::Add,
             Intent::Run => Self::Run,
             Intent::Execute => Self::Execute,
-            Intent::Upgrade => Self::Upgrade,
-            Intent::AgentAlias => Self::AgentAlias,
-            Intent::Install
-            | Intent::Uninstall
-            | Intent::CleanInstall
-            | Intent::PassthroughNode => {
+            Intent::Install | Intent::Uninstall | Intent::CleanInstall => {
                 unreachable!("policy-bearing intents use dedicated builders")
             }
         }
@@ -392,8 +320,6 @@ fn build_simple_intent_exec(
         SimpleIntent::Add => add_command(pm, args),
         SimpleIntent::Run => run_command(pm, args),
         SimpleIntent::Execute => execute_command(pm, args),
-        SimpleIntent::Upgrade => upgrade_command(pm, args),
-        SimpleIntent::AgentAlias => (pm.bin().to_string(), args),
     };
 
     ResolvedExecution::external(program, args, cwd.to_path_buf(), false)

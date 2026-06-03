@@ -12,10 +12,8 @@ export const INVOCATIONS = [
   "ni",
   "nr",
   "nlx",
-  "nru",
   "nun",
   "nci",
-  "na",
   "np",
   "ns",
 ] as const;

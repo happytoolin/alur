@@ -81,7 +81,7 @@ pub fn run_hni_owned(args: &[String], extra_env: &[(&str, &str)]) -> std::proces
         .env_remove("HNI_CONFIG_FILE")
         .env_remove("HNI_DEFAULT_PACKAGE_MANAGER")
         .env_remove("HNI_GLOBAL_PACKAGE_MANAGER")
-        .env_remove("HNI_FAST")
+        .env_remove("HNI_FAST_MODE")
         .env_remove("HNI_SKIP_PM_CHECK")
         .env_remove("HNI_REAL_NODE");
 
@@ -90,6 +90,34 @@ pub fn run_hni_owned(args: &[String], extra_env: &[(&str, &str)]) -> std::proces
     }
 
     cmd.output().expect("failed to run hni")
+}
+
+#[cfg(unix)]
+pub fn run_hni_as(
+    invocation: &str,
+    args: Vec<&str>,
+    extra_env: &[(&str, &str)],
+) -> std::process::Output {
+    let bin_dir = tempfile::tempdir().unwrap();
+    let alias = bin_dir.path().join(invocation);
+    std::os::unix::fs::symlink(hni_executable_path(), &alias)
+        .unwrap_or_else(|error| panic!("failed to create {invocation} alias: {error}"));
+
+    let mut cmd = Command::new(alias);
+    cmd.args(args)
+        .env_remove("HNI_CONFIG_FILE")
+        .env_remove("HNI_DEFAULT_PACKAGE_MANAGER")
+        .env_remove("HNI_GLOBAL_PACKAGE_MANAGER")
+        .env_remove("HNI_FAST_MODE")
+        .env_remove("HNI_SKIP_PM_CHECK")
+        .env_remove("HNI_REAL_NODE");
+
+    for (key, value) in extra_env {
+        cmd.env(key, value);
+    }
+
+    cmd.output()
+        .unwrap_or_else(|error| panic!("failed to run hni as {invocation}: {error}"))
 }
 
 pub fn run_command(

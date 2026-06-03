@@ -63,9 +63,6 @@ fn categorized_index(message: &str) -> Option<usize> {
         "config error",
         "detection error",
         "execution error",
-        "interactive error",
-        "network error",
-        "storage error",
     ]
     .iter()
     .filter_map(|prefix| message.find(prefix))
@@ -80,13 +77,13 @@ mod tests {
 
     #[test]
     fn renders_context_chain_under_primary_category() {
-        let error = Err::<(), _>(anyhow!("storage error: runner detail"))
+        let error = Err::<(), _>(anyhow!("runner detail"))
             .context("execution error")
             .unwrap_err();
 
         assert_eq!(
             render_error(&error),
-            "hni: execution error\ncontext: storage error: runner detail"
+            "hni: execution error\ncontext: runner detail"
         );
     }
 }

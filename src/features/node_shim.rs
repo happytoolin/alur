@@ -46,10 +46,9 @@ pub fn decide(args: &[String]) -> (NodeShimMode, Vec<String>) {
         "s" => (NodeShimMode::RunSequential, routed_args),
         "install" | "i" => route(Intent::Install, routed_args),
         "add" => route(Intent::Add, routed_args),
+        "uninstall" | "remove" => route(Intent::Uninstall, routed_args),
         "run" => route(Intent::Run, routed_args),
         "exec" | "x" | "dlx" => route(Intent::Execute, routed_args),
-        "update" | "upgrade" => route(Intent::Upgrade, routed_args),
-        "uninstall" | "remove" => route(Intent::Uninstall, routed_args),
         "ci" => route(Intent::CleanInstall, routed_args),
         _ => (NodeShimMode::PassthroughNode, args.to_vec()),
     }
@@ -115,19 +114,10 @@ mod tests {
     }
 
     #[test]
-    fn routes_upgrade_aliases() {
-        for verb in ["update", "upgrade"] {
-            let (mode, args) = decide(&[verb.into(), "vite".into()]);
-            assert_eq!(args, vec!["vite"]);
-            assert!(matches!(mode, NodeShimMode::RouteToIntent(Intent::Upgrade)));
-        }
-    }
-
-    #[test]
     fn routes_uninstall_aliases() {
         for verb in ["uninstall", "remove"] {
-            let (mode, args) = decide(&[verb.into(), "vite".into()]);
-            assert_eq!(args, vec!["vite"]);
+            let (mode, args) = decide(&[verb.into(), "lodash".into()]);
+            assert_eq!(args, vec!["lodash"]);
             assert!(matches!(
                 mode,
                 NodeShimMode::RouteToIntent(Intent::Uninstall)

@@ -5,6 +5,7 @@ use std::{
 };
 
 use anyhow::{Result, anyhow};
+use is_executable::IsExecutable;
 
 use super::paths_equal;
 
@@ -83,8 +84,14 @@ fn resolve_real_node_path_from_sources() -> Option<PathBuf> {
 fn scan_path_for_real_node() -> Option<PathBuf> {
     let current_exe = env::current_exe().ok();
     let managed_shim_dir = managed_node_shim_dir();
-    let candidates = which::which_all("node").ok()?;
-    for candidate in candidates {
+    let path_var = env::var_os("PATH")?;
+
+    for mut candidate in env::split_paths(&path_var) {
+        candidate.push(node_binary_name());
+        if !candidate.is_executable() {
+            continue;
+        }
+
         if should_skip_node_candidate(
             &candidate,
             current_exe.as_deref(),

@@ -115,7 +115,7 @@ fn fast_mode_matrix_covers_supported_and_fallback_package_managers() {
 
             let nr = run_hni(
                 vec![
-                    "nr",
+                    "run",
                     "-C",
                     project.to_str().unwrap(),
                     "--fast",
@@ -134,7 +134,7 @@ fn fast_mode_matrix_covers_supported_and_fallback_package_managers() {
 
             let nlx = run_hni(
                 vec![
-                    "nlx",
+                    "exec",
                     "-C",
                     project.to_str().unwrap(),
                     "--fast",
