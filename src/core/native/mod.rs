@@ -1,4 +1,5 @@
 mod bin_resolver;
+mod deno;
 mod eligibility;
 mod env;
 mod exec;

@@ -1,7 +1,6 @@
 use anyhow::Result;
 
 use crate::core::{
-    deno::{find_nearest_deno_project, plan_native_deno_task},
     package::resolve_local_bin,
     resolve::{LocalBinProjectState, ProjectState, ResolveContext},
     types::{NativeLocalBinExecution, NativeScriptExecution, NativeScriptStep, PackageManager},
@@ -9,6 +8,7 @@ use crate::core::{
 
 use super::{
     bin_resolver::resolve_local_bin_launcher,
+    deno::{find_nearest_deno_project, plan_native_deno_task},
     plan::{FallbackReason, NativeDecision, NativePlan},
 };
 

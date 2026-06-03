@@ -9,7 +9,7 @@ use indexmap::IndexMap;
 use jsonc_parser::{ParseOptions, parse_to_serde_value};
 use serde::Deserialize;
 
-use super::{
+use crate::core::{
     project::node_modules_bin_dirs,
     types::{NativeDenoTaskExecution, NativeDenoTaskStage, NativeDenoTaskStep},
 };
