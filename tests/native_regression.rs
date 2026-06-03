@@ -73,7 +73,7 @@ struct CaseRun {
     hni_root: PathBuf,
     oracle_output: std::process::Output,
     hni_output: std::process::Output,
-    debug_output: std::process::Output,
+    print_output: std::process::Output,
     explain_output: Option<std::process::Output>,
 }
 
@@ -113,7 +113,7 @@ fn native_regression_cases_match_or_fallback_to_the_package_manager() {
 
             match case.classification {
                 Classification::Equivalence => {
-                    let stdout = String::from_utf8_lossy(&run.debug_output.stdout);
+                    let stdout = String::from_utf8_lossy(&run.print_output.stdout);
                     assert!(
                         stdout.starts_with("hni fast:"),
                         "equivalence case '{}' did not resolve natively: {stdout}",
@@ -153,19 +153,19 @@ fn native_regression_cases_cover_hni_fast_contract_without_external_oracle() {
             fs::create_dir_all(&hni_root).unwrap();
             (case.setup)(&hni_root);
 
-            let debug_output = run_hni_owned(
-                &hni_debug_args(case, &hni_root),
+            let print_output = run_hni_owned(
+                &hni_print_command_args(case, &hni_root),
                 &[("HNI_SKIP_PM_CHECK", "1")],
             );
 
             match case.classification {
                 Classification::Equivalence => {
-                    let stdout = String::from_utf8_lossy(&debug_output.stdout);
+                    let stdout = String::from_utf8_lossy(&print_output.stdout);
                     assert!(
                         stdout.starts_with("hni fast:"),
                         "equivalence case '{}' did not resolve natively: stdout={stdout} stderr={}",
                         case.name,
-                        String::from_utf8_lossy(&debug_output.stderr),
+                        String::from_utf8_lossy(&print_output.stderr),
                     );
 
                     let hni_output =
@@ -325,8 +325,8 @@ fn run_case(case: NativeRegressionCase) -> CaseRun {
         &oracle_env(case.manager),
     );
     let hni_output = run_hni_owned(&hni_args(case, &hni_root), &[("HNI_SKIP_PM_CHECK", "1")]);
-    let debug_output = run_hni_owned(
-        &hni_debug_args(case, &hni_root),
+    let print_output = run_hni_owned(
+        &hni_print_command_args(case, &hni_root),
         &[("HNI_SKIP_PM_CHECK", "1")],
     );
 
@@ -343,7 +343,7 @@ fn run_case(case: NativeRegressionCase) -> CaseRun {
         hni_root,
         oracle_output,
         hni_output,
-        debug_output,
+        print_output,
         explain_output,
     }
 }
@@ -391,13 +391,13 @@ fn hni_explain_args(case: NativeRegressionCase, cwd: &Path) -> Vec<String> {
     args
 }
 
-fn hni_debug_args(case: NativeRegressionCase, cwd: &Path) -> Vec<String> {
+fn hni_print_command_args(case: NativeRegressionCase, cwd: &Path) -> Vec<String> {
     let mut args = vec![
         "nr".to_string(),
         "-C".to_string(),
         cwd.to_string_lossy().to_string(),
         "--fast".to_string(),
-        "--debug-resolved".to_string(),
+        "--print-command".to_string(),
         case.subject.to_string(),
     ];
     args.extend(case.forwarded_args.iter().map(|arg| arg.to_string()));

@@ -27,14 +27,7 @@ fn hni_subcommand_aliases_resolve_like_multicall() {
         fs::write(project.join("package.json"), r#"{"name":"x"}"#).unwrap();
 
         let output = run_hni(
-            vec![
-                "ni",
-                "-C",
-                project.to_str().unwrap(),
-                "vite",
-                "--dry-run",
-                "--explain",
-            ],
+            vec!["ni", "-C", project.to_str().unwrap(), "vite", "--explain"],
             &[("HNI_SKIP_PM_CHECK", "1")],
         );
         assert!(output.status.success());

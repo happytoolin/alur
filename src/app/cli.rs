@@ -16,11 +16,10 @@ use crate::core::types::{HelpTopic, InvocationKind};
 #[derive(Debug, Clone)]
 pub struct ParsedInvocation {
     pub cwd: PathBuf,
-    pub debug: bool,
+    pub print_command: bool,
     pub explain: bool,
     pub fast_override: Option<bool>,
     pub command: ParsedCommand,
-    pub deprecated_debug_alias_used: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -52,7 +51,7 @@ pub enum ParsedCommand {
 #[allow(clippy::struct_excessive_bools)]
 struct SharedFlags {
     cwd: Vec<PathBuf>,
-    debug: bool,
+    print_command: bool,
     explain: bool,
     fast_override: Option<bool>,
     help: bool,
@@ -60,18 +59,13 @@ struct SharedFlags {
 }
 
 impl SharedFlags {
-    fn into_invocation(
-        self,
-        command: ParsedCommand,
-        deprecated_debug_alias_used: bool,
-    ) -> Result<ParsedInvocation> {
+    fn into_invocation(self, command: ParsedCommand) -> Result<ParsedInvocation> {
         Ok(ParsedInvocation {
             cwd: resolve_cwd(&self.cwd)?,
-            debug: self.debug,
+            print_command: self.print_command,
             explain: self.explain,
             fast_override: self.fast_override,
             command,
-            deprecated_debug_alias_used,
         })
     }
 }
@@ -90,32 +84,16 @@ pub fn parse_from_env() -> Result<ParsedInvocation> {
     };
 
     let invocation = invocation_from_argv0(argv0);
-    let (normalized_args, deprecated_debug_alias_used) = normalize_debug_aliases(&argv[1..]);
-    let (shared_flags, command_args) = extract_shared_flags(&normalized_args)?;
+    let (shared_flags, command_args) = extract_shared_flags(&argv[1..])?;
 
     if invocation == InvocationKind::Hni {
-        parse_hni(
-            argv0,
-            &command_args,
-            shared_flags,
-            deprecated_debug_alias_used,
-        )
+        parse_hni(argv0, &command_args, shared_flags)
     } else {
-        parse_alias(
-            invocation,
-            &command_args,
-            shared_flags,
-            deprecated_debug_alias_used,
-        )
+        parse_alias(invocation, &command_args, shared_flags)
     }
 }
 
-fn parse_hni(
-    argv0: &str,
-    args: &[String],
-    shared_flags: SharedFlags,
-    deprecated_debug_alias_used: bool,
-) -> Result<ParsedInvocation> {
+fn parse_hni(argv0: &str, args: &[String], shared_flags: SharedFlags) -> Result<ParsedInvocation> {
     if args.first().is_some_and(|token| token == "help") {
         let requested_topic = args.get(1).cloned();
         if args.len() > 2 {
@@ -132,7 +110,7 @@ fn parse_hni(
             command = ParsedCommand::PrintHelp(help_target_from_command(&command));
         }
 
-        return shared_flags.into_invocation(command, deprecated_debug_alias_used);
+        return shared_flags.into_invocation(command);
     }
 
     let program = normalized_program_name(argv0);
@@ -174,14 +152,13 @@ fn parse_hni(
         command = ParsedCommand::PrintHelp(help_target_from_command(&command));
     }
 
-    shared_flags.into_invocation(command, deprecated_debug_alias_used)
+    shared_flags.into_invocation(command)
 }
 
 fn parse_alias(
     invocation: InvocationKind,
     args: &[String],
     shared_flags: SharedFlags,
-    deprecated_debug_alias_used: bool,
 ) -> Result<ParsedInvocation> {
     let mut forwarded_args = args.to_vec();
     let has_forwarded_args = !forwarded_args.is_empty();
@@ -208,7 +185,7 @@ fn parse_alias(
         }
     }
 
-    shared_flags.into_invocation(command, deprecated_debug_alias_used)
+    shared_flags.into_invocation(command)
 }
 
 fn execute_from_subcommand(invocation: InvocationKind, sub_matches: &ArgMatches) -> ParsedCommand {
@@ -364,39 +341,10 @@ fn normalized_program_name(argv0: &str) -> String {
     name.strip_suffix(".exe").unwrap_or(&name).to_string()
 }
 
-fn normalize_debug_aliases(args: &[String]) -> (Vec<String>, bool) {
-    let mut normalized = Vec::with_capacity(args.len());
-    let mut saw_deprecated = false;
-    let mut passthrough = false;
-
-    for arg in args {
-        if passthrough {
-            normalized.push(arg.clone());
-            continue;
-        }
-
-        if arg == "--" {
-            passthrough = true;
-            normalized.push(arg.clone());
-            continue;
-        }
-
-        if arg == "?" || arg == "-?" {
-            saw_deprecated = true;
-            normalized.push("--debug-resolved".to_string());
-            continue;
-        }
-
-        normalized.push(arg.clone());
-    }
-
-    (normalized, saw_deprecated)
-}
-
 fn extract_shared_flags(args: &[String]) -> Result<(SharedFlags, Vec<String>)> {
     let mut flags = SharedFlags {
         cwd: Vec::new(),
-        debug: false,
+        print_command: false,
         explain: false,
         fast_override: None,
         help: false,
@@ -422,8 +370,8 @@ fn extract_shared_flags(args: &[String]) -> Result<(SharedFlags, Vec<String>)> {
         }
 
         match arg.as_str() {
-            "--debug-resolved" | "--dry-run" | "--print-command" | "-?" => {
-                flags.debug = true;
+            "--print-command" => {
+                flags.print_command = true;
                 idx += 1;
             }
             "--explain" => {
@@ -490,25 +438,26 @@ mod tests {
     use super::*;
 
     #[test]
-    fn normalizes_debug_aliases_without_touching_passthrough_args() {
-        let (args, deprecated) = normalize_debug_aliases(&[
-            "?".to_string(),
-            "ni".to_string(),
-            "--".to_string(),
-            "?".to_string(),
-        ]);
-
-        assert!(deprecated);
-        assert_eq!(args, vec!["--debug-resolved", "ni", "--", "?"]);
-    }
-
-    #[test]
     fn extracts_fast_alias_as_fast_override() {
         let (flags, rest) =
             extract_shared_flags(&["--fast".to_string(), "dev".to_string()]).unwrap();
 
         assert_eq!(flags.fast_override, Some(true));
         assert_eq!(rest, vec!["dev"]);
+    }
+
+    #[test]
+    fn only_print_command_is_consumed_as_print_flag() {
+        let (flags, rest) = extract_shared_flags(&[
+            "ni".to_string(),
+            "?".to_string(),
+            "-?".to_string(),
+            "--print-command".to_string(),
+        ])
+        .unwrap();
+
+        assert!(flags.print_command);
+        assert_eq!(rest, vec!["ni", "?", "-?"]);
     }
 
     #[test]
@@ -556,30 +505,18 @@ mod tests {
     }
 
     #[test]
-    fn dash_question_mark_is_normalized_as_debug_flag() {
-        let (args, deprecated) = normalize_debug_aliases(&["-?".to_string()]);
-        assert!(deprecated);
-        assert_eq!(args, vec!["--debug-resolved"]);
-    }
-
-    #[test]
     fn alias_help_with_args_is_forwarded() {
         let shared_flags = SharedFlags {
             cwd: vec![],
-            debug: false,
+            print_command: false,
             explain: false,
             fast_override: None,
             help: true,
             version: false,
         };
 
-        let parsed = parse_alias(
-            InvocationKind::Nlx,
-            &["vitest".to_string()],
-            shared_flags,
-            false,
-        )
-        .unwrap();
+        let parsed =
+            parse_alias(InvocationKind::Nlx, &["vitest".to_string()], shared_flags).unwrap();
 
         match parsed.command {
             ParsedCommand::Execute { args, .. } => {
@@ -593,14 +530,14 @@ mod tests {
     fn alias_help_without_args_prints_help() {
         let shared_flags = SharedFlags {
             cwd: vec![],
-            debug: false,
+            print_command: false,
             explain: false,
             fast_override: None,
             help: true,
             version: false,
         };
 
-        let parsed = parse_alias(InvocationKind::Nlx, &[], shared_flags, false).unwrap();
+        let parsed = parse_alias(InvocationKind::Nlx, &[], shared_flags).unwrap();
 
         match parsed.command {
             ParsedCommand::PrintHelp(HelpTopic::Nlx) => {}

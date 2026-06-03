@@ -94,7 +94,7 @@ pub(super) fn run_deno_task(
     Ok(ExitCode::SUCCESS)
 }
 
-pub(super) fn format_debug(exec: &ResolvedExecution) -> String {
+pub(super) fn format_command(exec: &ResolvedExecution) -> String {
     match &exec.strategy {
         ExecutionStrategy::Native(NativeExecution::RunScript(native)) => {
             let mut rendered = vec![

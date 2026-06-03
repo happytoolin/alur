@@ -66,6 +66,7 @@ fn compare_pm_mode_with_installed_antfu_when_available() {
                     &case.antfu_bin,
                     &fixture.path,
                     &case.args,
+                    "?",
                     &[("HNI_SKIP_PM_CHECK", "1")],
                 );
 
@@ -79,6 +80,7 @@ fn compare_pm_mode_with_installed_antfu_when_available() {
                     &our_bin_path,
                     &fixture.path,
                     &case.args,
+                    "--print-command",
                     &[("HNI_SKIP_PM_CHECK", "1"), ("HNI_FAST", "false")],
                 );
 
@@ -329,11 +331,17 @@ fn antfu_bins() -> Option<AntfuBins> {
     })
 }
 
-fn run(bin: &Path, fixture: &Path, args: &[String], envs: &[(&str, &str)]) -> String {
+fn run(
+    bin: &Path,
+    fixture: &Path,
+    args: &[String],
+    print_arg: &str,
+    envs: &[(&str, &str)],
+) -> String {
     let mut cmd = Command::new(bin);
     cmd.arg("-C").arg(fixture);
     cmd.args(args);
-    cmd.arg("?");
+    cmd.arg(print_arg);
 
     for (k, v) in envs {
         cmd.env(k, v);

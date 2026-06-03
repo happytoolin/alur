@@ -97,50 +97,50 @@ fn fixture_projects_cover_pm_and_fast_resolution_modes() {
             support::copy_fixture_into(case.category, case.name, dir.path());
             prepare_project(dir.path(), case.local_bin);
 
-            assert_debug_resolved(
+            assert_print_command(
                 dir.path(),
                 &[
                     "nr",
                     "-C",
                     dir.path().to_str().unwrap(),
-                    "--debug-resolved",
+                    "--print-command",
                     "dev",
                 ],
                 &[("HNI_SKIP_PM_CHECK", "1"), ("HNI_FAST", "false")],
                 case.pm_nr,
             );
-            assert_debug_resolved(
+            assert_print_command(
                 dir.path(),
                 &[
                     "nr",
                     "-C",
                     dir.path().to_str().unwrap(),
-                    "--debug-resolved",
+                    "--print-command",
                     "dev",
                 ],
                 &[("HNI_SKIP_PM_CHECK", "1"), ("HNI_FAST", "true")],
                 case.fast_nr,
             );
-            assert_debug_resolved(
+            assert_print_command(
                 dir.path(),
                 &[
                     "nlx",
                     "-C",
                     dir.path().to_str().unwrap(),
-                    "--debug-resolved",
+                    "--print-command",
                     "hello",
                     "--flag",
                 ],
                 &[("HNI_SKIP_PM_CHECK", "1"), ("HNI_FAST", "false")],
                 case.pm_nlx,
             );
-            assert_debug_resolved(
+            assert_print_command(
                 dir.path(),
                 &[
                     "nlx",
                     "-C",
                     dir.path().to_str().unwrap(),
-                    "--debug-resolved",
+                    "--print-command",
                     "hello",
                     "--flag",
                 ],
@@ -151,7 +151,7 @@ fn fixture_projects_cover_pm_and_fast_resolution_modes() {
     });
 }
 
-fn assert_debug_resolved(cwd: &Path, args: &[&str], env: &[(&str, &str)], expected: &str) {
+fn assert_print_command(cwd: &Path, args: &[&str], env: &[(&str, &str)], expected: &str) {
     let output = run_hni(args.to_vec(), env);
     assert!(
         output.status.success(),

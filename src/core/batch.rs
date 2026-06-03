@@ -23,7 +23,7 @@ pub fn run_batch(mode: BatchMode, commands: &[String], cwd: &Path) -> Result<Exi
     }
 }
 
-pub fn format_batch_debug(mode: BatchMode, commands: &[String]) -> String {
+pub fn format_batch_command(mode: BatchMode, commands: &[String]) -> String {
     let mut rendered = Vec::with_capacity(commands.len() + 2);
     rendered.push("hni".to_string());
     rendered.push(format!("batch:{}", mode.label()));
@@ -86,8 +86,8 @@ mod tests {
     use std::path::PathBuf;
 
     #[test]
-    fn formats_parallel_debug() {
-        let rendered = format_batch_debug(
+    fn formats_parallel_command() {
+        let rendered = format_batch_command(
             BatchMode::Parallel,
             &["echo hello world".to_string(), "echo ok".to_string()],
         );
@@ -98,8 +98,8 @@ mod tests {
     }
 
     #[test]
-    fn formats_sequential_debug() {
-        let rendered = format_batch_debug(BatchMode::Sequential, &["echo one".to_string()]);
+    fn formats_sequential_command() {
+        let rendered = format_batch_command(BatchMode::Sequential, &["echo one".to_string()]);
         assert!(rendered.starts_with("hni batch:sequential"));
     }
 

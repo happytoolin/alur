@@ -32,7 +32,7 @@ fn help_and_version_contracts_are_hni_first() {
                 "ni",
                 "-C",
                 project.to_str().unwrap(),
-                "--debug-resolved",
+                "--print-command",
                 "--",
                 "--help",
             ],
@@ -67,31 +67,12 @@ fn global_flags_work_anywhere_before_passthrough_separator() {
                 "-C",
                 project.to_str().unwrap(),
                 "vite",
-                "--debug-resolved",
+                "--print-command",
             ],
             &[("HNI_SKIP_PM_CHECK", "1")],
         );
         assert!(output.status.success());
         assert_eq!(String::from_utf8_lossy(&output.stdout).trim(), "npm i vite");
-    });
-}
-
-#[test]
-fn deprecated_question_mark_debug_alias_still_works_with_warning() {
-    support::with_env_lock(|| {
-        let work = tempfile::tempdir().unwrap();
-        let project = work.path().join("npm");
-        fs::create_dir_all(&project).unwrap();
-        fs::write(project.join("package-lock.json"), "lock").unwrap();
-        fs::write(project.join("package.json"), r#"{"name":"x"}"#).unwrap();
-
-        let output = run_hni(
-            vec!["ni", "-C", project.to_str().unwrap(), "vite", "?"],
-            &[("HNI_SKIP_PM_CHECK", "1")],
-        );
-        assert!(output.status.success());
-        assert_eq!(String::from_utf8_lossy(&output.stdout).trim(), "npm i vite");
-        assert!(String::from_utf8_lossy(&output.stderr).contains("deprecated"));
     });
 }
 
@@ -115,7 +96,7 @@ fn fast_and_pm_cli_flags_override_environment_setting() {
                 "-C",
                 project.to_str().unwrap(),
                 "--fast",
-                "--debug-resolved",
+                "--print-command",
                 "dev",
             ],
             &[("HNI_SKIP_PM_CHECK", "1"), ("HNI_FAST", "false")],
@@ -132,7 +113,7 @@ fn fast_and_pm_cli_flags_override_environment_setting() {
                 "-C",
                 project.to_str().unwrap(),
                 "--pm",
-                "--debug-resolved",
+                "--print-command",
                 "dev",
             ],
             &[("HNI_SKIP_PM_CHECK", "1"), ("HNI_FAST", "true")],
@@ -168,7 +149,7 @@ fn default_fast_mode_resolves_nr_and_nlx_natively() {
                     "nr",
                     "-C",
                     project.to_str().unwrap(),
-                    "--debug-resolved",
+                    "--print-command",
                     "dev",
                 ],
                 &[("HNI_SKIP_PM_CHECK", "1")],
@@ -184,7 +165,7 @@ fn default_fast_mode_resolves_nr_and_nlx_natively() {
                     "nlx",
                     "-C",
                     project.to_str().unwrap(),
-                    "--debug-resolved",
+                    "--print-command",
                     "hello",
                     "world",
                 ],
@@ -219,7 +200,7 @@ fn fast_flag_enables_fast_mode() {
                 "-C",
                 project.to_str().unwrap(),
                 "--fast",
-                "--debug-resolved",
+                "--print-command",
                 "dev",
             ],
             &[("HNI_SKIP_PM_CHECK", "1"), ("HNI_FAST", "false")],
@@ -291,7 +272,7 @@ fn internal_profile_loop_resolves_commands_without_running_them() {
 }
 
 #[test]
-fn debug_and_explain_skip_package_manager_availability_checks() {
+fn print_command_and_explain_skip_package_manager_availability_checks() {
     support::with_env_lock(|| {
         let work = tempfile::tempdir().unwrap();
         let project = work.path().join("pnpm");
@@ -299,19 +280,19 @@ fn debug_and_explain_skip_package_manager_availability_checks() {
         fs::write(project.join("pnpm-lock.yaml"), "lock").unwrap();
         fs::write(project.join("package.json"), r#"{"name":"x"}"#).unwrap();
 
-        let debug = run_hni(
+        let printed = run_hni(
             vec![
                 "ni",
                 "-C",
                 project.to_str().unwrap(),
-                "--debug-resolved",
+                "--print-command",
                 "react",
             ],
             &[("PATH", "/usr/bin:/bin:/usr/sbin:/sbin")],
         );
-        assert!(debug.status.success(), "{debug:?}");
+        assert!(printed.status.success(), "{printed:?}");
         assert_eq!(
-            String::from_utf8_lossy(&debug.stdout).trim(),
+            String::from_utf8_lossy(&printed.stdout).trim(),
             "pnpm add react"
         );
 

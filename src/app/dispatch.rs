@@ -30,11 +30,6 @@ use crate::{
 /// or the selected runner cannot format or execute the resolved command.
 pub fn run_from_env() -> Result<ExitCode> {
     let parsed = parse_from_env()?;
-    if parsed.deprecated_debug_alias_used {
-        eprintln!(
-            "[hni] warning: '?' debug alias is deprecated; use --debug-resolved, --dry-run, or --print-command"
-        );
-    }
 
     if !parsed.cwd.exists() {
         return Err(anyhow!(
@@ -49,7 +44,7 @@ pub fn run_from_env() -> Result<ExitCode> {
     }
     let verify_package_manager_availability =
         matches!(&parsed.command, ParsedCommand::Execute { .. })
-            && !parsed.debug
+            && !parsed.print_command
             && !parsed.explain;
     let resolve_ctx = ResolveContext::with_package_manager_checks(
         parsed.cwd.clone(),
@@ -103,9 +98,9 @@ pub fn run_from_env() -> Result<ExitCode> {
                 return Ok(ExitCode::SUCCESS);
             }
 
-            if parsed.debug {
-                let debug_rendered = runner::format_debug(&resolved).context("execution error")?;
-                println!("{debug_rendered}");
+            if parsed.print_command {
+                let rendered = runner::format_command(&resolved).context("execution error")?;
+                println!("{rendered}");
                 return Ok(ExitCode::SUCCESS);
             }
 
@@ -139,7 +134,7 @@ fn print_explain(
     }
     println!(
         "resolved: {}",
-        runner::format_debug(resolved).context("execution error")?
+        runner::format_command(resolved).context("execution error")?
     );
 
     if let Ok(detection) = ctx.detect() {
@@ -173,8 +168,8 @@ fn run_profile_loop(
         })?;
         if let Some(resolved) = resolved {
             std::hint::black_box(crate::core::profile::measure(
-                "runner.format_debug",
-                || runner::format_debug(&resolved).context("execution error"),
+                "runner.format_command",
+                || runner::format_command(&resolved).context("execution error"),
             )?);
         }
     }

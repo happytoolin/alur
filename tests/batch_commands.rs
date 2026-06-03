@@ -53,15 +53,15 @@ fn np_waits_for_all_commands_then_fails() {
 }
 
 #[test]
-fn debug_mode_does_not_execute_np_or_node_p() {
+fn print_command_does_not_execute_np_or_node_p() {
     support::with_env_lock(|| {
         let work = tempfile::tempdir().unwrap();
         let cwd = work.path();
 
-        let marker_np = cwd.join("np-debug.txt");
+        let marker_np = cwd.join("np-print-command.txt");
         let cmd_np = write_marker_command(&marker_np);
 
-        let marker_node = cwd.join("node-p-debug.txt");
+        let marker_node = cwd.join("node-p-print-command.txt");
         let cmd_node = write_marker_command(&marker_node);
 
         let bin_dir = prepare_bin_dir(cwd);
@@ -69,7 +69,7 @@ fn debug_mode_does_not_execute_np_or_node_p() {
         let np_output = run_alias_output(
             &bin_dir,
             "np",
-            vec!["-C", cwd.to_str().unwrap(), &cmd_np, "--debug-resolved"],
+            vec!["-C", cwd.to_str().unwrap(), &cmd_np, "--print-command"],
             &[],
         );
         assert!(np_output.status.success());
@@ -85,7 +85,7 @@ fn debug_mode_does_not_execute_np_or_node_p() {
                 cwd.to_str().unwrap(),
                 "p",
                 &cmd_node,
-                "--debug-resolved",
+                "--print-command",
             ],
             &[],
         );
