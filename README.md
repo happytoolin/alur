@@ -16,6 +16,7 @@ Fast package manager routing for `npm`, `yarn`, `pnpm`, `bun`, and `deno`.
 `hni` is inspired by Antfu's [`ni`](https://github.com/antfu-collective/ni#readme), but packaged as a single multicall binary with extra shell setup for a `node` shim.
 
 `hni` is still beta software and may have bugs.
+The supported interface is the CLI; the Rust crate modules are internal and do not carry a stable API guarantee.
 
 One install gives you:
 
@@ -233,7 +234,7 @@ hni doctor
 These work across `hni` and the multicall aliases:
 
 ```bash
---debug-resolved --dry-run --print-command
+--debug-resolved
 --explain
 -C <dir>
 -v --version
@@ -401,16 +402,13 @@ Local bin execution is the standout feature: `npx` and `pnpm exec` spend hundred
 
 #### 3. hni vs Antfu's `ni`
 
-For the same command-routing workload, `hni` is consistently faster:
+For startup/version checks, `hni` is faster:
 
-| Case                           | antfu/ni |    hni |  Speedup |
-| ------------------------------ | -------: | -----: | -------: |
-| `ni --version`                 |   149 ms |  92 ms | **1.6x** |
-| `ni vite --debug-resolved`     |   6.0 ms | 3.6 ms | **1.7x** |
-| `nr build --debug-resolved`    |   5.0 ms | 3.7 ms | **1.3x** |
-| `nlx vitest --debug-resolved`  |   4.6 ms | 3.0 ms | **1.5x** |
+| Case           | antfu/ni |   hni |  Speedup |
+| -------------- | -------: | ----: | -------: |
+| `ni --version` |   149 ms | 92 ms | **1.6x** |
 
-_Geometric mean: **1.5x**._
+_Current compare track keeps only version startup because `hni` no longer carries legacy `?` debug compatibility._
 
 #### 4. Runtime comparison vs Bun and Deno
 
@@ -429,7 +427,7 @@ The benchmark suite lives in [`benchmark/`](benchmark/) and uses `hyperfine` to 
 
 - **`direct`** — normal package-manager commands (`npm run`, `pnpm exec`, etc.) vs `hni --fast`
 - **`fast`** — `hni` PM mode vs `hni` fast mode (isolates the native-execution win)
-- **`compare`** — `hni` vs `@antfu/ni` on CLI routing overhead
+- **`compare`** — `hni` vs `@antfu/ni` on startup/version overhead
 - **`runtime`** — `hni` vs `bun` vs `deno` on actual task execution time
 - **`fixtures`** — real project fixtures from `tests/fixtures/` across all detection categories
 

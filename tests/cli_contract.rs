@@ -77,25 +77,6 @@ fn global_flags_work_anywhere_before_passthrough_separator() {
 }
 
 #[test]
-fn deprecated_question_mark_debug_alias_still_works_with_warning() {
-    support::with_env_lock(|| {
-        let work = tempfile::tempdir().unwrap();
-        let project = work.path().join("npm");
-        fs::create_dir_all(&project).unwrap();
-        fs::write(project.join("package-lock.json"), "lock").unwrap();
-        fs::write(project.join("package.json"), r#"{"name":"x"}"#).unwrap();
-
-        let output = run_hni(
-            vec!["ni", "-C", project.to_str().unwrap(), "vite", "?"],
-            &[("HNI_SKIP_PM_CHECK", "1")],
-        );
-        assert!(output.status.success());
-        assert_eq!(String::from_utf8_lossy(&output.stdout).trim(), "npm i vite");
-        assert!(String::from_utf8_lossy(&output.stderr).contains("deprecated"));
-    });
-}
-
-#[test]
 fn fast_and_pm_cli_flags_override_environment_setting() {
     support::with_env_lock(|| {
         let work = tempfile::tempdir().unwrap();

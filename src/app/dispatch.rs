@@ -30,11 +30,6 @@ use crate::{
 /// or the selected runner cannot format or execute the resolved command.
 pub fn run_from_env() -> Result<ExitCode> {
     let parsed = parse_from_env()?;
-    if parsed.deprecated_debug_alias_used {
-        eprintln!(
-            "[hni] warning: '?' debug alias is deprecated; use --debug-resolved, --dry-run, or --print-command"
-        );
-    }
 
     if !parsed.cwd.exists() {
         return Err(anyhow!(

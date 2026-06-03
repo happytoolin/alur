@@ -89,7 +89,7 @@ fn with_global_flags(cmd: Command) -> Command {
         .arg(
             Arg::new("debug")
                 .long("debug-resolved")
-                .help("print resolved command and exit (aliases: --dry-run, --print-command)")
+                .help("print resolved command and exit")
                 .action(ArgAction::SetTrue),
         )
         .arg(
