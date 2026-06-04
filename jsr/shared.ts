@@ -1,3 +1,10 @@
+/**
+ * Shared helpers used by the JSR command entrypoints to install and run the
+ * native alur binary.
+ *
+ * @module
+ */
+
 import { dirname, join } from "jsr:@std/path@^1.1.4";
 
 const REPO = "happytoolin/alur";
@@ -7,6 +14,7 @@ const DEFAULT_DOWNLOAD_ROOT = "https://happytoolin.com/alur/releases/download";
 const DEFAULT_FALLBACK_DOWNLOAD_ROOT =
   `https://github.com/${REPO}/releases/download`;
 
+/** Command names that the JSR package can dispatch to the native alur binary. */
 export const INVOCATIONS = [
   "alur",
   "ni",
@@ -18,6 +26,7 @@ export const INVOCATIONS = [
   "ns",
 ] as const;
 
+/** Supported command name accepted by {@link runInvocation}. */
 export type Invocation = typeof INVOCATIONS[number];
 
 interface TargetInfo {
@@ -25,6 +34,16 @@ interface TargetInfo {
   ext: string;
 }
 
+/**
+ * Ensure the native binary is installed, run it as the requested command, and
+ * exit the current Deno process with the same status code.
+ *
+ * Non-`alur` invocations are forwarded as the first CLI argument so the native
+ * binary can emulate the matching package-manager shortcut.
+ *
+ * @param invocation Command name to run.
+ * @param rawArgs Arguments passed after the command name.
+ */
 export async function runInvocation(
   invocation: Invocation,
   rawArgs: string[] = Deno.args,
@@ -41,6 +60,15 @@ export async function runInvocation(
   Deno.exit(code);
 }
 
+/**
+ * Install the platform-specific native alur binary if needed and return its
+ * local filesystem path.
+ *
+ * The binary is cached per version and target under the user's cache directory,
+ * or under `ALUR_INSTALL_DIR` when that environment variable is set.
+ *
+ * @returns The installed native binary path.
+ */
 export async function ensureBinary(): Promise<{ binaryPath: string }> {
   const targetInfo = resolveTarget();
   const installDir = resolveInstallDir();
