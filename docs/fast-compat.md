@@ -1,9 +1,9 @@
 # Fast-Mode Compatibility
 
-`hni` fast mode is an optimization for common local script and local bin execution.
+`alur` fast mode is an optimization for common local script and local bin execution.
 
 It is not intended to perfectly reimplement every package manager's runtime behavior.
-When a project layout or shell environment is likely to be package-manager-specific, `hni` should fall back to package-manager mode instead of guessing.
+When a project layout or shell environment is likely to be package-manager-specific, `alur` should fall back to package-manager mode instead of guessing.
 
 ## Summary
 
@@ -92,4 +92,4 @@ node run --pm dev
 
 ## Design Principle
 
-If fast execution is not clearly correct, `hni` should use package-manager mode instead of approximating package-manager behavior.
+If fast execution is not clearly correct, `alur` should use package-manager mode instead of approximating package-manager behavior.

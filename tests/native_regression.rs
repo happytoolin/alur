@@ -7,7 +7,7 @@ use std::{
 
 mod support;
 
-use support::{command_exists, run_command, run_hni_owned};
+use support::{command_exists, run_alur_owned, run_command};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum Manager {
@@ -70,16 +70,16 @@ struct NativeRegressionCase {
 struct CaseRun {
     _work: tempfile::TempDir,
     oracle_root: PathBuf,
-    hni_root: PathBuf,
+    alur_root: PathBuf,
     oracle_output: std::process::Output,
-    hni_output: std::process::Output,
+    alur_output: std::process::Output,
     print_output: std::process::Output,
     explain_output: Option<std::process::Output>,
 }
 
 #[test]
 fn native_regression_cases_match_or_fallback_to_the_package_manager() {
-    if std::env::var("HNI_ENABLE_NATIVE_REGRESSION_ORACLE")
+    if std::env::var("ALUR_ENABLE_NATIVE_REGRESSION_ORACLE")
         .ok()
         .as_deref()
         != Some("1")
@@ -95,27 +95,27 @@ fn native_regression_cases_match_or_fallback_to_the_package_manager() {
 
             let run = run_case(case);
             assert!(
-                exit_codes_match(&run.oracle_output, &run.hni_output),
-                "native regression '{}' diverged in exit code from oracle\nupstream: {} :: {}\noracle status={:?}\nhni status={:?}\noracle stdout={}\nhni stdout={}\noracle stderr={}\nhni stderr={}",
+                exit_codes_match(&run.oracle_output, &run.alur_output),
+                "native regression '{}' diverged in exit code from oracle\nupstream: {} :: {}\noracle status={:?}\nalur status={:?}\noracle stdout={}\nalur stdout={}\noracle stderr={}\nalur stderr={}",
                 case.name,
                 case.upstream_file,
                 case.upstream_test,
                 run.oracle_output.status.code(),
-                run.hni_output.status.code(),
+                run.alur_output.status.code(),
                 String::from_utf8_lossy(&run.oracle_output.stdout),
-                String::from_utf8_lossy(&run.hni_output.stdout),
+                String::from_utf8_lossy(&run.alur_output.stdout),
                 String::from_utf8_lossy(&run.oracle_output.stderr),
-                String::from_utf8_lossy(&run.hni_output.stderr),
+                String::from_utf8_lossy(&run.alur_output.stderr),
             );
 
             (case.assert_state)(&run.oracle_root);
-            (case.assert_state)(&run.hni_root);
+            (case.assert_state)(&run.alur_root);
 
             match case.classification {
                 Classification::Equivalence => {
                     let stdout = String::from_utf8_lossy(&run.print_output.stdout);
                     assert!(
-                        stdout.starts_with("hni fast:"),
+                        stdout.starts_with("alur fast:"),
                         "equivalence case '{}' did not resolve natively: {stdout}",
                         case.name,
                     );
@@ -145,42 +145,44 @@ fn native_regression_cases_match_or_fallback_to_the_package_manager() {
 }
 
 #[test]
-fn native_regression_cases_cover_hni_fast_contract_without_external_oracle() {
+fn native_regression_cases_cover_alur_fast_contract_without_external_oracle() {
     support::with_env_lock(|| {
         for case in native_regression_cases() {
             let work = tempfile::tempdir().unwrap();
-            let hni_root = work.path().join(format!("{}-hni", case.name));
-            fs::create_dir_all(&hni_root).unwrap();
-            (case.setup)(&hni_root);
+            let alur_root = work.path().join(format!("{}-alur", case.name));
+            fs::create_dir_all(&alur_root).unwrap();
+            (case.setup)(&alur_root);
 
-            let print_output = run_hni_owned(
-                &hni_print_command_args(case, &hni_root),
-                &[("HNI_SKIP_PM_CHECK", "1")],
+            let print_output = run_alur_owned(
+                &alur_print_command_args(case, &alur_root),
+                &[("ALUR_SKIP_PM_CHECK", "1")],
             );
 
             match case.classification {
                 Classification::Equivalence => {
                     let stdout = String::from_utf8_lossy(&print_output.stdout);
                     assert!(
-                        stdout.starts_with("hni fast:"),
+                        stdout.starts_with("alur fast:"),
                         "equivalence case '{}' did not resolve natively: stdout={stdout} stderr={}",
                         case.name,
                         String::from_utf8_lossy(&print_output.stderr),
                     );
 
-                    let hni_output =
-                        run_hni_owned(&hni_args(case, &hni_root), &[("HNI_SKIP_PM_CHECK", "1")]);
+                    let alur_output = run_alur_owned(
+                        &alur_args(case, &alur_root),
+                        &[("ALUR_SKIP_PM_CHECK", "1")],
+                    );
                     assert!(
-                        hni_output.status.code().is_some(),
+                        alur_output.status.code().is_some(),
                         "native case '{}' terminated without an exit code",
                         case.name
                     );
-                    (case.assert_state)(&hni_root);
+                    (case.assert_state)(&alur_root);
                 }
                 Classification::Fallback => {
-                    let explain_output = run_hni_owned(
-                        &hni_explain_args(case, &hni_root),
-                        &[("HNI_SKIP_PM_CHECK", "1")],
+                    let explain_output = run_alur_owned(
+                        &alur_explain_args(case, &alur_root),
+                        &[("ALUR_SKIP_PM_CHECK", "1")],
                     );
                     assert!(
                         explain_output.status.success(),
@@ -312,11 +314,11 @@ fn native_regression_cases() -> Vec<NativeRegressionCase> {
 fn run_case(case: NativeRegressionCase) -> CaseRun {
     let work = tempfile::tempdir().unwrap();
     let oracle_root = work.path().join(format!("{}-oracle", case.name));
-    let hni_root = work.path().join(format!("{}-hni", case.name));
+    let alur_root = work.path().join(format!("{}-alur", case.name));
     fs::create_dir_all(&oracle_root).unwrap();
-    fs::create_dir_all(&hni_root).unwrap();
+    fs::create_dir_all(&alur_root).unwrap();
     (case.setup)(&oracle_root);
-    (case.setup)(&hni_root);
+    (case.setup)(&alur_root);
 
     let oracle_output = run_command(
         case.manager.command(),
@@ -324,25 +326,25 @@ fn run_case(case: NativeRegressionCase) -> CaseRun {
         &oracle_root,
         &oracle_env(case.manager),
     );
-    let hni_output = run_hni_owned(&hni_args(case, &hni_root), &[("HNI_SKIP_PM_CHECK", "1")]);
-    let print_output = run_hni_owned(
-        &hni_print_command_args(case, &hni_root),
-        &[("HNI_SKIP_PM_CHECK", "1")],
+    let alur_output = run_alur_owned(&alur_args(case, &alur_root), &[("ALUR_SKIP_PM_CHECK", "1")]);
+    let print_output = run_alur_owned(
+        &alur_print_command_args(case, &alur_root),
+        &[("ALUR_SKIP_PM_CHECK", "1")],
     );
 
     let explain_output = matches!(case.classification, Classification::Fallback).then(|| {
-        run_hni_owned(
-            &hni_explain_args(case, &hni_root),
-            &[("HNI_SKIP_PM_CHECK", "1")],
+        run_alur_owned(
+            &alur_explain_args(case, &alur_root),
+            &[("ALUR_SKIP_PM_CHECK", "1")],
         )
     });
 
     CaseRun {
         _work: work,
         oracle_root,
-        hni_root,
+        alur_root,
         oracle_output,
-        hni_output,
+        alur_output,
         print_output,
         explain_output,
     }
@@ -366,7 +368,7 @@ fn oracle_args(case: NativeRegressionCase) -> Vec<String> {
     }
 }
 
-fn hni_args(case: NativeRegressionCase, cwd: &Path) -> Vec<String> {
+fn alur_args(case: NativeRegressionCase, cwd: &Path) -> Vec<String> {
     let mut args = vec![
         "run".to_string(),
         "-C".to_string(),
@@ -378,7 +380,7 @@ fn hni_args(case: NativeRegressionCase, cwd: &Path) -> Vec<String> {
     args
 }
 
-fn hni_explain_args(case: NativeRegressionCase, cwd: &Path) -> Vec<String> {
+fn alur_explain_args(case: NativeRegressionCase, cwd: &Path) -> Vec<String> {
     let mut args = vec![
         "run".to_string(),
         "-C".to_string(),
@@ -391,7 +393,7 @@ fn hni_explain_args(case: NativeRegressionCase, cwd: &Path) -> Vec<String> {
     args
 }
 
-fn hni_print_command_args(case: NativeRegressionCase, cwd: &Path) -> Vec<String> {
+fn alur_print_command_args(case: NativeRegressionCase, cwd: &Path) -> Vec<String> {
     let mut args = vec![
         "run".to_string(),
         "-C".to_string(),
@@ -406,13 +408,13 @@ fn hni_print_command_args(case: NativeRegressionCase, cwd: &Path) -> Vec<String>
 
 fn oracle_env(manager: Manager) -> Vec<(&'static str, &'static str)> {
     match manager {
-        Manager::Bun => vec![("BUN_INSTALL_CACHE_DIR", "/tmp/hni-bun-cache")],
+        Manager::Bun => vec![("BUN_INSTALL_CACHE_DIR", "/tmp/alur-bun-cache")],
         _ => Vec::new(),
     }
 }
 
-fn exit_codes_match(oracle: &std::process::Output, hni: &std::process::Output) -> bool {
-    oracle.status.code() == hni.status.code()
+fn exit_codes_match(oracle: &std::process::Output, alur: &std::process::Output) -> bool {
+    oracle.status.code() == alur.status.code()
 }
 
 fn setup_hooked_script_fixture_npm(root: &Path) {

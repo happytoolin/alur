@@ -25,7 +25,7 @@ pub fn run_batch(mode: BatchMode, commands: &[String], cwd: &Path) -> Result<Exi
 
 pub fn format_batch_command(mode: BatchMode, commands: &[String]) -> String {
     let mut rendered = Vec::with_capacity(commands.len() + 2);
-    rendered.push("hni".to_string());
+    rendered.push("alur".to_string());
     rendered.push(format!("batch:{}", mode.label()));
     rendered.extend(commands.iter().cloned());
     rendered
@@ -91,7 +91,7 @@ mod tests {
             BatchMode::Parallel,
             &["echo hello world".to_string(), "echo ok".to_string()],
         );
-        assert!(rendered.starts_with("hni batch:parallel"));
+        assert!(rendered.starts_with("alur batch:parallel"));
         assert!(
             rendered.contains("\"echo hello world\"") || rendered.contains("'echo hello world'")
         );
@@ -100,14 +100,14 @@ mod tests {
     #[test]
     fn formats_sequential_command() {
         let rendered = format_batch_command(BatchMode::Sequential, &["echo one".to_string()]);
-        assert!(rendered.starts_with("hni batch:sequential"));
+        assert!(rendered.starts_with("alur batch:sequential"));
     }
 
     #[test]
     fn make_execution_sets_internal_batch_strategy() {
         let cwd = PathBuf::from("/tmp");
         let exec = make_execution(BatchMode::Parallel, vec!["echo hi".to_string()], &cwd);
-        assert_eq!(exec.program, "hni");
+        assert_eq!(exec.program, "alur");
         assert_eq!(exec.args, vec!["echo hi"]);
         assert_eq!(exec.cwd, cwd);
         assert_eq!(exec.execution_mode_name(), "internal");

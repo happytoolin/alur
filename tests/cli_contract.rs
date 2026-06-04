@@ -2,10 +2,10 @@ use std::fs;
 
 mod support;
 
-use support::run_hni;
+use support::run_alur;
 
 #[test]
-fn help_and_version_contracts_are_hni_first() {
+fn help_and_version_contracts_are_alur_first() {
     support::with_env_lock(|| {
         let work = tempfile::tempdir().unwrap();
         let project = work.path().join("npm");
@@ -13,21 +13,21 @@ fn help_and_version_contracts_are_hni_first() {
         fs::write(project.join("package-lock.json"), "lock").unwrap();
         fs::write(project.join("package.json"), r#"{"name":"x"}"#).unwrap();
 
-        let help_subcommand = run_hni(vec!["help", "ni"], &[("HNI_SKIP_PM_CHECK", "1")]);
+        let help_subcommand = run_alur(vec!["help", "ni"], &[("ALUR_SKIP_PM_CHECK", "1")]);
         assert!(help_subcommand.status.success());
         let help_subcommand_out = String::from_utf8_lossy(&help_subcommand.stdout);
         assert!(help_subcommand_out.contains("Usage: ni"));
 
-        let help_flag = run_hni(
+        let help_flag = run_alur(
             vec!["install", "-C", project.to_str().unwrap(), "--help"],
-            &[("HNI_SKIP_PM_CHECK", "1")],
+            &[("ALUR_SKIP_PM_CHECK", "1")],
         );
         assert!(help_flag.status.success());
         let help_flag_out = String::from_utf8_lossy(&help_flag.stdout);
         assert!(help_flag_out.contains("Usage: ni"));
         assert!(!help_flag_out.contains("Usage:\nnpm install"));
 
-        let passthrough_help = run_hni(
+        let passthrough_help = run_alur(
             vec![
                 "install",
                 "-C",
@@ -36,19 +36,19 @@ fn help_and_version_contracts_are_hni_first() {
                 "--",
                 "--help",
             ],
-            &[("HNI_SKIP_PM_CHECK", "1")],
+            &[("ALUR_SKIP_PM_CHECK", "1")],
         );
         assert!(passthrough_help.status.success());
         let passthrough_help_out = String::from_utf8_lossy(&passthrough_help.stdout);
         assert_eq!(passthrough_help_out.trim(), "npm i --help");
 
-        let version = run_hni(
+        let version = run_alur(
             vec!["install", "-C", project.to_str().unwrap(), "--version"],
-            &[("HNI_SKIP_PM_CHECK", "1")],
+            &[("ALUR_SKIP_PM_CHECK", "1")],
         );
         assert!(version.status.success());
         let version_out = String::from_utf8_lossy(&version.stdout);
-        assert!(version_out.contains("hni       v"));
+        assert!(version_out.contains("alur       v"));
     });
 }
 
@@ -61,7 +61,7 @@ fn global_flags_work_anywhere_before_passthrough_separator() {
         fs::write(project.join("package-lock.json"), "lock").unwrap();
         fs::write(project.join("package.json"), r#"{"name":"x"}"#).unwrap();
 
-        let output = run_hni(
+        let output = run_alur(
             vec![
                 "install",
                 "-C",
@@ -69,7 +69,7 @@ fn global_flags_work_anywhere_before_passthrough_separator() {
                 "vite",
                 "--print-command",
             ],
-            &[("HNI_SKIP_PM_CHECK", "1")],
+            &[("ALUR_SKIP_PM_CHECK", "1")],
         );
         assert!(output.status.success());
         assert_eq!(String::from_utf8_lossy(&output.stdout).trim(), "npm i vite");
@@ -90,7 +90,7 @@ fn fast_and_pm_cli_flags_override_environment_setting() {
         .unwrap();
         fs::write(project.join("node_modules").join(".bin").join("vite"), "").unwrap();
 
-        let force_fast = run_hni(
+        let force_fast = run_alur(
             vec![
                 "run",
                 "-C",
@@ -99,15 +99,15 @@ fn fast_and_pm_cli_flags_override_environment_setting() {
                 "--print-command",
                 "dev",
             ],
-            &[("HNI_SKIP_PM_CHECK", "1"), ("HNI_FAST_MODE", "false")],
+            &[("ALUR_SKIP_PM_CHECK", "1"), ("ALUR_FAST_MODE", "false")],
         );
         assert!(force_fast.status.success());
         assert_eq!(
             String::from_utf8_lossy(&force_fast.stdout).trim(),
-            "hni fast:run-script dev"
+            "alur fast:run-script dev"
         );
 
-        let force_pm = run_hni(
+        let force_pm = run_alur(
             vec![
                 "run",
                 "-C",
@@ -116,7 +116,7 @@ fn fast_and_pm_cli_flags_override_environment_setting() {
                 "--print-command",
                 "dev",
             ],
-            &[("HNI_SKIP_PM_CHECK", "1"), ("HNI_FAST_MODE", "true")],
+            &[("ALUR_SKIP_PM_CHECK", "1"), ("ALUR_FAST_MODE", "true")],
         );
         assert!(force_pm.status.success());
         assert_eq!(
@@ -147,8 +147,8 @@ fn default_fast_mode_resolves_nr_and_nlx_natively() {
             make_executable(&bin_dir.join("hello"));
         }
 
-        support::with_var_removed("HNI_FAST_MODE", || {
-            let nr = run_hni(
+        support::with_var_removed("ALUR_FAST_MODE", || {
+            let nr = run_alur(
                 vec![
                     "run",
                     "-C",
@@ -156,15 +156,15 @@ fn default_fast_mode_resolves_nr_and_nlx_natively() {
                     "--print-command",
                     "dev",
                 ],
-                &[("HNI_SKIP_PM_CHECK", "1")],
+                &[("ALUR_SKIP_PM_CHECK", "1")],
             );
             assert!(nr.status.success(), "{nr:?}");
             assert_eq!(
                 String::from_utf8_lossy(&nr.stdout).trim(),
-                "hni fast:run-script dev"
+                "alur fast:run-script dev"
             );
 
-            let nlx = run_hni(
+            let nlx = run_alur(
                 vec![
                     "exec",
                     "-C",
@@ -173,12 +173,12 @@ fn default_fast_mode_resolves_nr_and_nlx_natively() {
                     "hello",
                     "world",
                 ],
-                &[("HNI_SKIP_PM_CHECK", "1")],
+                &[("ALUR_SKIP_PM_CHECK", "1")],
             );
             assert!(nlx.status.success(), "{nlx:?}");
             assert_eq!(
                 String::from_utf8_lossy(&nlx.stdout).trim(),
-                "hni fast:run-local-bin hello world"
+                "alur fast:run-local-bin hello world"
             );
         });
     });
@@ -198,7 +198,7 @@ fn fast_flag_enables_fast_mode() {
         .unwrap();
         fs::write(project.join("node_modules").join(".bin").join("vite"), "").unwrap();
 
-        let output = run_hni(
+        let output = run_alur(
             vec![
                 "run",
                 "-C",
@@ -207,12 +207,12 @@ fn fast_flag_enables_fast_mode() {
                 "--print-command",
                 "dev",
             ],
-            &[("HNI_SKIP_PM_CHECK", "1"), ("HNI_FAST_MODE", "false")],
+            &[("ALUR_SKIP_PM_CHECK", "1"), ("ALUR_FAST_MODE", "false")],
         );
         assert!(output.status.success(), "{output:?}");
         assert_eq!(
             String::from_utf8_lossy(&output.stdout).trim(),
-            "hni fast:run-script dev"
+            "alur fast:run-script dev"
         );
     });
 }
@@ -231,7 +231,7 @@ fn internal_profile_loop_resolves_commands_without_running_them() {
         .unwrap();
         fs::write(project.join("node_modules").join(".bin").join("vite"), "").unwrap();
 
-        let output = run_hni(
+        let output = run_alur(
             vec![
                 "internal",
                 "profile-loop",
@@ -242,12 +242,12 @@ fn internal_profile_loop_resolves_commands_without_running_them() {
                 "-C",
                 project.to_str().unwrap(),
             ],
-            &[("HNI_SKIP_PM_CHECK", "1")],
+            &[("ALUR_SKIP_PM_CHECK", "1")],
         );
         assert!(output.status.success(), "{output:?}");
         assert!(String::from_utf8_lossy(&output.stdout).trim().is_empty());
 
-        let np = run_hni(
+        let np = run_alur(
             vec![
                 "internal",
                 "profile-loop",
@@ -256,11 +256,11 @@ fn internal_profile_loop_resolves_commands_without_running_them() {
                 "np",
                 "echo hi",
             ],
-            &[("HNI_SKIP_PM_CHECK", "1")],
+            &[("ALUR_SKIP_PM_CHECK", "1")],
         );
         assert!(np.status.success(), "{np:?}");
 
-        let ns = run_hni(
+        let ns = run_alur(
             vec![
                 "internal",
                 "profile-loop",
@@ -269,7 +269,7 @@ fn internal_profile_loop_resolves_commands_without_running_them() {
                 "ns",
                 "echo hi",
             ],
-            &[("HNI_SKIP_PM_CHECK", "1")],
+            &[("ALUR_SKIP_PM_CHECK", "1")],
         );
         assert!(ns.status.success(), "{ns:?}");
     });
@@ -284,7 +284,7 @@ fn print_command_and_explain_skip_package_manager_availability_checks() {
         fs::write(project.join("pnpm-lock.yaml"), "lock").unwrap();
         fs::write(project.join("package.json"), r#"{"name":"x"}"#).unwrap();
 
-        let printed = run_hni(
+        let printed = run_alur(
             vec![
                 "install",
                 "-C",
@@ -300,7 +300,7 @@ fn print_command_and_explain_skip_package_manager_availability_checks() {
             "pnpm add react"
         );
 
-        let explain = run_hni(
+        let explain = run_alur(
             vec![
                 "install",
                 "-C",
@@ -312,7 +312,7 @@ fn print_command_and_explain_skip_package_manager_availability_checks() {
         );
         assert!(explain.status.success(), "{explain:?}");
         let stdout = String::from_utf8_lossy(&explain.stdout);
-        assert!(stdout.contains("hni explain"));
+        assert!(stdout.contains("alur explain"));
         assert!(stdout.contains("resolved: pnpm add react"));
     });
 }

@@ -12,7 +12,7 @@ fi
 
 mkdir -p "$RESULT_DIR"
 
-TMP_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/hni-benchmark-profile-XXXXXX")"
+TMP_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/alur-benchmark-profile-XXXXXX")"
 trap 'rm -rf "$TMP_ROOT"' EXIT
 
 FIXTURE="$TMP_ROOT/pnpm"
@@ -46,7 +46,7 @@ timing_case() {
   shift
   local output="$RESULT_DIR/$(timestamp)-$name.txt"
   echo "[benchmark] timings: $name"
-  "$REPO_ROOT/target/release/hni" internal profile-loop --timings --iterations "$ITERATIONS" "$@" > "$output"
+  "$REPO_ROOT/target/release/alur" internal profile-loop --timings --iterations "$ITERATIONS" "$@" > "$output"
   cat "$output"
   echo "[benchmark] wrote $output"
 }
@@ -56,13 +56,13 @@ flamegraph_case() {
   shift
   local output="$RESULT_DIR/$(timestamp)-$name.svg"
   echo "[benchmark] flamegraph: $name"
-  cargo flamegraph --bin hni --output "$output" -- "$@"
+  cargo flamegraph --bin alur --output "$output" -- "$@"
   echo "[benchmark] wrote $output"
 }
 
-export HNI_SKIP_PM_CHECK=true
+export ALUR_SKIP_PM_CHECK=true
 
-ITERATIONS="${HNI_PROFILE_ITERATIONS:-4000}"
+ITERATIONS="${ALUR_PROFILE_ITERATIONS:-4000}"
 
 cargo build --release >/dev/null
 

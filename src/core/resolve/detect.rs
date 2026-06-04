@@ -71,7 +71,7 @@ pub(super) fn ensure_detected_available(
 #[derive(Debug, Error)]
 enum ResolveDetectionError {
     #[error(
-        "detection error: unable to detect package manager in {}.\nAdd packageManager to package.json, add a lockfile, or set default_package_manager in hni/config.toml",
+        "detection error: unable to detect package manager in {}.\nAdd packageManager to package.json, add a lockfile, or set default_package_manager in alur/config.toml",
         cwd.display()
     )]
     MissingPackageManager { cwd: PathBuf },

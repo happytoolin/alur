@@ -25,7 +25,7 @@ fn multicall_aliases_resolve_expected_commands() {
         let bin_dir = work.path().join("bin");
         fs::create_dir_all(&bin_dir).unwrap();
 
-        let exe = hni_executable_path();
+        let exe = alur_executable_path();
         if !exe.exists() {
             return;
         }
@@ -102,7 +102,7 @@ fn multicall_aliases_resolve_expected_commands() {
                 "eslint",
                 "--print-command",
             ],
-            &[("HNI_GLOBAL_PACKAGE_MANAGER", "yarn")],
+            &[("ALUR_GLOBAL_PACKAGE_MANAGER", "yarn")],
         );
         assert_eq!(ni_global_out.trim(), "yarn global add eslint");
 
@@ -116,7 +116,7 @@ fn multicall_aliases_resolve_expected_commands() {
                 "prettier",
                 "--print-command",
             ],
-            &[("HNI_GLOBAL_PACKAGE_MANAGER", "pnpm")],
+            &[("ALUR_GLOBAL_PACKAGE_MANAGER", "pnpm")],
         );
         assert_eq!(ni_global_long_out.trim(), "pnpm add -g prettier");
 
@@ -192,7 +192,7 @@ fn multicall_aliases_resolve_expected_commands() {
                 "typescript",
                 "--print-command",
             ],
-            &[("HNI_GLOBAL_PACKAGE_MANAGER", "yarn")],
+            &[("ALUR_GLOBAL_PACKAGE_MANAGER", "yarn")],
         );
         assert_eq!(nun_global_out.trim(), "yarn global remove typescript");
 
@@ -206,7 +206,7 @@ fn multicall_aliases_resolve_expected_commands() {
                 "typescript",
                 "--print-command",
             ],
-            &[("HNI_GLOBAL_PACKAGE_MANAGER", "pnpm")],
+            &[("ALUR_GLOBAL_PACKAGE_MANAGER", "pnpm")],
         );
         assert_eq!(nun_global_long_out.trim(), "pnpm remove -g typescript");
 
@@ -232,7 +232,7 @@ fn multicall_aliases_resolve_expected_commands() {
         );
         assert_eq!(
             np_out.trim(),
-            "hni batch:parallel \"echo one\" \"echo two\""
+            "alur batch:parallel \"echo one\" \"echo two\""
         );
 
         let ns_out = run_alias(
@@ -249,7 +249,7 @@ fn multicall_aliases_resolve_expected_commands() {
         );
         assert_eq!(
             ns_out.trim(),
-            "hni batch:sequential \"echo one\" \"echo two\""
+            "alur batch:sequential \"echo one\" \"echo two\""
         );
 
         let node_parallel_out = run_alias(
@@ -267,7 +267,7 @@ fn multicall_aliases_resolve_expected_commands() {
         );
         assert_eq!(
             node_parallel_out.trim(),
-            "hni batch:parallel \"echo one\" \"echo two\""
+            "alur batch:parallel \"echo one\" \"echo two\""
         );
 
         let node_sequential_out = run_alias(
@@ -285,7 +285,7 @@ fn multicall_aliases_resolve_expected_commands() {
         );
         assert_eq!(
             node_sequential_out.trim(),
-            "hni batch:sequential \"echo one\" \"echo two\""
+            "alur batch:sequential \"echo one\" \"echo two\""
         );
 
         let fake_node = work.path().join(if cfg!(windows) {
@@ -306,7 +306,7 @@ fn multicall_aliases_resolve_expected_commands() {
             &bin_dir,
             "node",
             vec!["script.js", "--print-command"],
-            &[("HNI_REAL_NODE", fake_node.to_str().unwrap())],
+            &[("ALUR_REAL_NODE", fake_node.to_str().unwrap())],
         );
         let output = passthrough_out.trim();
         assert!(output.contains(fake_node.to_string_lossy().as_ref()));
@@ -316,7 +316,7 @@ fn multicall_aliases_resolve_expected_commands() {
             &bin_dir,
             "node",
             vec!["-p", "1+1", "--print-command"],
-            &[("HNI_REAL_NODE", fake_node.to_str().unwrap())],
+            &[("ALUR_REAL_NODE", fake_node.to_str().unwrap())],
         );
         let output = node_flag_out.trim();
         assert!(output.contains(fake_node.to_string_lossy().as_ref()));
@@ -325,15 +325,15 @@ fn multicall_aliases_resolve_expected_commands() {
     });
 }
 
-fn hni_executable_path() -> PathBuf {
-    if let Ok(path) = std::env::var("CARGO_BIN_EXE_hni") {
+fn alur_executable_path() -> PathBuf {
+    if let Ok(path) = std::env::var("CARGO_BIN_EXE_alur") {
         return PathBuf::from(path);
     }
 
     let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     path.push("target");
     path.push("debug");
-    path.push(if cfg!(windows) { "hni.exe" } else { "hni" });
+    path.push(if cfg!(windows) { "alur.exe" } else { "alur" });
     path
 }
 
@@ -345,7 +345,7 @@ fn run_alias(bin_dir: &Path, alias: &str, args: Vec<&str>, extra_env: &[(&str, &
     };
 
     let mut cmd = Command::new(bin_dir.join(alias_bin));
-    cmd.args(args).env("HNI_SKIP_PM_CHECK", "1");
+    cmd.args(args).env("ALUR_SKIP_PM_CHECK", "1");
 
     for (key, value) in extra_env {
         cmd.env(key, value);

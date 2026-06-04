@@ -13,7 +13,7 @@ use crate::{
         version::print_versions,
     },
     core::{
-        config::HniConfig,
+        config::AlurConfig,
         resolve::ResolveContext,
         runner,
         types::{ExecutionMode, InvocationKind, ResolvedExecution},
@@ -104,7 +104,7 @@ fn resolve_context(
         ));
     }
 
-    let mut config = HniConfig::load()?;
+    let mut config = AlurConfig::load()?;
     if let Some(fast_override) = parsed.fast_override {
         config.fast_mode = fast_override;
     }
@@ -120,7 +120,7 @@ fn print_explain(
     resolved: &ResolvedExecution,
     ctx: &ResolveContext,
 ) -> Result<()> {
-    println!("hni explain");
+    println!("alur explain");
     println!("invocation: {}", invocation_name(invocation));
     println!("cwd: {}", ctx.cwd().display());
     println!("fast_mode: {}", ctx.config.fast_mode);
@@ -190,7 +190,7 @@ fn run_profile_loop(
 fn invocation_name(invocation: InvocationKind) -> &'static str {
     command_spec_by_invocation(invocation)
         .map(|spec| spec.name)
-        .unwrap_or("hni")
+        .unwrap_or("alur")
 }
 
 fn dispatch_invocation(

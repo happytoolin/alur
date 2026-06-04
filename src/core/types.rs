@@ -5,7 +5,7 @@ use strum::EnumString;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HelpTopic {
-    Hni,
+    Alur,
     Ni,
     Nr,
     Nlx,
@@ -19,7 +19,7 @@ pub enum HelpTopic {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum InvocationKind {
-    Hni,
+    Alur,
     Ni,
     Nr,
     Nlx,
@@ -251,7 +251,7 @@ impl ResolvedExecution {
 
     pub fn internal_batch(mode: BatchMode, commands: Vec<String>, cwd: PathBuf) -> Self {
         Self {
-            program: "hni".to_string(),
+            program: "alur".to_string(),
             args: commands.clone(),
             cwd,
             passthrough: false,

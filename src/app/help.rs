@@ -1,7 +1,7 @@
 use clap::{Arg, ArgAction, Command, builder::PossibleValuesParser, value_parser};
 
 use crate::app::{
-    cli::hni_command,
+    cli::alur_command,
     command_registry::{CommandSpec, help_command_for_topic},
     init::SUPPORTED_SHELL_NAMES,
 };
@@ -14,7 +14,7 @@ pub fn print_help(topic: HelpTopic) {
 }
 
 pub fn top_level_help() -> Command {
-    hni_command()
+    alur_command()
 }
 
 pub fn command_help(spec: &CommandSpec) -> Command {
@@ -32,18 +32,18 @@ pub fn init_help() -> Command {
         Command::new("init")
             .about("print shell init code for node shim")
             .long_about(
-                "Creates hni's managed node shim symlink and prints shell-specific PATH setup.\n\
+                "Creates alur's managed node shim symlink and prints shell-specific PATH setup.\n\
                  Add the generated line at the end of your shell config, after nvm/mise/asdf/fnm/volta init.",
             )
             .arg(init_shell_arg())
             .after_help(
                 "Examples:\n\
                  \n\
-                 hni init bash\n\
-                 hni init zsh\n\
-                 hni init fish\n\
-                 hni init powershell\n\
-                 hni init nushell",
+                 alur init bash\n\
+                 alur init zsh\n\
+                 alur init fish\n\
+                 alur init powershell\n\
+                 alur init nushell",
             ),
     )
 }

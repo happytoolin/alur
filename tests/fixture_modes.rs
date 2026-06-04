@@ -2,7 +2,7 @@ use std::{fs, path::Path};
 
 mod support;
 
-use support::run_hni;
+use support::run_alur;
 
 struct ModeCase {
     category: &'static str,
@@ -22,54 +22,54 @@ fn fixture_projects_cover_pm_and_fast_resolution_modes() {
                 category: "packager",
                 name: "npm",
                 pm_nr: "npm run dev",
-                fast_nr: "hni fast:run-script dev",
+                fast_nr: "alur fast:run-script dev",
                 pm_nlx: "npx hello --flag",
-                fast_nlx: "hni fast:run-local-bin hello --flag",
+                fast_nlx: "alur fast:run-local-bin hello --flag",
                 local_bin: true,
             },
             ModeCase {
                 category: "packager",
                 name: "npm@11",
                 pm_nr: "npm run dev",
-                fast_nr: "hni fast:run-script dev",
+                fast_nr: "alur fast:run-script dev",
                 pm_nlx: "npx hello --flag",
-                fast_nlx: "hni fast:run-local-bin hello --flag",
+                fast_nlx: "alur fast:run-local-bin hello --flag",
                 local_bin: true,
             },
             ModeCase {
                 category: "packager",
                 name: "pnpm@11",
                 pm_nr: "pnpm run dev",
-                fast_nr: "hni fast:run-script dev",
+                fast_nr: "alur fast:run-script dev",
                 pm_nlx: "pnpm dlx hello --flag",
-                fast_nlx: "hni fast:run-local-bin hello --flag",
+                fast_nlx: "alur fast:run-local-bin hello --flag",
                 local_bin: true,
             },
             ModeCase {
                 category: "dev-engines",
                 name: "pnpm-version-range",
                 pm_nr: "pnpm run dev",
-                fast_nr: "hni fast:run-script dev",
+                fast_nr: "alur fast:run-script dev",
                 pm_nlx: "pnpm dlx hello --flag",
-                fast_nlx: "hni fast:run-local-bin hello --flag",
+                fast_nlx: "alur fast:run-local-bin hello --flag",
                 local_bin: true,
             },
             ModeCase {
                 category: "lockfile",
                 name: "yarn@berry",
                 pm_nr: "yarn run dev",
-                fast_nr: "hni fast:run-script dev",
+                fast_nr: "alur fast:run-script dev",
                 pm_nlx: "npx hello --flag",
-                fast_nlx: "hni fast:run-local-bin hello --flag",
+                fast_nlx: "alur fast:run-local-bin hello --flag",
                 local_bin: true,
             },
             ModeCase {
                 category: "install-metadata",
                 name: "yarn@berry",
                 pm_nr: "yarn run dev",
-                fast_nr: "hni fast:run-script dev",
+                fast_nr: "alur fast:run-script dev",
                 pm_nlx: "yarn dlx hello --flag",
-                fast_nlx: "hni fast:run-local-bin hello --flag",
+                fast_nlx: "alur fast:run-local-bin hello --flag",
                 local_bin: true,
             },
             ModeCase {
@@ -106,7 +106,7 @@ fn fixture_projects_cover_pm_and_fast_resolution_modes() {
                     "--print-command",
                     "dev",
                 ],
-                &[("HNI_SKIP_PM_CHECK", "1"), ("HNI_FAST_MODE", "false")],
+                &[("ALUR_SKIP_PM_CHECK", "1"), ("ALUR_FAST_MODE", "false")],
                 case.pm_nr,
             );
             assert_print_command(
@@ -118,7 +118,7 @@ fn fixture_projects_cover_pm_and_fast_resolution_modes() {
                     "--print-command",
                     "dev",
                 ],
-                &[("HNI_SKIP_PM_CHECK", "1"), ("HNI_FAST_MODE", "true")],
+                &[("ALUR_SKIP_PM_CHECK", "1"), ("ALUR_FAST_MODE", "true")],
                 case.fast_nr,
             );
             assert_print_command(
@@ -131,7 +131,7 @@ fn fixture_projects_cover_pm_and_fast_resolution_modes() {
                     "hello",
                     "--flag",
                 ],
-                &[("HNI_SKIP_PM_CHECK", "1"), ("HNI_FAST_MODE", "false")],
+                &[("ALUR_SKIP_PM_CHECK", "1"), ("ALUR_FAST_MODE", "false")],
                 case.pm_nlx,
             );
             assert_print_command(
@@ -144,7 +144,7 @@ fn fixture_projects_cover_pm_and_fast_resolution_modes() {
                     "hello",
                     "--flag",
                 ],
-                &[("HNI_SKIP_PM_CHECK", "1"), ("HNI_FAST_MODE", "true")],
+                &[("ALUR_SKIP_PM_CHECK", "1"), ("ALUR_FAST_MODE", "true")],
                 case.fast_nlx,
             );
         }
@@ -152,7 +152,7 @@ fn fixture_projects_cover_pm_and_fast_resolution_modes() {
 }
 
 fn assert_print_command(cwd: &Path, args: &[&str], env: &[(&str, &str)], expected: &str) {
-    let output = run_hni(args.to_vec(), env);
+    let output = run_alur(args.to_vec(), env);
     assert!(
         output.status.success(),
         "command failed in {}: {}",

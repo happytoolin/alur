@@ -12,21 +12,21 @@ use crate::app::{
 };
 use crate::core::types::{HelpTopic, InvocationKind};
 
-const HNI_AFTER_HELP: &str = "Quick examples:\n\
+const ALUR_AFTER_HELP: &str = "Quick examples:\n\
 \n\
-hni install vite\n\
-hni install --explain react -D\n\
-hni uninstall lodash\n\
-hni run dev\n\
-hni run --pm dev\n\
-hni run dev -- --port=3000\n\
-hni exec create-vite@latest\n\
+alur install vite\n\
+alur install --explain react -D\n\
+alur uninstall lodash\n\
+alur run dev\n\
+alur run --pm dev\n\
+alur run dev -- --port=3000\n\
+alur exec create-vite@latest\n\
 np \"echo one\" \"echo two\"\n\
 ns \"npm run build\" \"npm run test\"\n\
-hni init bash\n\
-hni doctor\n\
-hni help ni\n\
-hni completion zsh\n\
+alur init bash\n\
+alur doctor\n\
+alur help ni\n\
+alur completion zsh\n\
 node install react";
 
 #[derive(Debug, Clone)]
@@ -76,36 +76,36 @@ struct SharedFlags {
 
 #[derive(Debug, Parser)]
 #[command(
-    name = "hni",
+    name = "alur",
     about = "use the right package manager",
-    long_about = "hni is a multicall package-manager router.\nIt powers hni install/uninstall/run/exec/ci/parallel/sequential plus ni, nr, nlx, nun, nci, np, ns, and node.\nFast mode is the default for eligible nr and nlx commands.",
-    after_help = HNI_AFTER_HELP,
+    long_about = "alur is a multicall package-manager router.\nIt powers alur install/uninstall/run/exec/ci/parallel/sequential plus ni, nr, nlx, nun, nci, np, ns, and node.\nFast mode is the default for eligible nr and nlx commands.",
+    after_help = ALUR_AFTER_HELP,
     disable_help_flag = true,
     disable_version_flag = true,
     disable_help_subcommand = true
 )]
-struct HniCli {
+struct AlurCli {
     #[command(flatten)]
     _shared: ClapSharedFlags,
     #[command(subcommand)]
-    command: Option<HniSubcommand>,
+    command: Option<AlurSubcommand>,
 }
 
 #[derive(Debug, Parser)]
 #[command(
-    name = "hni",
+    name = "alur",
     about = "use the right package manager",
-    long_about = "hni is a multicall package-manager router.\nIt powers hni install/uninstall/run/exec/ci/parallel/sequential plus ni, nr, nlx, nun, nci, np, ns, and node.\nFast mode is the default for eligible nr and nlx commands.",
-    after_help = HNI_AFTER_HELP,
+    long_about = "alur is a multicall package-manager router.\nIt powers alur install/uninstall/run/exec/ci/parallel/sequential plus ni, nr, nlx, nun, nci, np, ns, and node.\nFast mode is the default for eligible nr and nlx commands.",
+    after_help = ALUR_AFTER_HELP,
     disable_help_flag = true,
     disable_version_flag = true,
     disable_help_subcommand = true
 )]
-struct HniPublicCli {
+struct AlurPublicCli {
     #[command(flatten)]
     _shared: ClapSharedFlags,
     #[command(subcommand)]
-    _command: Option<HniPublicSubcommand>,
+    _command: Option<AlurPublicSubcommand>,
 }
 
 #[derive(Debug, Args)]
@@ -149,7 +149,7 @@ struct ClapSharedFlags {
 }
 
 #[derive(Debug, Subcommand)]
-enum HniSubcommand {
+enum AlurSubcommand {
     #[command(about = "install or add dependencies")]
     Install(ForwardedArgs),
     #[command(about = "uninstall dependencies")]
@@ -164,7 +164,7 @@ enum HniSubcommand {
     Parallel(ForwardedArgs),
     #[command(about = "run shell commands sequentially")]
     Sequential(ForwardedArgs),
-    #[command(about = "print hni or command help")]
+    #[command(about = "print alur or command help")]
     Help(HelpArgs),
     #[command(about = "print environment and detection diagnostics")]
     Doctor,
@@ -177,7 +177,7 @@ enum HniSubcommand {
 }
 
 #[derive(Debug, Subcommand)]
-enum HniPublicSubcommand {
+enum AlurPublicSubcommand {
     #[command(about = "install or add dependencies")]
     Install(ForwardedArgs),
     #[command(about = "uninstall dependencies")]
@@ -192,7 +192,7 @@ enum HniPublicSubcommand {
     Parallel(ForwardedArgs),
     #[command(about = "run shell commands sequentially")]
     Sequential(ForwardedArgs),
-    #[command(about = "print hni or command help")]
+    #[command(about = "print alur or command help")]
     Help(HelpArgs),
     #[command(about = "print environment and detection diagnostics")]
     Doctor,
@@ -282,24 +282,24 @@ pub fn parse_from_env() -> Result<ParsedInvocation> {
     let invocation = invocation_from_argv0(argv0);
     let (shared_flags, command_args) = extract_shared_flags(&argv[1..])?;
 
-    if invocation == InvocationKind::Hni {
-        parse_hni(argv0, &command_args, shared_flags)
+    if invocation == InvocationKind::Alur {
+        parse_alur(argv0, &command_args, shared_flags)
     } else {
         parse_alias(invocation, &command_args, shared_flags)
     }
 }
 
-fn parse_hni(argv0: &str, args: &[String], shared_flags: SharedFlags) -> Result<ParsedInvocation> {
+fn parse_alur(argv0: &str, args: &[String], shared_flags: SharedFlags) -> Result<ParsedInvocation> {
     let program = normalized_program_name(argv0);
     let mut clap_args = Vec::with_capacity(args.len() + 1);
     clap_args.push(program.clone());
     clap_args.extend(args.iter().cloned());
 
-    let parsed = HniCli::try_parse_from(clap_args).context("parse error")?;
+    let parsed = AlurCli::try_parse_from(clap_args).context("parse error")?;
 
     let mut command = match parsed.command {
-        Some(subcommand) => parsed_hni_subcommand(subcommand, program.clone())?,
-        None => ParsedCommand::PrintHelp(HelpTopic::Hni),
+        Some(subcommand) => parsed_alur_subcommand(subcommand, program.clone())?,
+        None => ParsedCommand::PrintHelp(HelpTopic::Alur),
     };
 
     if shared_flags.version {
@@ -344,23 +344,23 @@ fn parse_alias(
     shared_flags.into_invocation(command)
 }
 
-fn parsed_hni_subcommand(subcommand: HniSubcommand, program: String) -> Result<ParsedCommand> {
+fn parsed_alur_subcommand(subcommand: AlurSubcommand, program: String) -> Result<ParsedCommand> {
     match subcommand {
-        HniSubcommand::Install(args) => Ok(execute_from_args(InvocationKind::Ni, args)),
-        HniSubcommand::Run(args) => Ok(execute_from_args(InvocationKind::Nr, args)),
-        HniSubcommand::Exec(args) => Ok(execute_from_args(InvocationKind::Nlx, args)),
-        HniSubcommand::Uninstall(args) => Ok(execute_from_args(InvocationKind::Nun, args)),
-        HniSubcommand::Ci(args) => Ok(execute_from_args(InvocationKind::Nci, args)),
-        HniSubcommand::Parallel(args) => Ok(execute_from_args(InvocationKind::Np, args)),
-        HniSubcommand::Sequential(args) => Ok(execute_from_args(InvocationKind::Ns, args)),
-        HniSubcommand::Help(args) => Ok(ParsedCommand::PrintHelp(help_target(args.command)?)),
-        HniSubcommand::Doctor => Ok(ParsedCommand::Doctor),
-        HniSubcommand::Completion(args) => Ok(ParsedCommand::Completion {
+        AlurSubcommand::Install(args) => Ok(execute_from_args(InvocationKind::Ni, args)),
+        AlurSubcommand::Run(args) => Ok(execute_from_args(InvocationKind::Nr, args)),
+        AlurSubcommand::Exec(args) => Ok(execute_from_args(InvocationKind::Nlx, args)),
+        AlurSubcommand::Uninstall(args) => Ok(execute_from_args(InvocationKind::Nun, args)),
+        AlurSubcommand::Ci(args) => Ok(execute_from_args(InvocationKind::Nci, args)),
+        AlurSubcommand::Parallel(args) => Ok(execute_from_args(InvocationKind::Np, args)),
+        AlurSubcommand::Sequential(args) => Ok(execute_from_args(InvocationKind::Ns, args)),
+        AlurSubcommand::Help(args) => Ok(ParsedCommand::PrintHelp(help_target(args.command)?)),
+        AlurSubcommand::Doctor => Ok(ParsedCommand::Doctor),
+        AlurSubcommand::Completion(args) => Ok(ParsedCommand::Completion {
             shell: args.shell,
             program,
         }),
-        HniSubcommand::Init(args) => Ok(ParsedCommand::Init { shell: args.shell }),
-        HniSubcommand::Internal(args) => parse_internal_command(args),
+        AlurSubcommand::Init(args) => Ok(ParsedCommand::Init { shell: args.shell }),
+        AlurSubcommand::Internal(args) => parse_internal_command(args),
     }
 }
 
@@ -392,7 +392,7 @@ fn parse_internal_command(args: InternalArgs) -> Result<ParsedCommand> {
             iterations: args.iterations,
             timings: args.timings,
         }),
-        None => Ok(ParsedCommand::PrintHelp(HelpTopic::Hni)),
+        None => Ok(ParsedCommand::PrintHelp(HelpTopic::Alur)),
     }
 }
 
@@ -419,12 +419,12 @@ fn resolve_cwd(cwd_flags: &[PathBuf]) -> Result<PathBuf> {
 
 fn help_target(command: Option<String>) -> Result<HelpTopic> {
     let Some(command) = command else {
-        return Ok(HelpTopic::Hni);
+        return Ok(HelpTopic::Alur);
     };
 
     let normalized = command.to_ascii_lowercase();
     help_topic_by_name(&normalized)
-        .ok_or_else(|| anyhow!("parse error: unknown help topic '{command}'. Try: hni help"))
+        .ok_or_else(|| anyhow!("parse error: unknown help topic '{command}'. Try: alur help"))
 }
 
 fn help_target_from_command(command: &ParsedCommand) -> HelpTopic {
@@ -436,12 +436,12 @@ fn help_target_from_command(command: &ParsedCommand) -> HelpTopic {
         | ParsedCommand::Completion { .. }
         | ParsedCommand::InternalRealNodePath
         | ParsedCommand::InternalProfileLoop { .. }
-        | ParsedCommand::PrintVersions => HelpTopic::Hni,
+        | ParsedCommand::PrintVersions => HelpTopic::Alur,
     }
 }
 
-pub fn hni_command() -> Command {
-    HniPublicCli::command()
+pub fn alur_command() -> Command {
+    AlurPublicCli::command()
 }
 
 #[must_use]
@@ -450,7 +450,7 @@ pub fn command_parser(name: &'static str) -> Command {
 }
 
 fn invocation_from_argv0(argv0: &str) -> InvocationKind {
-    invocation_from_name(normalized_program_name(argv0).as_str()).unwrap_or(InvocationKind::Hni)
+    invocation_from_name(normalized_program_name(argv0).as_str()).unwrap_or(InvocationKind::Alur)
 }
 
 fn internal_invocation(name: &str) -> Result<InvocationKind> {
@@ -575,16 +575,16 @@ mod tests {
         let invocation = invocation_from_argv0(argv0);
         let (shared_flags, args) = extract_shared_flags(&owned[1..])?;
 
-        if invocation == InvocationKind::Hni {
-            parse_hni(argv0, &args, shared_flags)
+        if invocation == InvocationKind::Alur {
+            parse_alur(argv0, &args, shared_flags)
         } else {
             parse_alias(invocation, &args, shared_flags)
         }
     }
 
     #[test]
-    fn hni_fast_flag_sets_fast_override() {
-        let parsed = parse_args(&["hni", "run", "--fast", "dev"]).unwrap();
+    fn alur_fast_flag_sets_fast_override() {
+        let parsed = parse_args(&["alur", "run", "--fast", "dev"]).unwrap();
 
         assert_eq!(parsed.fast_override, Some(true));
         match parsed.command {
@@ -594,8 +594,8 @@ mod tests {
     }
 
     #[test]
-    fn hni_print_command_after_positional_is_consumed_as_shared_flag() {
-        let parsed = parse_args(&["hni", "install", "vite", "--print-command"]).unwrap();
+    fn alur_print_command_after_positional_is_consumed_as_shared_flag() {
+        let parsed = parse_args(&["alur", "install", "vite", "--print-command"]).unwrap();
 
         assert!(parsed.print_command);
         match parsed.command {
@@ -605,9 +605,9 @@ mod tests {
     }
 
     #[test]
-    fn hni_flags_after_passthrough_separator_are_forwarded() {
+    fn alur_flags_after_passthrough_separator_are_forwarded() {
         let parsed = parse_args(&[
-            "hni",
+            "alur",
             "install",
             "vite",
             "--print-command",
@@ -624,8 +624,8 @@ mod tests {
     }
 
     #[test]
-    fn hni_extracts_short_and_long_cwd_flag_forms() {
-        let parsed = parse_args(&["hni", "install", "-Ctmp", "--cwd=project", "vite"]).unwrap();
+    fn alur_extracts_short_and_long_cwd_flag_forms() {
+        let parsed = parse_args(&["alur", "install", "-Ctmp", "--cwd=project", "vite"]).unwrap();
 
         assert_eq!(
             parsed.cwd,
@@ -639,13 +639,13 @@ mod tests {
 
     #[test]
     fn missing_cwd_value_is_parse_error() {
-        let err = parse_args(&["hni", "install", "-C"]).unwrap_err();
+        let err = parse_args(&["alur", "install", "-C"]).unwrap_err();
         assert!(err.to_string().contains("parse error"));
     }
 
     #[test]
     fn conflicting_fast_and_pm_flags_are_rejected() {
-        let err = parse_args(&["hni", "run", "--fast", "--pm", "dev"]).unwrap_err();
+        let err = parse_args(&["alur", "run", "--fast", "--pm", "dev"]).unwrap_err();
         assert!(err.to_string().contains("conflicts"));
     }
 

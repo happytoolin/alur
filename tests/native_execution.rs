@@ -4,7 +4,7 @@ use std::fs;
 
 mod support;
 
-use support::run_hni;
+use support::run_alur;
 
 #[test]
 fn native_nr_runs_hooks_from_nearest_package_and_forwards_args() {
@@ -26,7 +26,7 @@ fn native_nr_runs_hooks_from_nearest_package_and_forwards_args() {
         )
         .unwrap();
 
-        let output = run_hni(
+        let output = run_alur(
             vec![
                 "run",
                 "-C",
@@ -37,7 +37,7 @@ fn native_nr_runs_hooks_from_nearest_package_and_forwards_args() {
                 "alpha",
                 "beta",
             ],
-            &[("HNI_SKIP_PM_CHECK", "1")],
+            &[("ALUR_SKIP_PM_CHECK", "1")],
         );
 
         assert!(output.status.success(), "{output:?}");
@@ -66,7 +66,7 @@ fn native_nlx_runs_local_bin_directly() {
         fs::write(&bin, "#!/bin/sh\nprintf '%s' \"$*\" > bin-args.txt\n").unwrap();
         make_executable(&bin);
 
-        let output = run_hni(
+        let output = run_alur(
             vec![
                 "exec",
                 "-C",
@@ -75,7 +75,7 @@ fn native_nlx_runs_local_bin_directly() {
                 "hello",
                 "world",
             ],
-            &[("HNI_SKIP_PM_CHECK", "1")],
+            &[("ALUR_SKIP_PM_CHECK", "1")],
         );
 
         assert!(output.status.success(), "{output:?}");
@@ -99,7 +99,7 @@ fn native_explain_reports_fallback_reason() {
         )
         .unwrap();
 
-        let output = run_hni(
+        let output = run_alur(
             vec![
                 "run",
                 "-C",
@@ -108,7 +108,7 @@ fn native_explain_reports_fallback_reason() {
                 "--explain",
                 "dev",
             ],
-            &[("HNI_SKIP_PM_CHECK", "1")],
+            &[("ALUR_SKIP_PM_CHECK", "1")],
         );
 
         assert!(output.status.success(), "{output:?}");
@@ -137,9 +137,9 @@ fn native_nr_preserves_shell_glob_expansion() {
         fs::write(src_dir.join("a.js"), "").unwrap();
         fs::write(src_dir.join("b.js"), "").unwrap();
 
-        let output = run_hni(
+        let output = run_alur(
             vec!["run", "-C", project.to_str().unwrap(), "--fast", "show"],
-            &[("HNI_SKIP_PM_CHECK", "1")],
+            &[("ALUR_SKIP_PM_CHECK", "1")],
         );
 
         assert!(output.status.success(), "{output:?}");
@@ -166,12 +166,12 @@ fn native_nr_exposes_supported_shared_npm_env() {
         fs::write(&fake_node, "#!/bin/sh\nexit 0\n").unwrap();
         make_executable(&fake_node);
 
-        let output = run_hni(
+        let output = run_alur(
             vec!["run", "-C", project.to_str().unwrap(), "--fast", "dev"],
             &[
-                ("HNI_SKIP_PM_CHECK", "1"),
-                ("HNI_REAL_NODE", fake_node.to_str().unwrap()),
-                ("npm_config_user_agent", "hni-tests/1.0.0"),
+                ("ALUR_SKIP_PM_CHECK", "1"),
+                ("ALUR_REAL_NODE", fake_node.to_str().unwrap()),
+                ("npm_config_user_agent", "alur-tests/1.0.0"),
             ],
         );
 
@@ -189,7 +189,7 @@ fn native_nr_exposes_supported_shared_npm_env() {
         assert!(lines.contains(&"dev".to_string()));
         assert!(lines.contains(&fake_node));
         assert!(lines.contains(&"run-script".to_string()));
-        assert!(lines.contains(&"hni-tests/1.0.0".to_string()));
+        assert!(lines.contains(&"alur-tests/1.0.0".to_string()));
         assert!(lines.contains(&project));
         assert!(lines.iter().any(|line| !line.is_empty()));
     });
@@ -208,7 +208,7 @@ fn node_run_uses_native_fast_path() {
         )
         .unwrap();
 
-        let run_output = support::run_hni_as(
+        let run_output = support::run_alur_as(
             "node",
             vec![
                 "-C",
@@ -218,12 +218,12 @@ fn node_run_uses_native_fast_path() {
                 "run",
                 "dev",
             ],
-            &[("HNI_SKIP_PM_CHECK", "1")],
+            &[("ALUR_SKIP_PM_CHECK", "1")],
         );
         assert!(run_output.status.success(), "{run_output:?}");
         assert_eq!(
             String::from_utf8_lossy(&run_output.stdout).trim(),
-            "hni fast:run-script dev"
+            "alur fast:run-script dev"
         );
     });
 }
@@ -241,7 +241,7 @@ fn node_run_uses_native_fast_path_with_hooks() {
         )
         .unwrap();
 
-        let run_output = support::run_hni_as(
+        let run_output = support::run_alur_as(
             "node",
             vec![
                 "-C",
@@ -251,12 +251,12 @@ fn node_run_uses_native_fast_path_with_hooks() {
                 "run",
                 "dev",
             ],
-            &[("HNI_SKIP_PM_CHECK", "1")],
+            &[("ALUR_SKIP_PM_CHECK", "1")],
         );
         assert!(run_output.status.success(), "{run_output:?}");
         assert_eq!(
             String::from_utf8_lossy(&run_output.stdout).trim(),
-            "hni fast:run-script dev"
+            "alur fast:run-script dev"
         );
     });
 }
@@ -274,7 +274,7 @@ fn node_run_uses_native_fast_path_with_lifecycle_env() {
         )
         .unwrap();
 
-        let run_output = support::run_hni_as(
+        let run_output = support::run_alur_as(
             "node",
             vec![
                 "-C",
@@ -284,12 +284,12 @@ fn node_run_uses_native_fast_path_with_lifecycle_env() {
                 "run",
                 "dev",
             ],
-            &[("HNI_SKIP_PM_CHECK", "1")],
+            &[("ALUR_SKIP_PM_CHECK", "1")],
         );
         assert!(run_output.status.success(), "{run_output:?}");
         assert_eq!(
             String::from_utf8_lossy(&run_output.stdout).trim(),
-            "hni fast:run-script dev"
+            "alur fast:run-script dev"
         );
     });
 }
@@ -312,11 +312,11 @@ fn native_nlx_sets_exec_compat_env() {
         .unwrap();
         make_executable(&bin);
 
-        let output = run_hni(
+        let output = run_alur(
             vec!["exec", "-C", project.to_str().unwrap(), "--fast", "hello"],
             &[
-                ("HNI_SKIP_PM_CHECK", "1"),
-                ("npm_config_user_agent", "hni-tests/1.0.0"),
+                ("ALUR_SKIP_PM_CHECK", "1"),
+                ("npm_config_user_agent", "alur-tests/1.0.0"),
             ],
         );
 
@@ -329,7 +329,7 @@ fn native_nlx_sets_exec_compat_env() {
 
         assert_eq!(lines[0], "exec");
         assert!(!lines[1].is_empty());
-        assert_eq!(lines[2], "hni-tests/1.0.0");
+        assert_eq!(lines[2], "alur-tests/1.0.0");
         assert_eq!(lines[3], project.to_string_lossy());
     });
 }
@@ -348,7 +348,7 @@ fn node_exec_inherits_native_resolution() {
         fs::write(&bin, "#!/bin/sh\nexit 0\n").unwrap();
         make_executable(&bin);
 
-        let exec_output = support::run_hni_as(
+        let exec_output = support::run_alur_as(
             "node",
             vec![
                 "-C",
@@ -359,12 +359,12 @@ fn node_exec_inherits_native_resolution() {
                 "hello",
                 "world",
             ],
-            &[("HNI_SKIP_PM_CHECK", "1")],
+            &[("ALUR_SKIP_PM_CHECK", "1")],
         );
         assert!(exec_output.status.success(), "{exec_output:?}");
         assert_eq!(
             String::from_utf8_lossy(&exec_output.stdout).trim(),
-            "hni fast:run-local-bin hello world"
+            "alur fast:run-local-bin hello world"
         );
     });
 }

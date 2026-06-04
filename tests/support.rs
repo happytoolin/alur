@@ -66,58 +66,58 @@ where
     f()
 }
 
-/// Run hni with the given arguments and extra environment variables.
-pub fn run_hni(args: Vec<&str>, extra_env: &[(&str, &str)]) -> std::process::Output {
+/// Run alur with the given arguments and extra environment variables.
+pub fn run_alur(args: Vec<&str>, extra_env: &[(&str, &str)]) -> std::process::Output {
     let owned_args = args
         .into_iter()
         .map(ToString::to_string)
         .collect::<Vec<_>>();
-    run_hni_owned(&owned_args, extra_env)
+    run_alur_owned(&owned_args, extra_env)
 }
 
-pub fn run_hni_owned(args: &[String], extra_env: &[(&str, &str)]) -> std::process::Output {
-    let mut cmd = Command::new(hni_executable_path());
+pub fn run_alur_owned(args: &[String], extra_env: &[(&str, &str)]) -> std::process::Output {
+    let mut cmd = Command::new(alur_executable_path());
     cmd.args(args)
-        .env_remove("HNI_CONFIG_FILE")
-        .env_remove("HNI_DEFAULT_PACKAGE_MANAGER")
-        .env_remove("HNI_GLOBAL_PACKAGE_MANAGER")
-        .env_remove("HNI_FAST_MODE")
-        .env_remove("HNI_SKIP_PM_CHECK")
-        .env_remove("HNI_REAL_NODE");
+        .env_remove("ALUR_CONFIG_FILE")
+        .env_remove("ALUR_DEFAULT_PACKAGE_MANAGER")
+        .env_remove("ALUR_GLOBAL_PACKAGE_MANAGER")
+        .env_remove("ALUR_FAST_MODE")
+        .env_remove("ALUR_SKIP_PM_CHECK")
+        .env_remove("ALUR_REAL_NODE");
 
     for (key, value) in extra_env {
         cmd.env(key, value);
     }
 
-    cmd.output().expect("failed to run hni")
+    cmd.output().expect("failed to run alur")
 }
 
 #[cfg(unix)]
-pub fn run_hni_as(
+pub fn run_alur_as(
     invocation: &str,
     args: Vec<&str>,
     extra_env: &[(&str, &str)],
 ) -> std::process::Output {
     let bin_dir = tempfile::tempdir().unwrap();
     let alias = bin_dir.path().join(invocation);
-    std::os::unix::fs::symlink(hni_executable_path(), &alias)
+    std::os::unix::fs::symlink(alur_executable_path(), &alias)
         .unwrap_or_else(|error| panic!("failed to create {invocation} alias: {error}"));
 
     let mut cmd = Command::new(alias);
     cmd.args(args)
-        .env_remove("HNI_CONFIG_FILE")
-        .env_remove("HNI_DEFAULT_PACKAGE_MANAGER")
-        .env_remove("HNI_GLOBAL_PACKAGE_MANAGER")
-        .env_remove("HNI_FAST_MODE")
-        .env_remove("HNI_SKIP_PM_CHECK")
-        .env_remove("HNI_REAL_NODE");
+        .env_remove("ALUR_CONFIG_FILE")
+        .env_remove("ALUR_DEFAULT_PACKAGE_MANAGER")
+        .env_remove("ALUR_GLOBAL_PACKAGE_MANAGER")
+        .env_remove("ALUR_FAST_MODE")
+        .env_remove("ALUR_SKIP_PM_CHECK")
+        .env_remove("ALUR_REAL_NODE");
 
     for (key, value) in extra_env {
         cmd.env(key, value);
     }
 
     cmd.output()
-        .unwrap_or_else(|error| panic!("failed to run hni as {invocation}: {error}"))
+        .unwrap_or_else(|error| panic!("failed to run alur as {invocation}: {error}"))
 }
 
 pub fn run_command(
@@ -156,16 +156,16 @@ pub fn copy_fixture_into(category: &str, name: &str, dest: &Path) {
         .unwrap_or_else(|error| panic!("failed to copy fixture {category}/{name}: {error}"));
 }
 
-/// Get the path to the hni executable.
-pub fn hni_executable_path() -> PathBuf {
-    if let Ok(path) = std::env::var("CARGO_BIN_EXE_hni") {
+/// Get the path to the alur executable.
+pub fn alur_executable_path() -> PathBuf {
+    if let Ok(path) = std::env::var("CARGO_BIN_EXE_alur") {
         return PathBuf::from(path);
     }
 
     let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     path.push("target");
     path.push("debug");
-    path.push(if cfg!(windows) { "hni.exe" } else { "hni" });
+    path.push(if cfg!(windows) { "alur.exe" } else { "alur" });
     path
 }
 

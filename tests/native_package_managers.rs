@@ -2,7 +2,7 @@ use std::fs;
 
 mod support;
 
-use support::run_hni;
+use support::run_alur;
 
 struct PmCase {
     label: &'static str,
@@ -28,8 +28,8 @@ fn fast_mode_matrix_covers_supported_and_fallback_package_managers() {
                 lockfile: "package-lock.json",
                 local_bins: true,
                 yarn_pnp: false,
-                expected_nr: "hni fast:run-script dev",
-                expected_nlx: "hni fast:run-local-bin hello --flag",
+                expected_nr: "alur fast:run-script dev",
+                expected_nlx: "alur fast:run-local-bin hello --flag",
             },
             PmCase {
                 label: "pnpm",
@@ -37,8 +37,8 @@ fn fast_mode_matrix_covers_supported_and_fallback_package_managers() {
                 lockfile: "pnpm-lock.yaml",
                 local_bins: true,
                 yarn_pnp: false,
-                expected_nr: "hni fast:run-script dev",
-                expected_nlx: "hni fast:run-local-bin hello --flag",
+                expected_nr: "alur fast:run-script dev",
+                expected_nlx: "alur fast:run-local-bin hello --flag",
             },
             PmCase {
                 label: "yarn-classic",
@@ -46,8 +46,8 @@ fn fast_mode_matrix_covers_supported_and_fallback_package_managers() {
                 lockfile: "yarn.lock",
                 local_bins: true,
                 yarn_pnp: false,
-                expected_nr: "hni fast:run-script dev",
-                expected_nlx: "hni fast:run-local-bin hello --flag",
+                expected_nr: "alur fast:run-script dev",
+                expected_nlx: "alur fast:run-local-bin hello --flag",
             },
             PmCase {
                 label: "yarn-berry-node-modules",
@@ -55,8 +55,8 @@ fn fast_mode_matrix_covers_supported_and_fallback_package_managers() {
                 lockfile: "yarn.lock",
                 local_bins: true,
                 yarn_pnp: false,
-                expected_nr: "hni fast:run-script dev",
-                expected_nlx: "hni fast:run-local-bin hello --flag",
+                expected_nr: "alur fast:run-script dev",
+                expected_nlx: "alur fast:run-local-bin hello --flag",
             },
             PmCase {
                 label: "yarn-berry-pnp",
@@ -73,8 +73,8 @@ fn fast_mode_matrix_covers_supported_and_fallback_package_managers() {
                 lockfile: "bun.lockb",
                 local_bins: true,
                 yarn_pnp: false,
-                expected_nr: "hni fast:run-script dev",
-                expected_nlx: "hni fast:run-local-bin hello --flag",
+                expected_nr: "alur fast:run-script dev",
+                expected_nlx: "alur fast:run-local-bin hello --flag",
             },
             PmCase {
                 label: "deno",
@@ -113,7 +113,7 @@ fn fast_mode_matrix_covers_supported_and_fallback_package_managers() {
                 make_executable(&bin);
             }
 
-            let nr = run_hni(
+            let nr = run_alur(
                 vec![
                     "run",
                     "-C",
@@ -122,7 +122,7 @@ fn fast_mode_matrix_covers_supported_and_fallback_package_managers() {
                     "--print-command",
                     "dev",
                 ],
-                &[("HNI_SKIP_PM_CHECK", "1")],
+                &[("ALUR_SKIP_PM_CHECK", "1")],
             );
             assert!(
                 nr.status.success(),
@@ -132,7 +132,7 @@ fn fast_mode_matrix_covers_supported_and_fallback_package_managers() {
             );
             assert_eq!(String::from_utf8_lossy(&nr.stdout).trim(), case.expected_nr);
 
-            let nlx = run_hni(
+            let nlx = run_alur(
                 vec![
                     "exec",
                     "-C",
@@ -142,7 +142,7 @@ fn fast_mode_matrix_covers_supported_and_fallback_package_managers() {
                     "hello",
                     "--flag",
                 ],
-                &[("HNI_SKIP_PM_CHECK", "1")],
+                &[("ALUR_SKIP_PM_CHECK", "1")],
             );
             assert!(
                 nlx.status.success(),

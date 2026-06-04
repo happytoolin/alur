@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use anyhow::Result;
 
 use crate::core::{
-    config::HniConfig,
+    config::AlurConfig,
     detect::detect,
     project::{
         NearestPackage, ProjectDiscovery, ScanMode, ScannedAncestor, resolve_declared_package_bin,
@@ -14,20 +14,20 @@ use crate::core::{
 #[derive(Debug)]
 pub struct ResolveContext {
     cwd: PathBuf,
-    pub config: HniConfig,
+    pub config: AlurConfig,
     verify_package_manager_availability: bool,
 }
 
 impl ResolveContext {
     #[must_use]
-    pub fn new(cwd: PathBuf, config: HniConfig) -> Self {
+    pub fn new(cwd: PathBuf, config: AlurConfig) -> Self {
         Self::with_package_manager_checks(cwd, config, true)
     }
 
     #[must_use]
     pub fn with_package_manager_checks(
         cwd: PathBuf,
-        config: HniConfig,
+        config: AlurConfig,
         verify_package_manager_availability: bool,
     ) -> Self {
         Self {
@@ -86,7 +86,7 @@ pub(crate) struct LocalBinProjectState {
 }
 
 impl ProjectState {
-    pub(crate) fn scan(cwd: &Path, config: &HniConfig) -> Result<Self> {
+    pub(crate) fn scan(cwd: &Path, config: &AlurConfig) -> Result<Self> {
         let discovery = ProjectDiscovery::scan(cwd, config, ScanMode::Full)?;
 
         Ok(Self {
@@ -119,7 +119,7 @@ impl ProjectState {
 }
 
 impl LocalBinProjectState {
-    pub(crate) fn scan(cwd: &Path, config: &HniConfig) -> Result<Self> {
+    pub(crate) fn scan(cwd: &Path, config: &AlurConfig) -> Result<Self> {
         let discovery = ProjectDiscovery::scan(cwd, config, ScanMode::LocalBinsOnly)?;
 
         Ok(Self {

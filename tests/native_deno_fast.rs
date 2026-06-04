@@ -4,7 +4,7 @@ use std::fs;
 
 mod support;
 
-use support::run_hni;
+use support::run_alur;
 
 #[test]
 fn deno_fast_path_uses_fast_task_execution() {
@@ -16,8 +16,8 @@ fn deno_fast_path_uses_fast_task_execution() {
         )
         .unwrap();
 
-        support::with_var_removed("HNI_FAST_MODE", || {
-            let output = run_hni(
+        support::with_var_removed("ALUR_FAST_MODE", || {
+            let output = run_alur(
                 vec![
                     "run",
                     "-C",
@@ -25,13 +25,13 @@ fn deno_fast_path_uses_fast_task_execution() {
                     "--print-command",
                     "dev",
                 ],
-                &[("HNI_SKIP_PM_CHECK", "1")],
+                &[("ALUR_SKIP_PM_CHECK", "1")],
             );
 
             assert!(output.status.success(), "{output:?}");
             assert_eq!(
                 String::from_utf8_lossy(&output.stdout).trim(),
-                "hni fast:run-deno-task dev"
+                "alur fast:run-deno-task dev"
             );
         });
     });
@@ -47,7 +47,7 @@ fn deno_pm_mode_still_delegates() {
         )
         .unwrap();
 
-        let output = run_hni(
+        let output = run_alur(
             vec![
                 "run",
                 "-C",
@@ -56,7 +56,7 @@ fn deno_pm_mode_still_delegates() {
                 "--print-command",
                 "dev",
             ],
-            &[("HNI_SKIP_PM_CHECK", "1")],
+            &[("ALUR_SKIP_PM_CHECK", "1")],
         );
 
         assert!(output.status.success(), "{output:?}");
@@ -81,7 +81,7 @@ fn deno_fast_path_ignores_unrelated_malformed_ancestor_manifests() {
         )
         .unwrap();
 
-        let output = run_hni(
+        let output = run_alur(
             vec![
                 "run",
                 "-C",
@@ -90,13 +90,13 @@ fn deno_fast_path_ignores_unrelated_malformed_ancestor_manifests() {
                 "--print-command",
                 "dev",
             ],
-            &[("HNI_SKIP_PM_CHECK", "1")],
+            &[("ALUR_SKIP_PM_CHECK", "1")],
         );
 
         assert!(output.status.success(), "{output:?}");
         assert_eq!(
             String::from_utf8_lossy(&output.stdout).trim(),
-            "hni fast:run-deno-task dev"
+            "alur fast:run-deno-task dev"
         );
     });
 }
@@ -116,7 +116,7 @@ fn deno_jsonc_is_supported() {
         )
         .unwrap();
 
-        let output = run_hni(
+        let output = run_alur(
             vec![
                 "run",
                 "-C",
@@ -125,13 +125,13 @@ fn deno_jsonc_is_supported() {
                 "--print-command",
                 "dev",
             ],
-            &[("HNI_SKIP_PM_CHECK", "1")],
+            &[("ALUR_SKIP_PM_CHECK", "1")],
         );
 
         assert!(output.status.success(), "{output:?}");
         assert_eq!(
             String::from_utf8_lossy(&output.stdout).trim(),
-            "hni fast:run-deno-task dev"
+            "alur fast:run-deno-task dev"
         );
     });
 }
@@ -149,9 +149,9 @@ fn deno_task_cwd_and_init_cwd_match_deno_behavior() {
         )
         .unwrap();
 
-        let output = run_hni(
+        let output = run_alur(
             vec!["run", "-C", nested.to_str().unwrap(), "--fast", "dev"],
-            &[("HNI_SKIP_PM_CHECK", "1")],
+            &[("ALUR_SKIP_PM_CHECK", "1")],
         );
 
         assert!(output.status.success(), "{output:?}");
@@ -185,9 +185,9 @@ fn deno_dependencies_run_before_root() {
         )
         .unwrap();
 
-        let output = run_hni(
+        let output = run_alur(
             vec!["run", "-C", work.path().to_str().unwrap(), "--fast", "dev"],
-            &[("HNI_SKIP_PM_CHECK", "1")],
+            &[("ALUR_SKIP_PM_CHECK", "1")],
         );
 
         assert!(output.status.success(), "{output:?}");
@@ -221,9 +221,9 @@ fn deno_dependency_only_task_is_valid() {
         )
         .unwrap();
 
-        let output = run_hni(
+        let output = run_alur(
             vec!["run", "-C", work.path().to_str().unwrap(), "--fast", "dev"],
-            &[("HNI_SKIP_PM_CHECK", "1")],
+            &[("ALUR_SKIP_PM_CHECK", "1")],
         );
 
         assert!(output.status.success(), "{output:?}");
@@ -254,7 +254,7 @@ fn deno_wildcard_task_selection_runs_matching_tasks() {
         )
         .unwrap();
 
-        let output = run_hni(
+        let output = run_alur(
             vec![
                 "run",
                 "-C",
@@ -262,7 +262,7 @@ fn deno_wildcard_task_selection_runs_matching_tasks() {
                 "--fast",
                 "build-*",
             ],
-            &[("HNI_SKIP_PM_CHECK", "1")],
+            &[("ALUR_SKIP_PM_CHECK", "1")],
         );
 
         assert!(output.status.success(), "{output:?}");
@@ -297,9 +297,9 @@ fn deno_mixed_project_prefers_deno_task_over_package_json_script() {
         )
         .unwrap();
 
-        let output = run_hni(
+        let output = run_alur(
             vec!["run", "-C", work.path().to_str().unwrap(), "--fast", "dev"],
-            &[("HNI_SKIP_PM_CHECK", "1")],
+            &[("ALUR_SKIP_PM_CHECK", "1")],
         );
 
         assert!(output.status.success(), "{output:?}");
@@ -327,7 +327,7 @@ fn deno_package_json_only_match_delegates_to_deno() {
         )
         .unwrap();
 
-        let output = run_hni(
+        let output = run_alur(
             vec![
                 "run",
                 "-C",
@@ -336,7 +336,7 @@ fn deno_package_json_only_match_delegates_to_deno() {
                 "--print-command",
                 "dev",
             ],
-            &[("HNI_SKIP_PM_CHECK", "1")],
+            &[("ALUR_SKIP_PM_CHECK", "1")],
         );
 
         assert!(output.status.success(), "{output:?}");
@@ -362,7 +362,7 @@ fn deno_cycle_and_workspace_fall_back_to_pm_mode() {
         )
         .unwrap();
 
-        let cycle_out = run_hni(
+        let cycle_out = run_alur(
             vec![
                 "run",
                 "-C",
@@ -371,7 +371,7 @@ fn deno_cycle_and_workspace_fall_back_to_pm_mode() {
                 "--print-command",
                 "a",
             ],
-            &[("HNI_SKIP_PM_CHECK", "1")],
+            &[("ALUR_SKIP_PM_CHECK", "1")],
         );
         assert!(cycle_out.status.success(), "{cycle_out:?}");
         assert_eq!(
@@ -389,7 +389,7 @@ fn deno_cycle_and_workspace_fall_back_to_pm_mode() {
         )
         .unwrap();
 
-        let workspace_out = run_hni(
+        let workspace_out = run_alur(
             vec![
                 "run",
                 "-C",
@@ -398,7 +398,7 @@ fn deno_cycle_and_workspace_fall_back_to_pm_mode() {
                 "--print-command",
                 "dev",
             ],
-            &[("HNI_SKIP_PM_CHECK", "1")],
+            &[("ALUR_SKIP_PM_CHECK", "1")],
         );
         assert!(workspace_out.status.success(), "{workspace_out:?}");
         assert_eq!(
@@ -422,7 +422,7 @@ fn deno_nlx_fast_runs_local_bins_and_delegates_remote_exec() {
         fs::write(bin_dir.join("hello"), "#!/bin/sh\nexit 0\n").unwrap();
         make_executable(&bin_dir.join("hello"));
 
-        let local = run_hni(
+        let local = run_alur(
             vec![
                 "exec",
                 "-C",
@@ -432,15 +432,15 @@ fn deno_nlx_fast_runs_local_bins_and_delegates_remote_exec() {
                 "hello",
                 "--flag",
             ],
-            &[("HNI_SKIP_PM_CHECK", "1")],
+            &[("ALUR_SKIP_PM_CHECK", "1")],
         );
         assert!(local.status.success(), "{local:?}");
         assert_eq!(
             String::from_utf8_lossy(&local.stdout).trim(),
-            "hni fast:run-local-bin hello --flag"
+            "alur fast:run-local-bin hello --flag"
         );
 
-        let remote = run_hni(
+        let remote = run_alur(
             vec![
                 "exec",
                 "-C",
@@ -449,7 +449,7 @@ fn deno_nlx_fast_runs_local_bins_and_delegates_remote_exec() {
                 "--print-command",
                 "create-vite",
             ],
-            &[("HNI_SKIP_PM_CHECK", "1")],
+            &[("ALUR_SKIP_PM_CHECK", "1")],
         );
         assert!(remote.status.success(), "{remote:?}");
         assert_eq!(

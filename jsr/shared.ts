@@ -1,14 +1,14 @@
 import { dirname, join } from "jsr:@std/path@^1.1.4";
 
-const REPO = "happytoolin/hni";
-const VERSION = "0.0.3";
+const REPO = "happytoolin/alur";
+const VERSION = "0.0.1";
 const TAG = VERSION.startsWith("v") ? VERSION : `v${VERSION}`;
-const DEFAULT_DOWNLOAD_ROOT = "https://happytoolin.com/hni/releases/download";
+const DEFAULT_DOWNLOAD_ROOT = "https://happytoolin.com/alur/releases/download";
 const DEFAULT_FALLBACK_DOWNLOAD_ROOT =
   `https://github.com/${REPO}/releases/download`;
 
 export const INVOCATIONS = [
-  "hni",
+  "alur",
   "ni",
   "nr",
   "nlx",
@@ -30,7 +30,7 @@ export async function runInvocation(
   rawArgs: string[] = Deno.args,
 ): Promise<never> {
   const { binaryPath } = await ensureBinary();
-  const args = invocation === "hni" ? rawArgs : [invocation, ...rawArgs];
+  const args = invocation === "alur" ? rawArgs : [invocation, ...rawArgs];
   const command = new Deno.Command(binaryPath, {
     args,
     stdin: "inherit",
@@ -44,7 +44,7 @@ export async function runInvocation(
 export async function ensureBinary(): Promise<{ binaryPath: string }> {
   const targetInfo = resolveTarget();
   const installDir = resolveInstallDir();
-  const binaryPath = join(installDir, `hni${targetInfo.ext}`);
+  const binaryPath = join(installDir, `alur${targetInfo.ext}`);
   const markerPath = join(installDir, ".version");
   const marker = `${TAG}:${targetInfo.target}`;
 
@@ -53,7 +53,7 @@ export async function ensureBinary(): Promise<{ binaryPath: string }> {
   if (!(await isCurrentInstall(binaryPath, markerPath, marker))) {
     const primaryRoot = trimTrailingSlash(downloadRoot());
     const fallbackRoot = trimTrailingSlash(fallbackDownloadRoot());
-    const rawAsset = `hni-${TAG}-${targetInfo.target}${targetInfo.ext}`;
+    const rawAsset = `alur-${TAG}-${targetInfo.target}${targetInfo.ext}`;
     const rawPrimaryUrl = `${primaryRoot}/${TAG}/${rawAsset}`;
     const rawFallbackUrl = `${fallbackRoot}/${TAG}/${rawAsset}`;
     const rawPayload = await downloadWithFallback(
@@ -68,7 +68,7 @@ export async function ensureBinary(): Promise<{ binaryPath: string }> {
       }
     } else {
       const archiveExt = targetInfo.ext === ".exe" ? ".zip" : ".tar.gz";
-      const archiveAsset = `hni-${TAG}-${targetInfo.target}${archiveExt}`;
+      const archiveAsset = `alur-${TAG}-${targetInfo.target}${archiveExt}`;
       const archivePrimaryUrl = `${primaryRoot}/${TAG}/${archiveAsset}`;
       const archiveFallbackUrl = `${fallbackRoot}/${TAG}/${archiveAsset}`;
       const archivePayload = await downloadWithFallback(
@@ -95,11 +95,11 @@ export async function ensureBinary(): Promise<{ binaryPath: string }> {
 }
 
 function downloadRoot(): string {
-  return Deno.env.get("HNI_DOWNLOAD_ROOT") ?? DEFAULT_DOWNLOAD_ROOT;
+  return Deno.env.get("ALUR_DOWNLOAD_ROOT") ?? DEFAULT_DOWNLOAD_ROOT;
 }
 
 function fallbackDownloadRoot(): string {
-  return Deno.env.get("HNI_FALLBACK_DOWNLOAD_ROOT") ??
+  return Deno.env.get("ALUR_FALLBACK_DOWNLOAD_ROOT") ??
     DEFAULT_FALLBACK_DOWNLOAD_ROOT;
 }
 
@@ -137,7 +137,7 @@ function resolveTarget(): TargetInfo {
 }
 
 function resolveInstallDir(): string {
-  const override = Deno.env.get("HNI_INSTALL_DIR");
+  const override = Deno.env.get("ALUR_INSTALL_DIR");
   if (override) {
     return override;
   }
@@ -145,26 +145,26 @@ function resolveInstallDir(): string {
   if (Deno.build.os === "windows") {
     const localAppData = Deno.env.get("LOCALAPPDATA");
     if (localAppData) {
-      return join(localAppData, "hni", "deno");
+      return join(localAppData, "alur", "deno");
     }
     const userProfile = Deno.env.get("USERPROFILE");
     if (userProfile) {
-      return join(userProfile, ".hni", "deno");
+      return join(userProfile, ".alur", "deno");
     }
-    return join(dirname(Deno.execPath()), "hni");
+    return join(dirname(Deno.execPath()), "alur");
   }
 
   const xdgCache = Deno.env.get("XDG_CACHE_HOME");
   if (xdgCache) {
-    return join(xdgCache, "hni");
+    return join(xdgCache, "alur");
   }
 
   const home = Deno.env.get("HOME");
   if (home) {
-    return join(home, ".cache", "hni");
+    return join(home, ".cache", "alur");
   }
 
-  return join(dirname(Deno.execPath()), "hni");
+  return join(dirname(Deno.execPath()), "alur");
 }
 
 async function isCurrentInstall(
@@ -214,8 +214,8 @@ async function installFromArchive(
   binaryPath: string,
   binaryExt: string,
 ): Promise<void> {
-  const tempRoot = await Deno.makeTempDir({ prefix: "hni-jsr-" });
-  const archivePath = join(tempRoot, `hni${archiveExt}`);
+  const tempRoot = await Deno.makeTempDir({ prefix: "alur-jsr-" });
+  const archivePath = join(tempRoot, `alur${archiveExt}`);
   const extractDir = join(tempRoot, "extract");
 
   try {
@@ -234,7 +234,7 @@ async function installFromArchive(
       }
     }
 
-    const extractedBinary = join(extractDir, `hni${binaryExt}`);
+    const extractedBinary = join(extractDir, `alur${binaryExt}`);
     await Deno.copyFile(extractedBinary, binaryPath);
     if (binaryExt !== ".exe") {
       await Deno.chmod(binaryPath, 0o755);

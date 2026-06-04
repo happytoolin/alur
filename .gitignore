@@ -161,9 +161,9 @@ benchmark/profiles/*.svg
 !benchmark/results/.gitkeep
 !benchmark/profiles/.gitkeep
 
-# hni npm/jsr publish artifacts
-npm/platforms/*/bin/hni
-npm/platforms/*/bin/hni.exe
+# alur npm/jsr publish artifacts
+npm/platforms/*/bin/alur
+npm/platforms/*/bin/alur.exe
 npm/platforms/*/LICENSE
 deno.lock
 .desloppify/
