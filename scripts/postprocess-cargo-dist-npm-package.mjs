@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(scriptDir, "..");
 const aliasesPath = path.join(repoRoot, "aliases.json");
+const npmPackageName = "@happytoolin/alur";
 
 function errorMessage(error) {
   return error instanceof Error ? error.message : String(error);
@@ -73,6 +74,7 @@ function main() {
     throw new Error("generated npm package is missing bin.alur");
   }
 
+  packageJson.name = npmPackageName;
   packageJson.bin.alur = "run-alur.js";
   for (const alias of aliases) {
     const wrapper = `run-${alias}.js`;
@@ -85,6 +87,16 @@ function main() {
   }
 
   writeJson(packageJsonPath, packageJson, "generated package manifest");
+
+  const shrinkwrapPath = path.join(packageDir, "npm-shrinkwrap.json");
+  if (fs.existsSync(shrinkwrapPath)) {
+    const shrinkwrap = readJson(shrinkwrapPath, "generated package shrinkwrap");
+    shrinkwrap.name = npmPackageName;
+    if (shrinkwrap.packages?.[""]) {
+      shrinkwrap.packages[""].name = npmPackageName;
+    }
+    writeJson(shrinkwrapPath, shrinkwrap, "generated package shrinkwrap");
+  }
 }
 
 try {
