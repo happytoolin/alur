@@ -4,7 +4,7 @@
 
 [![CI](https://github.com/happytoolin/alur/actions/workflows/ci.yml/badge.svg)](https://github.com/happytoolin/alur/actions/workflows/ci.yml)
 [![License: GPLv3](https://img.shields.io/badge/License-GPLv3-4F46E5.svg)](https://www.gnu.org/licenses/gpl-3.0)
-[![npm](https://img.shields.io/npm/v/alur?logo=npm&logoColor=white)](https://www.npmjs.com/package/alur)
+[![npm](https://img.shields.io/npm/v/%40happytoolin%2Falur?logo=npm&logoColor=white)](https://www.npmjs.com/package/@happytoolin/alur)
 ![npm](https://img.shields.io/badge/npm-supported-CB3837?logo=npm&logoColor=white)
 ![yarn](https://img.shields.io/badge/yarn-supported-2C8EBB?logo=yarn&logoColor=white)
 ![pnpm](https://img.shields.io/badge/pnpm-supported-F69220?logo=pnpm&logoColor=white)
@@ -29,7 +29,7 @@ One install gives you:
 ### npm (global)
 
 ```bash
-npm install -g alur
+npm install -g @happytoolin/alur
 alur --version
 ```
 
