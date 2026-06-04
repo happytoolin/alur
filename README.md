@@ -54,7 +54,7 @@ curl --proto '=https' --tlsv1.2 -LsSf https://github.com/happytoolin/alur/releas
 To pin a specific version:
 
 ```bash
-curl --proto '=https' --tlsv1.2 -LsSf https://github.com/happytoolin/alur/releases/download/v0.0.1/alur-installer.sh | sh
+curl --proto '=https' --tlsv1.2 -LsSf https://github.com/happytoolin/alur/releases/download/v0.0.2/alur-installer.sh | sh
 ```
 
 ### Script install (PowerShell)
@@ -66,7 +66,7 @@ powershell -ExecutionPolicy Bypass -c "irm https://github.com/happytoolin/alur/r
 ### CI / automation
 
 ```bash
-curl --proto '=https' --tlsv1.2 -LsSf https://github.com/happytoolin/alur/releases/download/v0.0.1/alur-installer.sh | sh
+curl --proto '=https' --tlsv1.2 -LsSf https://github.com/happytoolin/alur/releases/download/v0.0.2/alur-installer.sh | sh
 echo 'export PATH="$HOME/.cargo/bin:$PATH"' >> "$GITHUB_ENV"
 ```
 
