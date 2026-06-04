@@ -140,8 +140,12 @@ fn default_fast_mode_resolves_nr_and_nlx_natively() {
         )
         .unwrap();
         fs::write(bin_dir.join("vite"), "").unwrap();
-        fs::write(bin_dir.join("hello"), "#!/bin/sh\nexit 0\n").unwrap();
-        make_executable(&bin_dir.join("hello"));
+        if cfg!(windows) {
+            fs::write(bin_dir.join("hello.cmd"), "@echo off\n").unwrap();
+        } else {
+            fs::write(bin_dir.join("hello"), "#!/bin/sh\nexit 0\n").unwrap();
+            make_executable(&bin_dir.join("hello"));
+        }
 
         support::with_var_removed("ALUR_FAST_MODE", || {
             let nr = run_alur(

@@ -35,6 +35,22 @@ fn config_loads_and_env_overrides() {
 }
 
 #[test]
+fn config_package_manager_values_are_case_and_whitespace_tolerant() {
+    support::with_env_lock(|| {
+        support::set_var("ALUR_DEFAULT_PACKAGE_MANAGER", " Bun ");
+        support::set_var("ALUR_GLOBAL_PACKAGE_MANAGER", " PnPm ");
+
+        let cfg = AlurConfig::load().unwrap();
+
+        support::remove_var("ALUR_DEFAULT_PACKAGE_MANAGER");
+        support::remove_var("ALUR_GLOBAL_PACKAGE_MANAGER");
+
+        assert_eq!(cfg.default_package_manager, Some(PackageManager::Bun));
+        assert_eq!(cfg.global_package_manager, PackageManager::Pnpm);
+    });
+}
+
+#[test]
 fn explicit_config_path_must_exist() {
     support::with_env_lock(|| {
         let dir = tempfile::tempdir().unwrap();

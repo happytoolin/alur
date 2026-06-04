@@ -1,0 +1,12 @@
+{
+  "name": "fixture-dev-engines-pnpm-prerelease-corepack-hash",
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": "9.12.3-alpha.1+sha512.deadbeef"
+    }
+  },
+  "scripts": {
+    "dev": "node -e \"\""
+  }
+}

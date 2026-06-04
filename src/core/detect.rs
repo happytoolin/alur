@@ -177,6 +177,29 @@ mod tests {
     }
 
     #[test]
+    fn package_manager_field_ignores_corepack_checksum() {
+        let parsed = parse_package_manager_field("pnpm@9.12.3+sha512.deadbeef").unwrap();
+        assert_eq!(parsed.0, PackageManager::Pnpm);
+        assert_eq!(parsed.1.as_deref(), Some("9.12.3"));
+
+        let prerelease =
+            parse_package_manager_field("pnpm@9.12.3-alpha.1+sha512.deadbeef").unwrap();
+        assert_eq!(prerelease.0, PackageManager::Pnpm);
+        assert_eq!(prerelease.1.as_deref(), Some("9.12.3-alpha.1"));
+    }
+
+    #[test]
+    fn package_manager_field_uses_first_range_comparator() {
+        let parsed = parse_package_manager_field("yarn@>=4.0.0 <5.0.0").unwrap();
+        assert_eq!(parsed.0, PackageManager::YarnBerry);
+        assert_eq!(parsed.1.as_deref(), Some("4.0.0"));
+
+        let spaced = parse_package_manager_field("pnpm@>= 9.1.0").unwrap();
+        assert_eq!(spaced.0, PackageManager::Pnpm);
+        assert_eq!(spaced.1.as_deref(), Some("9.1.0"));
+    }
+
+    #[test]
     fn pnpm_workspace_manifest_is_not_a_lockfile() {
         let dir = tempdir().unwrap();
         fs::write(

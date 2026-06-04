@@ -166,20 +166,31 @@ fn prepare_project(project: &Path, local_bin: bool) {
     if local_bin {
         let bin_dir = project.join("node_modules").join(".bin");
         fs::create_dir_all(&bin_dir).unwrap();
-        let bin = bin_dir.join("hello");
-        fs::write(&bin, "#!/bin/sh\nexit 0\n").unwrap();
-        make_executable(&bin);
+        #[cfg(windows)]
+        {
+            fs::write(bin_dir.join("hello.cmd"), "@echo off\r\n").unwrap();
+        }
+
+        #[cfg(not(windows))]
+        {
+            let bin = bin_dir.join("hello");
+            fs::write(&bin, "#!/bin/sh\nexit 0\n").unwrap();
+            make_executable(&bin);
+        }
     }
 }
 
-#[cfg(unix)]
+#[cfg(not(windows))]
 fn make_executable(path: &Path) {
-    use std::os::unix::fs::PermissionsExt;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
 
-    let mut perms = fs::metadata(path).unwrap().permissions();
-    perms.set_mode(0o755);
-    fs::set_permissions(path, perms).unwrap();
+        let mut perms = fs::metadata(path).unwrap().permissions();
+        perms.set_mode(0o755);
+        fs::set_permissions(path, perms).unwrap();
+    }
+
+    #[cfg(not(unix))]
+    let _ = path;
 }
-
-#[cfg(not(unix))]
-fn make_executable(_path: &Path) {}

@@ -106,6 +106,20 @@ fn multicall_aliases_resolve_expected_commands() {
         );
         assert_eq!(ni_global_out.trim(), "yarn global add eslint");
 
+        let ni_global_long_out = run_alias(
+            &bin_dir,
+            "ni",
+            vec![
+                "-C",
+                npm_proj.to_str().unwrap(),
+                "--global",
+                "prettier",
+                "--print-command",
+            ],
+            &[("ALUR_GLOBAL_PACKAGE_MANAGER", "pnpm")],
+        );
+        assert_eq!(ni_global_long_out.trim(), "pnpm add -g prettier");
+
         let node_out = run_alias(
             &bin_dir,
             "node",
@@ -181,6 +195,20 @@ fn multicall_aliases_resolve_expected_commands() {
             &[("ALUR_GLOBAL_PACKAGE_MANAGER", "yarn")],
         );
         assert_eq!(nun_global_out.trim(), "yarn global remove typescript");
+
+        let nun_global_long_out = run_alias(
+            &bin_dir,
+            "nun",
+            vec![
+                "-C",
+                npm_proj.to_str().unwrap(),
+                "--global",
+                "typescript",
+                "--print-command",
+            ],
+            &[("ALUR_GLOBAL_PACKAGE_MANAGER", "pnpm")],
+        );
+        assert_eq!(nun_global_long_out.trim(), "pnpm remove -g typescript");
 
         let nci_out = run_alias(
             &bin_dir,

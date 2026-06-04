@@ -319,7 +319,7 @@ impl PackageManager {
     }
 
     pub fn from_name(value: &str) -> Option<Self> {
-        value.parse().ok()
+        value.trim().parse().ok()
     }
 }
 

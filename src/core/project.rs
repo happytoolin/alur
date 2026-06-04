@@ -354,7 +354,11 @@ fn parse_version_hint(value: &str) -> Option<VersionHint> {
         });
     }
 
-    let comparator = Comparator::parse(trimmed).ok()?;
+    let comparator_source = first_comparator(trimmed)?;
+    let comparator_source = comparator_source
+        .split_once('+')
+        .map_or(comparator_source.as_str(), |(version, _)| version);
+    let comparator = Comparator::parse(comparator_source).ok()?;
     let mut normalized = match (comparator.minor, comparator.patch) {
         (Some(minor), Some(patch)) => format!("{}.{}.{}", comparator.major, minor, patch),
         (Some(minor), None) => format!("{}.{}", comparator.major, minor),
@@ -371,6 +375,18 @@ fn parse_version_hint(value: &str) -> Option<VersionHint> {
         major: comparator.major,
         berry_keyword: false,
     })
+}
+
+fn first_comparator(value: &str) -> Option<String> {
+    let mut parts = value.split_whitespace();
+    let first = parts.next()?;
+
+    if matches!(first, ">" | ">=" | "<" | "<=" | "=" | "~" | "^") {
+        let version = parts.next()?;
+        return Some(format!("{first}{version}"));
+    }
+
+    Some(first.to_string())
 }
 
 pub(crate) fn collect_bin_dirs(dir: &Path, bin_dirs: &mut Vec<PathBuf>) {
