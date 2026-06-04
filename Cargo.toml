@@ -9,6 +9,15 @@ license = "GPL-3.0-only"
 repository = "https://github.com/happytoolin/alur"
 homepage = "https://github.com/happytoolin/alur"
 description = "ni-compatible package manager command router with node shim"
+include = [
+  "/Cargo.lock",
+  "/Cargo.toml",
+  "/LICENSE",
+  "/README.md",
+  "/aliases.json",
+  "/src/**",
+  "/tests/**",
+]
 
 [profile.release]
 opt-level = "z"
