@@ -1,9 +1,16 @@
 use std::{path::Path, process::ExitCode};
 
+#[cfg(unix)]
 use is_executable::IsExecutable;
 
+#[cfg(unix)]
 pub fn file_is_runnable(path: &Path) -> bool {
     path.is_executable()
+}
+
+#[cfg(not(unix))]
+pub fn file_is_runnable(path: &Path) -> bool {
+    path.is_file()
 }
 
 pub fn exit_code_from_status(code: Option<i32>) -> ExitCode {

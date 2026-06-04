@@ -165,6 +165,24 @@ fn ni_global_install_uses_configured_global_package_manager() {
 }
 
 #[test]
+fn ni_global_long_flag_uses_configured_global_package_manager() {
+    with_skip_pm_check(|| {
+        let dir = tempfile::tempdir().unwrap();
+        write_package_json(dir.path(), r#"{"packageManager":"pnpm@9.0.0"}"#);
+
+        let cfg = HniConfig {
+            global_package_manager: PackageManager::Yarn,
+            ..HniConfig::default()
+        };
+        let ctx = ResolveContext::new(dir.path().to_path_buf(), cfg);
+        let resolved = resolve::resolve_ni(vec!["--global".into(), "eslint".into()], &ctx).unwrap();
+
+        assert_eq!(resolved.program, "yarn");
+        assert_eq!(resolved.args, vec!["global", "add", "eslint"]);
+    });
+}
+
+#[test]
 fn nun_maps_npm_uninstall() {
     with_skip_pm_check(|| {
         let dir = tempfile::tempdir().unwrap();
@@ -197,6 +215,25 @@ fn nun_global_uninstall_uses_configured_global_package_manager() {
 }
 
 #[test]
+fn nun_global_long_flag_uses_configured_global_package_manager() {
+    with_skip_pm_check(|| {
+        let dir = tempfile::tempdir().unwrap();
+        write_package_json(dir.path(), r#"{"packageManager":"pnpm@9.0.0"}"#);
+
+        let cfg = HniConfig {
+            global_package_manager: PackageManager::Yarn,
+            ..HniConfig::default()
+        };
+        let ctx = ResolveContext::new(dir.path().to_path_buf(), cfg);
+        let resolved =
+            resolve::resolve_nun(vec!["--global".into(), "typescript".into()], &ctx).unwrap();
+
+        assert_eq!(resolved.program, "yarn");
+        assert_eq!(resolved.args, vec!["global", "remove", "typescript"]);
+    });
+}
+
+#[test]
 fn nun_requires_dependency_target() {
     with_skip_pm_check(|| {
         let dir = tempfile::tempdir().unwrap();
@@ -204,6 +241,19 @@ fn nun_requires_dependency_target() {
 
         let ctx = ResolveContext::new(dir.path().to_path_buf(), HniConfig::default());
         let err = resolve::resolve_nun(Vec::new(), &ctx).unwrap_err();
+
+        assert!(err.to_string().contains("nun requires a dependency"));
+    });
+}
+
+#[test]
+fn nun_global_long_flag_without_target_errors_after_stripping_flag() {
+    with_skip_pm_check(|| {
+        let dir = tempfile::tempdir().unwrap();
+        write_package_json(dir.path(), r#"{"packageManager":"npm@10.0.0"}"#);
+
+        let ctx = ResolveContext::new(dir.path().to_path_buf(), HniConfig::default());
+        let err = resolve::resolve_nun(vec!["--global".into()], &ctx).unwrap_err();
 
         assert!(err.to_string().contains("nun requires a dependency"));
     });

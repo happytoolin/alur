@@ -54,4 +54,16 @@ mod tests {
 
         assert_eq!(resolve_local_bin("tool", &[bin_dir]), None);
     }
+
+    #[cfg(windows)]
+    #[test]
+    fn resolves_windows_command_shims() {
+        let dir = tempfile::tempdir().unwrap();
+        let bin_dir = dir.path().join("node_modules").join(".bin");
+        fs::create_dir_all(&bin_dir).unwrap();
+        let shim = bin_dir.join("hello.cmd");
+        fs::write(&shim, "@echo off\r\n").unwrap();
+
+        assert_eq!(resolve_local_bin("hello", &[bin_dir]), Some(shim));
+    }
 }
