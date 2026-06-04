@@ -75,13 +75,13 @@ fn current_binary_path() -> Result<PathBuf> {
 
 fn ensure_node_shim(exe_path: &Path) -> Result<PathBuf> {
     let managed_dir = managed_node_shim_dir().ok_or_else(|| {
-        anyhow!("execution error: unable to determine managed hni shim directory")
+        anyhow!("execution error: unable to determine managed alur shim directory")
     })?;
     let managed_node = managed_dir.join(node_binary_name());
 
     fs::create_dir_all(&managed_dir).with_context(|| {
         format!(
-            "execution error: failed to create managed hni shim directory at {}",
+            "execution error: failed to create managed alur shim directory at {}",
             managed_dir.display()
         )
     })?;
@@ -103,7 +103,7 @@ fn ensure_node_shim(exe_path: &Path) -> Result<PathBuf> {
 
     if !node_shim_matches_current(&managed_node, exe_path)? {
         return Err(anyhow!(
-            "execution error: managed node shim was created but does not target current hni: {}",
+            "execution error: managed node shim was created but does not target current alur: {}",
             managed_node.display()
         ));
     }
@@ -177,7 +177,7 @@ fn files_have_same_contents(left: &Path, right: &Path) -> Result<bool> {
     let left_metadata = fs::metadata(left)
         .with_context(|| format!("failed to inspect node launcher: {}", left.display()))?;
     let right_metadata = fs::metadata(right)
-        .with_context(|| format!("failed to inspect hni launcher: {}", right.display()))?;
+        .with_context(|| format!("failed to inspect alur launcher: {}", right.display()))?;
 
     if left_metadata.len() != right_metadata.len() {
         return Ok(false);
@@ -186,60 +186,60 @@ fn files_have_same_contents(left: &Path, right: &Path) -> Result<bool> {
     let left_contents = fs::read(left)
         .with_context(|| format!("failed to read node launcher: {}", left.display()))?;
     let right_contents = fs::read(right)
-        .with_context(|| format!("failed to read hni launcher: {}", right.display()))?;
+        .with_context(|| format!("failed to read alur launcher: {}", right.display()))?;
 
     Ok(left_contents == right_contents)
 }
 
 fn render_posix(path_dir: &Path) -> String {
-    let hni_path = shell_escape(path_dir.to_string_lossy().as_ref());
+    let alur_path = shell_escape(path_dir.to_string_lossy().as_ref());
 
     format!(
-        "# hni init\n\
-         _hni_path={hni_path}\n\
-         if [ \"${{PATH:-}}\" != \"$_hni_path\" ] && [ \"${{PATH#\"$_hni_path:\"}}\" = \"${{PATH}}\" ]; then\n\
-           export PATH=\"$_hni_path${{PATH:+:$PATH}}\"\n\
+        "# alur init\n\
+         _alur_path={alur_path}\n\
+         if [ \"${{PATH:-}}\" != \"$_alur_path\" ] && [ \"${{PATH#\"$_alur_path:\"}}\" = \"${{PATH}}\" ]; then\n\
+           export PATH=\"$_alur_path${{PATH:+:$PATH}}\"\n\
          fi\n\
-         unset _hni_path\n"
+         unset _alur_path\n"
     )
 }
 
 fn render_fish(path_dir: &Path) -> String {
-    let hni_path = fish_quote(path_dir.to_string_lossy().as_ref());
+    let alur_path = fish_quote(path_dir.to_string_lossy().as_ref());
 
     format!(
-        "# hni init for fish\n\
+        "# alur init for fish\n\
          if test (count $PATH) -eq 0\n\
-             set -gx PATH {hni_path}\n\
-         else if test \"$PATH[1]\" != {hni_path}\n\
-             set -gx PATH {hni_path} $PATH\n\
+             set -gx PATH {alur_path}\n\
+         else if test \"$PATH[1]\" != {alur_path}\n\
+             set -gx PATH {alur_path} $PATH\n\
          end\n"
     )
 }
 
 fn render_powershell(path_dir: &Path) -> String {
-    let hni_path = powershell_quote(path_dir.to_string_lossy().as_ref());
+    let alur_path = powershell_quote(path_dir.to_string_lossy().as_ref());
 
     format!(
-        "# hni init for powershell\n\
-         $__hniPath = {hni_path}\n\
-         $__hniPathEntries = if ($env:PATH) {{ $env:PATH -split ';' }} else {{ @() }}\n\
-         $__hniHasPriority = $__hniPathEntries.Count -gt 0 -and [System.StringComparer]::OrdinalIgnoreCase.Equals($__hniPathEntries[0], $__hniPath)\n\
-         if (-not $__hniHasPriority) {{\n\
-           $env:PATH = if ($env:PATH) {{ \"$($__hniPath);$env:PATH\" }} else {{ $__hniPath }}\n\
+        "# alur init for powershell\n\
+         $__alurPath = {alur_path}\n\
+         $__alurPathEntries = if ($env:PATH) {{ $env:PATH -split ';' }} else {{ @() }}\n\
+         $__alurHasPriority = $__alurPathEntries.Count -gt 0 -and [System.StringComparer]::OrdinalIgnoreCase.Equals($__alurPathEntries[0], $__alurPath)\n\
+         if (-not $__alurHasPriority) {{\n\
+           $env:PATH = if ($env:PATH) {{ \"$($__alurPath);$env:PATH\" }} else {{ $__alurPath }}\n\
          }}\n\
-         Remove-Variable __hniPath, __hniPathEntries, __hniHasPriority -ErrorAction SilentlyContinue\n"
+         Remove-Variable __alurPath, __alurPathEntries, __alurHasPriority -ErrorAction SilentlyContinue\n"
     )
 }
 
 fn render_nushell(path_dir: &Path) -> String {
-    let hni_path = nushell_quote(path_dir.to_string_lossy().as_ref());
+    let alur_path = nushell_quote(path_dir.to_string_lossy().as_ref());
 
     format!(
-        "# hni init for nushell\n\
-         let hni_path = {hni_path}\n\
-         if (($env.PATH | is-empty) or (($env.PATH | first) != $hni_path)) {{\n\
-           $env.PATH = ($env.PATH | prepend $hni_path)\n\
+        "# alur init for nushell\n\
+         let alur_path = {alur_path}\n\
+         if (($env.PATH | is-empty) or (($env.PATH | first) != $alur_path)) {{\n\
+           $env.PATH = ($env.PATH | prepend $alur_path)\n\
          }}\n"
     )
 }
@@ -275,49 +275,49 @@ mod tests {
 
     #[test]
     fn posix_render_is_path_only() {
-        let out = render_init(InitShell::Bash, Path::new("/tmp/hni/bin"));
+        let out = render_init(InitShell::Bash, Path::new("/tmp/alur/bin"));
         assert!(out.contains("export PATH="));
-        assert!(out.contains("/tmp/hni/bin"));
-        assert!(out.contains("PATH#\"$_hni_path:\""));
+        assert!(out.contains("/tmp/alur/bin"));
+        assert!(out.contains("PATH#\"$_alur_path:\""));
         assert!(!out.contains("node()"));
-        assert!(!out.contains("HNI_REAL_NODE"));
+        assert!(!out.contains("ALUR_REAL_NODE"));
         assert!(!out.contains("real-node-path"));
     }
 
     #[test]
     fn fish_render_is_path_only() {
-        let out = render_init(InitShell::Fish, Path::new("/tmp/hni/bin"));
+        let out = render_init(InitShell::Fish, Path::new("/tmp/alur/bin"));
         assert!(out.contains("set -gx PATH"));
-        assert!(out.contains("/tmp/hni/bin"));
+        assert!(out.contains("/tmp/alur/bin"));
         assert!(out.contains("$PATH[1]"));
         assert!(!out.contains("function node"));
-        assert!(!out.contains("HNI_REAL_NODE"));
+        assert!(!out.contains("ALUR_REAL_NODE"));
     }
 
     #[test]
     fn powershell_render_is_path_only() {
-        let out = render_init(InitShell::PowerShell, Path::new("C:/hni/bin"));
+        let out = render_init(InitShell::PowerShell, Path::new("C:/alur/bin"));
         assert!(out.contains("$env:PATH"));
-        assert!(out.contains("C:/hni/bin"));
+        assert!(out.contains("C:/alur/bin"));
         assert!(out.contains("[System.StringComparer]::OrdinalIgnoreCase"));
         assert!(!out.contains("function global:node"));
-        assert!(!out.contains("HNI_REAL_NODE"));
+        assert!(!out.contains("ALUR_REAL_NODE"));
     }
 
     #[test]
     fn nushell_render_is_path_only() {
-        let out = render_init(InitShell::Nushell, Path::new("/tmp/hni/bin"));
-        assert!(out.contains("prepend $hni_path"));
-        assert!(out.contains("/tmp/hni/bin"));
+        let out = render_init(InitShell::Nushell, Path::new("/tmp/alur/bin"));
+        assert!(out.contains("prepend $alur_path"));
+        assert!(out.contains("/tmp/alur/bin"));
         assert!(!out.contains("def --wrapped node"));
-        assert!(!out.contains("HNI_REAL_NODE"));
+        assert!(!out.contains("ALUR_REAL_NODE"));
     }
 
     #[test]
     fn nushell_quote_uses_double_quoted_strings() {
         assert_eq!(
-            nushell_quote(r#"C:\hni\bin\hni "dev".exe"#),
-            r#""C:\\hni\\bin\\hni \"dev\".exe""#
+            nushell_quote(r#"C:\alur\bin\alur "dev".exe"#),
+            r#""C:\\alur\\bin\\alur \"dev\".exe""#
         );
     }
 }

@@ -1,5 +1,5 @@
 import { runInvocation } from "./shared.ts";
 
 if (import.meta.main) {
-  await runInvocation("hni");
+  await runInvocation("alur");
 }

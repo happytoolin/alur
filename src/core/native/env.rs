@@ -116,7 +116,7 @@ fn package_manager_execpath(pm: PackageManager) -> String {
 }
 
 fn synthetic_user_agent(pm: PackageManager) -> String {
-    format!("{}/0.0.0 hni/fast", pm.bin())
+    format!("{}/0.0.0 alur/fast", pm.bin())
 }
 
 #[cfg(test)]
@@ -189,7 +189,7 @@ mod tests {
         )));
         assert!(envs.contains(&("npm_command".to_string(), Some("exec".to_string()))));
         assert!(envs.iter().any(|(key, value)| {
-            key == "npm_config_user_agent" && value.as_deref() == Some("pnpm/0.0.0 hni/fast")
+            key == "npm_config_user_agent" && value.as_deref() == Some("pnpm/0.0.0 alur/fast")
         }));
     }
 

@@ -9,7 +9,7 @@ use is_executable::IsExecutable;
 
 use super::paths_equal;
 
-pub const REAL_NODE_ENV: &str = "HNI_REAL_NODE";
+pub const REAL_NODE_ENV: &str = "ALUR_REAL_NODE";
 
 #[must_use]
 pub fn node_binary_name() -> &'static str {
@@ -20,7 +20,7 @@ pub fn node_binary_name() -> &'static str {
 pub fn managed_node_shim_dir() -> Option<PathBuf> {
     local_data_dir()
         .or_else(config_dir)
-        .map(|d| d.join("hni").join("bin"))
+        .map(|d| d.join("alur").join("bin"))
 }
 
 fn local_data_dir() -> Option<PathBuf> {
@@ -53,11 +53,11 @@ pub fn managed_node_shim_path() -> Option<PathBuf> {
     managed_node_shim_dir().map(|dir| dir.join(node_binary_name()))
 }
 
-/// Resolves the real Node.js binary that hni should delegate to.
+/// Resolves the real Node.js binary that alur should delegate to.
 ///
 /// # Errors
 ///
-/// Returns an error when `HNI_REAL_NODE` points to a missing path or no non-hni Node.js binary can
+/// Returns an error when `ALUR_REAL_NODE` points to a missing path or no non-alur Node.js binary can
 /// be found on `PATH`.
 pub fn resolve_real_node_path() -> Result<PathBuf> {
     if let Some(from_env) = env::var_os(REAL_NODE_ENV) {
@@ -148,7 +148,7 @@ fn should_skip_node_candidate(
             .as_deref()
             .and_then(Path::file_name)
             .and_then(|name| name.to_str()),
-        Some("hni" | "hni.exe")
+        Some("alur" | "alur.exe")
     )
 }
 
@@ -199,7 +199,7 @@ mod tests {
 
     #[cfg(unix)]
     #[test]
-    fn skips_node_candidates_that_resolve_to_hni() {
+    fn skips_node_candidates_that_resolve_to_alur() {
         use std::os::unix::fs::symlink;
 
         let dir = tempdir().unwrap();
@@ -211,33 +211,33 @@ mod tests {
         fs::create_dir_all(&debug_dir).unwrap();
         fs::create_dir_all(&shim_dir).unwrap();
 
-        let release_hni = release_dir.join("hni");
-        let debug_hni = debug_dir.join("hni");
-        fs::write(&release_hni, b"release").unwrap();
-        fs::write(&debug_hni, b"debug").unwrap();
-        symlink(&release_hni, shim_dir.join("node")).unwrap();
+        let release_alur = release_dir.join("alur");
+        let debug_alur = debug_dir.join("alur");
+        fs::write(&release_alur, b"release").unwrap();
+        fs::write(&debug_alur, b"debug").unwrap();
+        symlink(&release_alur, shim_dir.join("node")).unwrap();
 
         assert!(should_skip_node_candidate(
             &shim_dir.join("node"),
-            Some(&debug_hni),
+            Some(&debug_alur),
             None,
         ));
     }
 
     #[test]
-    fn keeps_real_node_candidates_in_current_hni_dir() {
+    fn keeps_real_node_candidates_in_current_alur_dir() {
         let dir = tempdir().unwrap();
         let bin_dir = dir.path().join("bin");
         fs::create_dir_all(&bin_dir).unwrap();
 
-        let current_hni = bin_dir.join("hni");
+        let current_alur = bin_dir.join("alur");
         let real_node = bin_dir.join("node");
-        fs::write(&current_hni, b"hni").unwrap();
+        fs::write(&current_alur, b"alur").unwrap();
         fs::write(&real_node, b"node").unwrap();
 
         assert!(!should_skip_node_candidate(
             &real_node,
-            Some(&current_hni),
+            Some(&current_alur),
             None,
         ));
     }

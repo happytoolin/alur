@@ -1,10 +1,10 @@
-# hni
+# alur
 
-![hni og banner](.github/og-image.png)
+![alur og banner](.github/og-image.png)
 
-[![CI](https://github.com/happytoolin/hni/actions/workflows/ci.yml/badge.svg)](https://github.com/happytoolin/hni/actions/workflows/ci.yml)
+[![CI](https://github.com/happytoolin/alur/actions/workflows/ci.yml/badge.svg)](https://github.com/happytoolin/alur/actions/workflows/ci.yml)
 [![License: GPLv3](https://img.shields.io/badge/License-GPLv3-4F46E5.svg)](https://www.gnu.org/licenses/gpl-3.0)
-[![npm](https://img.shields.io/npm/v/%40happytoolin%2Fhni?logo=npm&logoColor=white)](https://www.npmjs.com/package/@happytoolin/hni)
+[![npm](https://img.shields.io/npm/v/alur?logo=npm&logoColor=white)](https://www.npmjs.com/package/alur)
 ![npm](https://img.shields.io/badge/npm-supported-CB3837?logo=npm&logoColor=white)
 ![yarn](https://img.shields.io/badge/yarn-supported-2C8EBB?logo=yarn&logoColor=white)
 ![pnpm](https://img.shields.io/badge/pnpm-supported-F69220?logo=pnpm&logoColor=white)
@@ -13,60 +13,60 @@
 
 Fast package manager routing for `npm`, `yarn`, `pnpm`, `bun`, and `deno`.
 
-`hni` is inspired by Antfu's [`ni`](https://github.com/antfu-collective/ni#readme), but packaged as a single multicall binary with extra shell setup for a `node` shim.
+`alur` is inspired by Antfu's [`ni`](https://github.com/antfu-collective/ni#readme), but packaged as a single multicall binary with extra shell setup for a `node` shim.
 
-`hni` is still beta software and may have bugs.
+`alur` is still beta software and may have bugs.
 The supported interface is the CLI; the Rust crate modules are internal and do not carry a stable API guarantee.
 
 One install gives you:
 
-- `hni`
+- `alur`
 - `ni`, `nr`, `nlx`, `nun`, `nci`, `np`, `ns`
-- `node` shim via `hni init <shell>` (managed launcher)
+- `node` shim via `alur init <shell>` (managed launcher)
 
 ## Install
 
 ### npm (global)
 
 ```bash
-npm install -g @happytoolin/hni
-hni --version
+npm install -g alur
+alur --version
 ```
 
-This installs `hni` and the `ni`-family aliases (`ni`, `nr`, `nlx`, `nun`, `nci`, `np`, `ns`) onto your global npm bin path.
-The `node` shim is only enabled through `hni init <shell>`.
-Under the hood, the npm postinstall downloads the matching native `hni` binary from the GitHub release.
+This installs `alur` and the `ni`-family aliases (`ni`, `nr`, `nlx`, `nun`, `nci`, `np`, `ns`) onto your global npm bin path.
+The `node` shim is only enabled through `alur init <shell>`.
+Under the hood, the npm postinstall downloads the matching native `alur` binary from the GitHub release.
 
 ### Homebrew
 
 ```bash
 brew tap happytoolin/happytap
-brew install hni
-hni --version
+brew install alur
+alur --version
 ```
 
 ### Script install (macOS / Linux)
 
 ```bash
-curl --proto '=https' --tlsv1.2 -LsSf https://github.com/happytoolin/hni/releases/latest/download/hni-installer.sh | sh
+curl --proto '=https' --tlsv1.2 -LsSf https://github.com/happytoolin/alur/releases/latest/download/alur-installer.sh | sh
 ```
 
 To pin a specific version:
 
 ```bash
-curl --proto '=https' --tlsv1.2 -LsSf https://github.com/happytoolin/hni/releases/download/v0.0.3/hni-installer.sh | sh
+curl --proto '=https' --tlsv1.2 -LsSf https://github.com/happytoolin/alur/releases/download/v0.0.3/alur-installer.sh | sh
 ```
 
 ### Script install (PowerShell)
 
 ```powershell
-powershell -ExecutionPolicy Bypass -c "irm https://github.com/happytoolin/hni/releases/latest/download/hni-installer.ps1 | iex"
+powershell -ExecutionPolicy Bypass -c "irm https://github.com/happytoolin/alur/releases/latest/download/alur-installer.ps1 | iex"
 ```
 
 ### CI / automation
 
 ```bash
-curl --proto '=https' --tlsv1.2 -LsSf https://github.com/happytoolin/hni/releases/download/v0.0.3/hni-installer.sh | sh
+curl --proto '=https' --tlsv1.2 -LsSf https://github.com/happytoolin/alur/releases/download/v0.0.3/alur-installer.sh | sh
 echo 'export PATH="$HOME/.cargo/bin:$PATH"' >> "$GITHUB_ENV"
 ```
 
@@ -74,7 +74,7 @@ Use the versioned release URL to pin. Use `releases/latest/download` to track th
 
 ## Enable the `node` shim
 
-Once `hni` is installed, run `hni init` for your shell to enable the `node` shim.
+Once `alur` is installed, run `alur init` for your shell to enable the `node` shim.
 This creates a managed `node` launcher (a symlink on Unix, copied executable on Windows) and outputs a PATH setup line for your shell config.
 
 Add the output to the **end** of your shell rc file (after nvm / mise / asdf / fnm / volta init):
@@ -82,49 +82,49 @@ Add the output to the **end** of your shell rc file (after nvm / mise / asdf / f
 **zsh** (`~/.zshrc`):
 
 ```bash
-eval "$(hni init zsh)"
+eval "$(alur init zsh)"
 ```
 
 **bash** (`~/.bashrc`):
 
 ```bash
-eval "$(hni init bash)"
+eval "$(alur init bash)"
 ```
 
 **fish** (`~/.config/fish/config.fish`):
 
 ```fish
-hni init fish | source
+alur init fish | source
 ```
 
 **PowerShell** (`$PROFILE`):
 
 ```powershell
-Invoke-Expression (& hni init powershell)
+Invoke-Expression (& alur init powershell)
 ```
 
 **Nushell** (`~/.config/nushell/config.nu`):
 
 ```nu
-hni init nushell | save --force ~/.config/nushell/hni.nu
-source ~/.config/nushell/hni.nu
+alur init nushell | save --force ~/.config/nushell/alur.nu
+source ~/.config/nushell/alur.nu
 ```
 
-Once added, restart your shell. `node` will route known npm verbs through hni
+Once added, restart your shell. `node` will route known npm verbs through alur
 (`node install vite` → `ni vite`) and pass everything else through to the real Node.js.
 
 ## Commands
 
-### Canonical `hni` commands
+### Canonical `alur` commands
 
 ```bash
-hni install vite
-hni uninstall lodash
-hni run dev
-hni exec vitest
-hni ci
-hni parallel "pnpm dev" "pnpm test"
-hni sequential "pnpm lint" "pnpm test"
+alur install vite
+alur uninstall lodash
+alur run dev
+alur exec vitest
+alur ci
+alur parallel "pnpm dev" "pnpm test"
+alur sequential "pnpm lint" "pnpm test"
 ```
 
 ### `ni`
@@ -174,7 +174,7 @@ nun -g typescript
 
 ### `nci`
 
-Run a clean install. If a lockfile exists, `hni` uses the package-manager-specific frozen install command.
+Run a clean install. If a lockfile exists, `alur` uses the package-manager-specific frozen install command.
 
 ```bash
 nci
@@ -191,8 +191,8 @@ ns "pnpm lint" "pnpm test"
 
 ### `node`
 
-`hni` can also act as a package-manager-aware `node` shim.
-Enable it by adding `hni init <shell>` to your shell config first.
+`alur` can also act as a package-manager-aware `node` shim.
+Enable it by adding `alur init <shell>` to your shell config first.
 
 ```bash
 node install vite
@@ -214,15 +214,15 @@ node -- --trace-warnings
 ### Utilities
 
 ```bash
-hni help ni
-hni completion zsh
-hni init bash
-hni doctor
+alur help ni
+alur completion zsh
+alur init bash
+alur doctor
 ```
 
 ## Global Flags
 
-These work across `hni` and the multicall aliases:
+These work across `alur` and the multicall aliases:
 
 ```bash
 --print-command
@@ -235,7 +235,7 @@ These work across `hni` and the multicall aliases:
 Use `--` to forward flags to the underlying package manager or script:
 
 ```bash
-hni install -- --help
+alur install -- --help
 nr test -- --watch
 ```
 
@@ -243,9 +243,9 @@ nr test -- --watch
 
 Config file:
 
-- `$XDG_CONFIG_HOME/hni/config.toml`
-- macOS default: `~/Library/Application Support/hni/config.toml`
-- Windows default: `%APPDATA%\hni\config.toml`
+- `$XDG_CONFIG_HOME/alur/config.toml`
+- macOS default: `~/Library/Application Support/alur/config.toml`
+- Windows default: `%APPDATA%\alur\config.toml`
 
 Supported keys:
 
@@ -257,14 +257,14 @@ fast_mode = true
 
 Environment overrides:
 
-- `HNI_CONFIG_FILE`
-- `HNI_DEFAULT_PACKAGE_MANAGER`
-- `HNI_GLOBAL_PACKAGE_MANAGER`
-- `HNI_FAST_MODE`
+- `ALUR_CONFIG_FILE`
+- `ALUR_DEFAULT_PACKAGE_MANAGER`
+- `ALUR_GLOBAL_PACKAGE_MANAGER`
+- `ALUR_FAST_MODE`
 
 ## How It Works
 
-`hni` detects the package manager from:
+`alur` detects the package manager from:
 
 1. `packageManager` in `package.json`
 2. lockfiles such as `pnpm-lock.yaml`, `pnpm-workspace.yaml`, `yarn.lock`, `package-lock.json`, `bun.lockb`, or `deno.lock`
@@ -287,19 +287,19 @@ Then it maps the command family to the right underlying command:
 
 PowerShell ships with a built-in `ni` alias for `New-Item`.
 
-If that conflicts with `hni`, remove or override it in your profile before loading `hni`:
+If that conflicts with `alur`, remove or override it in your profile before loading `alur`:
 
 ```powershell
 Remove-Item Alias:ni -ErrorAction SilentlyContinue
-Invoke-Expression (& hni init powershell)
+Invoke-Expression (& alur init powershell)
 ```
 
-### Check what `hni` resolved
+### Check what `alur` resolved
 
 ```bash
 ni vite --print-command
 nr dev --explain
-hni doctor
+alur doctor
 ```
 
 ## Benchmarking
@@ -356,9 +356,9 @@ Tracked benchmark docs:
 
 All numbers below were measured on macOS (Apple Silicon) with the release binary, using `hyperfine` with 10 warmups and 100 measured runs per case. See [`benchmark/LATEST.md`](benchmark/LATEST.md) for the raw tracked snapshot.
 
-**Headline:** `hni --fast` is **7.4x faster** than running package managers directly, and **4.6x faster** than `hni` in its own PM fallback mode.
+**Headline:** `alur --fast` is **7.4x faster** than running package managers directly, and **4.6x faster** than `alur` in its own PM fallback mode.
 
-#### 1. Fast mode vs PM mode (inside hni)
+#### 1. Fast mode vs PM mode (inside alur)
 
 Fast mode bypasses the package manager CLI entirely and runs scripts / local bins natively.
 
@@ -376,11 +376,11 @@ _Geometric mean across all package managers: **4.6x**._
 
 pnpm and yarn see the biggest wins because their CLIs carry the most startup overhead. Bun and Deno are already fast, so the margin is smaller (but still consistently ahead).
 
-#### 2. hni fast vs direct package-manager usage
+#### 2. alur fast vs direct package-manager usage
 
-This is the real-world comparison: what users actually type today versus using `hni`.
+This is the real-world comparison: what users actually type today versus using `alur`.
 
-| Case                     | Direct PM | hni --fast |   Speedup |
+| Case                     | Direct PM | alur --fast |   Speedup |
 | ------------------------ | --------: | ---------: | --------: |
 | `npm run noop`           |    320 ms |      53 ms |  **6.1x** |
 | `pnpm run noop`          |    749 ms |      41 ms | **18.2x** |
@@ -392,37 +392,37 @@ This is the real-world comparison: what users actually type today versus using `
 
 _Geometric mean: **7.4x**._
 
-Local bin execution is the standout feature: `npx` and `pnpm exec` spend hundreds of milliseconds resolving, validating, and bootstrapping before they even start your binary. `hni` resolves the bin once and runs it directly.
+Local bin execution is the standout feature: `npx` and `pnpm exec` spend hundreds of milliseconds resolving, validating, and bootstrapping before they even start your binary. `alur` resolves the bin once and runs it directly.
 
-#### 3. hni vs Antfu's `ni`
+#### 3. alur vs Antfu's `ni`
 
-For startup/version checks, `hni` is faster:
+For startup/version checks, `alur` is faster:
 
-| Case           | antfu/ni |   hni |  Speedup |
+| Case           | antfu/ni |   alur |  Speedup |
 | -------------- | -------: | ----: | -------: |
 | `ni --version` |   149 ms | 92 ms | **1.6x** |
 
-_Current compare track keeps only version startup because `hni` no longer carries legacy `?` command-printing compatibility._
+_Current compare track keeps only version startup because `alur` no longer carries legacy `?` command-printing compatibility._
 
 #### 4. Runtime comparison vs Bun and Deno
 
-Even against native runtime task execution, `hni` holds its own:
+Even against native runtime task execution, `alur` holds its own:
 
-| Case         |   hni |    bun |  deno |
+| Case         |   alur |    bun |  deno |
 | ------------ | ----: | -----: | ----: |
 | `task noop`  | 33 ms |  78 ms | 49 ms |
 | `task hooks` | 90 ms | 210 ms | 77 ms |
 
-`hni` is **2.3x faster than bun** for task execution and slightly faster than Deno for simple scripts.
+`alur` is **2.3x faster than bun** for task execution and slightly faster than Deno for simple scripts.
 
 ### Methodology
 
 The benchmark suite lives in [`benchmark/`](benchmark/) and uses `hyperfine` to time the release binary. It covers five angles:
 
-- **`direct`** — normal package-manager commands (`npm run`, `pnpm exec`, etc.) vs `hni --fast`
-- **`fast`** — `hni` PM mode vs `hni` fast mode (isolates the native-execution win)
-- **`compare`** — `hni` vs `@antfu/ni` on startup/version overhead
-- **`runtime`** — `hni` vs `bun` vs `deno` on actual task execution time
+- **`direct`** — normal package-manager commands (`npm run`, `pnpm exec`, etc.) vs `alur --fast`
+- **`fast`** — `alur` PM mode vs `alur` fast mode (isolates the native-execution win)
+- **`compare`** — `alur` vs `@antfu/ni` on startup/version overhead
+- **`runtime`** — `alur` vs `bun` vs `deno` on actual task execution time
 - **`fixtures`** — real project fixtures from `tests/fixtures/` across all detection categories
 
 Run the full matrix locally:

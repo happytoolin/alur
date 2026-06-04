@@ -9,7 +9,7 @@ use crate::{
 };
 
 pub fn print_versions(ctx: &ResolveContext) {
-    println!("hni       v{}", env!("CARGO_PKG_VERSION"));
+    println!("alur       v{}", env!("CARGO_PKG_VERSION"));
 
     let real_node = resolve_real_node_path().ok();
     let cwd = ctx.cwd().to_path_buf();

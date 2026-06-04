@@ -2,9 +2,9 @@ use std::{collections::BTreeSet, fs};
 
 mod support;
 
-use hni::{
+use alur::{
     app::{
-        cli::hni_command,
+        cli::alur_command,
         command_registry::{
             command_spec_by_name, command_specs, help_command_for_topic, help_topic_by_name,
             invocation_from_name,
@@ -12,14 +12,14 @@ use hni::{
         commands::{handle_np, handle_ns},
     },
     core::{
-        config::HniConfig,
+        config::AlurConfig,
         resolve::ResolveContext,
         types::{BatchMode, ExecutionStrategy, HelpTopic, InvocationKind},
     },
 };
 
 #[test]
-fn hni_canonical_subcommands_resolve_commands() {
+fn alur_canonical_subcommands_resolve_commands() {
     support::with_env_lock(|| {
         let work = tempfile::tempdir().unwrap();
         let project = work.path().join("npm");
@@ -27,7 +27,7 @@ fn hni_canonical_subcommands_resolve_commands() {
         fs::write(project.join("package-lock.json"), "lock").unwrap();
         fs::write(project.join("package.json"), r#"{"name":"x"}"#).unwrap();
 
-        let output = run_hni(
+        let output = run_alur(
             vec![
                 "install",
                 "-C",
@@ -35,15 +35,15 @@ fn hni_canonical_subcommands_resolve_commands() {
                 "vite",
                 "--explain",
             ],
-            &[("HNI_SKIP_PM_CHECK", "1")],
+            &[("ALUR_SKIP_PM_CHECK", "1")],
         );
         assert!(output.status.success());
         let stdout = String::from_utf8_lossy(&output.stdout);
-        assert!(stdout.contains("hni explain"));
+        assert!(stdout.contains("alur explain"));
         assert!(stdout.contains("resolved:"));
         assert!(stdout.contains("npm i vite"));
 
-        let uninstall = run_hni(
+        let uninstall = run_alur(
             vec![
                 "uninstall",
                 "-C",
@@ -51,7 +51,7 @@ fn hni_canonical_subcommands_resolve_commands() {
                 "lodash",
                 "--print-command",
             ],
-            &[("HNI_SKIP_PM_CHECK", "1")],
+            &[("ALUR_SKIP_PM_CHECK", "1")],
         );
         assert!(uninstall.status.success());
         let uninstall_stdout = String::from_utf8_lossy(&uninstall.stdout);
@@ -60,12 +60,12 @@ fn hni_canonical_subcommands_resolve_commands() {
 }
 
 #[test]
-fn hni_rejects_multicall_alias_subcommands() {
+fn alur_rejects_multicall_alias_subcommands() {
     support::with_env_lock(|| {
-        let output = run_hni(vec!["ni", "--help"], &[("HNI_SKIP_PM_CHECK", "1")]);
+        let output = run_alur(vec!["ni", "--help"], &[("ALUR_SKIP_PM_CHECK", "1")]);
         assert!(!output.status.success());
         let stderr = String::from_utf8_lossy(&output.stderr);
-        assert!(stderr.contains("hni: parse error"));
+        assert!(stderr.contains("alur: parse error"));
     });
 }
 
@@ -82,22 +82,22 @@ fn command_registry_exposes_expected_public_surface() {
 
     assert_eq!(invocation_from_name("nr"), Some(InvocationKind::Nr));
     assert_eq!(invocation_from_name("nun"), Some(InvocationKind::Nun));
-    assert_eq!(help_topic_by_name("completion"), Some(HelpTopic::Hni));
+    assert_eq!(help_topic_by_name("completion"), Some(HelpTopic::Alur));
     assert_eq!(help_topic_by_name("install"), Some(HelpTopic::Ni));
     assert_eq!(help_topic_by_name("uninstall"), Some(HelpTopic::Nun));
     assert_eq!(
         command_spec_by_name("init").map(|spec| spec.name),
         None,
-        "init is a top-level hni command, not a multicall alias"
+        "init is a top-level alur command, not a multicall alias"
     );
 
-    let hni_subcommand_names = hni_command()
+    let alur_subcommand_names = alur_command()
         .get_subcommands()
         .filter(|command| !command.is_hide_set())
         .map(|command| command.get_name().to_string())
         .collect::<Vec<_>>();
     assert_eq!(
-        hni_subcommand_names,
+        alur_subcommand_names,
         vec![
             "install",
             "uninstall",
@@ -124,14 +124,14 @@ fn jsr_invocations_stay_in_sync_with_alias_manifest_and_command_registry() {
     let aliases_raw = fs::read_to_string(root.join("aliases.json")).unwrap();
     let aliases: serde_json::Value = serde_json::from_str(&aliases_raw).unwrap();
     let alias_names = aliases
-        .get("hni")
+        .get("alur")
         .and_then(serde_json::Value::as_array)
-        .expect("aliases.json must define hni aliases")
+        .expect("aliases.json must define alur aliases")
         .iter()
         .map(|alias| {
             alias
                 .as_str()
-                .expect("hni aliases must be strings")
+                .expect("alur aliases must be strings")
                 .to_string()
         })
         .collect::<Vec<_>>();
@@ -143,7 +143,7 @@ fn jsr_invocations_stay_in_sync_with_alias_manifest_and_command_registry() {
         .collect::<Vec<_>>();
     assert_eq!(alias_names, registry_alias_names);
 
-    let mut expected_invocations = vec!["hni".to_string()];
+    let mut expected_invocations = vec!["alur".to_string()];
     expected_invocations.extend(alias_names);
 
     let shared = fs::read_to_string(root.join("jsr/shared.ts")).unwrap();
@@ -203,51 +203,51 @@ fn jsr_invocations_stay_in_sync_with_alias_manifest_and_command_registry() {
 }
 
 #[test]
-fn hni_pre_execution_commands_are_available() {
+fn alur_pre_execution_commands_are_available() {
     support::with_env_lock(|| {
         let work = tempfile::tempdir().unwrap();
-        let doctor = run_hni(vec!["doctor"], &[("HNI_SKIP_PM_CHECK", "1")]);
+        let doctor = run_alur(vec!["doctor"], &[("ALUR_SKIP_PM_CHECK", "1")]);
         assert!(doctor.status.success());
         let doctor_out = String::from_utf8_lossy(&doctor.stdout);
-        assert!(doctor_out.contains("hni doctor"));
+        assert!(doctor_out.contains("alur doctor"));
 
-        let completion = run_hni(vec!["completion", "bash"], &[]);
+        let completion = run_alur(vec!["completion", "bash"], &[]);
         assert!(completion.status.success());
         let completion_out = String::from_utf8_lossy(&completion.stdout);
-        assert!(completion_out.contains("hni"));
+        assert!(completion_out.contains("alur"));
         assert!(!completion_out.contains(" internal"));
         assert!(!completion_out.contains(" ni"));
 
-        let top_help = run_hni(vec!["help"], &[("HNI_SKIP_PM_CHECK", "1")]);
+        let top_help = run_alur(vec!["help"], &[("ALUR_SKIP_PM_CHECK", "1")]);
         assert!(top_help.status.success());
         let top_help_out = String::from_utf8_lossy(&top_help.stdout);
-        assert!(top_help_out.contains("Usage: hni"));
+        assert!(top_help_out.contains("Usage: alur"));
 
-        let nr_help = run_hni(vec!["help", "nr"], &[("HNI_SKIP_PM_CHECK", "1")]);
+        let nr_help = run_alur(vec!["help", "nr"], &[("ALUR_SKIP_PM_CHECK", "1")]);
         assert!(nr_help.status.success());
         let nr_help_out = String::from_utf8_lossy(&nr_help.stdout);
         assert!(nr_help_out.contains("Usage: nr"));
 
-        let version = run_hni(vec!["--version"], &[("HNI_SKIP_PM_CHECK", "1")]);
+        let version = run_alur(vec!["--version"], &[("ALUR_SKIP_PM_CHECK", "1")]);
         assert!(version.status.success());
         let version_out = String::from_utf8_lossy(&version.stdout);
-        assert!(version_out.contains("hni       v"));
+        assert!(version_out.contains("alur       v"));
 
         let init_home = work.path().join("init-home");
         let init_data = work.path().join("init-data");
         fs::create_dir_all(&init_home).unwrap();
         fs::create_dir_all(&init_data).unwrap();
-        let init = run_hni(
+        let init = run_alur(
             vec!["init", "bash"],
             &[
-                ("HNI_SKIP_PM_CHECK", "1"),
+                ("ALUR_SKIP_PM_CHECK", "1"),
                 ("HOME", init_home.to_string_lossy().as_ref()),
                 ("XDG_DATA_HOME", init_data.to_string_lossy().as_ref()),
             ],
         );
         assert!(init.status.success());
         let init_out = String::from_utf8_lossy(&init.stdout);
-        assert!(init_out.contains("# hni init"));
+        assert!(init_out.contains("# alur init"));
     });
 }
 
@@ -256,7 +256,7 @@ fn app_command_handlers_build_batch_executions() {
     let work = tempfile::tempdir().unwrap();
     let ctx = ResolveContext::with_package_manager_checks(
         work.path().to_path_buf(),
-        HniConfig::default(),
+        AlurConfig::default(),
         false,
     );
 
@@ -285,8 +285,8 @@ fn app_command_handlers_build_batch_executions() {
     assert_eq!(sequential.args, vec!["echo one", "echo two"]);
 }
 
-fn run_hni(args: Vec<&str>, extra_env: &[(&str, &str)]) -> std::process::Output {
-    support::run_hni(args, extra_env)
+fn run_alur(args: Vec<&str>, extra_env: &[(&str, &str)]) -> std::process::Output {
+    support::run_alur(args, extra_env)
 }
 
 fn parse_jsr_invocations(shared: &str) -> Vec<String> {

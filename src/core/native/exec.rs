@@ -107,7 +107,7 @@ pub(super) fn format_command(exec: &ResolvedExecution) -> String {
     match &exec.strategy {
         ExecutionStrategy::Native(NativeExecution::RunScript(native)) => {
             let mut rendered = vec![
-                "hni".to_string(),
+                "alur".to_string(),
                 "fast:run-script".to_string(),
                 native.script_name.clone(),
             ];
@@ -116,7 +116,7 @@ pub(super) fn format_command(exec: &ResolvedExecution) -> String {
         }
         ExecutionStrategy::Native(NativeExecution::RunDenoTask(native)) => {
             let mut rendered = vec![
-                "hni".to_string(),
+                "alur".to_string(),
                 "fast:run-deno-task".to_string(),
                 native.selection.clone(),
             ];
@@ -128,7 +128,7 @@ pub(super) fn format_command(exec: &ResolvedExecution) -> String {
         }
         ExecutionStrategy::Native(NativeExecution::RunLocalBin(native)) => {
             let mut rendered = vec![
-                "hni".to_string(),
+                "alur".to_string(),
                 "fast:run-local-bin".to_string(),
                 native.bin_name.clone(),
             ];

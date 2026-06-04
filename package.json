@@ -1,16 +1,16 @@
 {
-  "name": "@happytoolin/hni",
+  "name": "alur",
   "version": "0.0.3",
   "private": true,
   "description": "ni-compatible package manager command router with node shim",
   "license": "GPL-3.0-only",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/happytoolin/hni.git"
+    "url": "git+https://github.com/happytoolin/alur.git"
   },
-  "homepage": "https://github.com/happytoolin/hni#readme",
+  "homepage": "https://github.com/happytoolin/alur#readme",
   "bugs": {
-    "url": "https://github.com/happytoolin/hni/issues"
+    "url": "https://github.com/happytoolin/alur/issues"
   },
   "keywords": [
     "cli",

@@ -3,6 +3,32 @@
 version = 4
 
 [[package]]
+name = "alur"
+version = "0.0.3"
+dependencies = [
+ "anyhow",
+ "clap",
+ "clap_complete",
+ "deno_task_shell",
+ "dirs",
+ "dunce",
+ "figment",
+ "indexmap",
+ "is_executable",
+ "jsonc-parser",
+ "semver",
+ "serde",
+ "serde_json",
+ "shlex",
+ "strum",
+ "tempfile",
+ "thiserror",
+ "tokio",
+ "which",
+ "wildmatch",
+]
+
+[[package]]
 name = "anstyle"
 version = "1.0.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -384,32 +410,6 @@ name = "heck"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2304e00983f87ffb38b55b444b5e3b60a884b5d30c0fca7d82fe33449bbe55ea"
-
-[[package]]
-name = "hni"
-version = "0.0.3"
-dependencies = [
- "anyhow",
- "clap",
- "clap_complete",
- "deno_task_shell",
- "dirs",
- "dunce",
- "figment",
- "indexmap",
- "is_executable",
- "jsonc-parser",
- "semver",
- "serde",
- "serde_json",
- "shlex",
- "strum",
- "tempfile",
- "thiserror",
- "tokio",
- "which",
- "wildmatch",
-]
 
 [[package]]
 name = "icu_collections"

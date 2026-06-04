@@ -13,7 +13,7 @@ fn run_custom_completion_query_flag_is_treated_as_a_script_name() {
         )
         .unwrap();
 
-        let output = support::run_hni(
+        let output = support::run_alur(
             vec![
                 "run",
                 "-C",
@@ -22,7 +22,7 @@ fn run_custom_completion_query_flag_is_treated_as_a_script_name() {
                 "--print-command",
                 "--completion",
             ],
-            &[("HNI_SKIP_PM_CHECK", "1")],
+            &[("ALUR_SKIP_PM_CHECK", "1")],
         );
 
         assert!(output.status.success(), "{output:?}");

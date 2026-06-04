@@ -1,13 +1,13 @@
 [package]
-name = "hni"
+name = "alur"
 version = "0.0.3"
 authors = ["Spark <helllo@kamran.sh>"]
 categories = ["command-line-utilities", "development-tools"]
 edition = "2024"
 keywords = ["package-manager", "npm", "yarn", "pnpm", "cli"]
 license = "GPL-3.0-only"
-repository = "https://github.com/happytoolin/hni"
-homepage = "https://github.com/happytoolin/hni"
+repository = "https://github.com/happytoolin/alur"
+homepage = "https://github.com/happytoolin/alur"
 description = "ni-compatible package manager command router with node shim"
 
 [profile.release]

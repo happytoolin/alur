@@ -1,7 +1,7 @@
 use std::{fs, path::Path};
 
-use hni::core::{
-    config::HniConfig,
+use alur::core::{
+    config::AlurConfig,
     resolve::{self, ResolveContext},
     types::{ExecutionStrategy, NativeExecution, PackageManager},
 };
@@ -13,11 +13,11 @@ fn with_skip_pm_check<T>(f: impl FnOnce() -> T) -> T {
         struct SkipPmCheckGuard;
         impl Drop for SkipPmCheckGuard {
             fn drop(&mut self) {
-                support::remove_var("HNI_SKIP_PM_CHECK");
+                support::remove_var("ALUR_SKIP_PM_CHECK");
             }
         }
 
-        support::set_var("HNI_SKIP_PM_CHECK", "1");
+        support::set_var("ALUR_SKIP_PM_CHECK", "1");
         let guard = SkipPmCheckGuard;
         let out = f();
         drop(guard);
@@ -54,7 +54,7 @@ fn ni_maps_npm_add_to_install() {
         let dir = tempfile::tempdir().unwrap();
         write_package_json(dir.path(), r#"{"packageManager":"npm@10.0.0"}"#);
 
-        let ctx = ResolveContext::new(dir.path().to_path_buf(), HniConfig::default());
+        let ctx = ResolveContext::new(dir.path().to_path_buf(), AlurConfig::default());
         let resolved = resolve::resolve_ni(vec!["vite".into()], &ctx).unwrap();
 
         assert_eq!(resolved.program, "npm");
@@ -68,7 +68,7 @@ fn ni_empty_args_installs_for_npm() {
         let dir = tempfile::tempdir().unwrap();
         write_package_json(dir.path(), r#"{"packageManager":"npm@10.0.0"}"#);
 
-        let ctx = ResolveContext::new(dir.path().to_path_buf(), HniConfig::default());
+        let ctx = ResolveContext::new(dir.path().to_path_buf(), AlurConfig::default());
         let resolved = resolve::resolve_ni(Vec::new(), &ctx).unwrap();
 
         assert_eq!(resolved.program, "npm");
@@ -82,7 +82,7 @@ fn ni_only_flags_stays_install_mode_not_add_mode() {
         let dir = tempfile::tempdir().unwrap();
         write_package_json(dir.path(), r#"{"packageManager":"yarn@1.22.0"}"#);
 
-        let ctx = ResolveContext::new(dir.path().to_path_buf(), HniConfig::default());
+        let ctx = ResolveContext::new(dir.path().to_path_buf(), AlurConfig::default());
         let resolved = resolve::resolve_ni(vec!["--check-files".into()], &ctx).unwrap();
 
         assert_eq!(resolved.program, "yarn");
@@ -96,7 +96,7 @@ fn ni_maps_yarn_add() {
         let dir = tempfile::tempdir().unwrap();
         write_package_json(dir.path(), r#"{"packageManager":"yarn@1.22.0"}"#);
 
-        let ctx = ResolveContext::new(dir.path().to_path_buf(), HniConfig::default());
+        let ctx = ResolveContext::new(dir.path().to_path_buf(), AlurConfig::default());
         let resolved = resolve::resolve_ni(vec!["vite".into()], &ctx).unwrap();
 
         assert_eq!(resolved.program, "yarn");
@@ -110,7 +110,7 @@ fn ni_bun_dev_flag_is_translated() {
         let dir = tempfile::tempdir().unwrap();
         write_package_json(dir.path(), r#"{"packageManager":"bun@1.1.0"}"#);
 
-        let ctx = ResolveContext::new(dir.path().to_path_buf(), HniConfig::default());
+        let ctx = ResolveContext::new(dir.path().to_path_buf(), AlurConfig::default());
         let resolved = resolve::resolve_ni(vec!["@types/node".into(), "-D".into()], &ctx).unwrap();
 
         assert_eq!(resolved.program, "bun");
@@ -124,7 +124,7 @@ fn ni_npm_prod_flag_is_translated_to_omit_dev() {
         let dir = tempfile::tempdir().unwrap();
         write_package_json(dir.path(), r#"{"packageManager":"npm@10.0.0"}"#);
 
-        let ctx = ResolveContext::new(dir.path().to_path_buf(), HniConfig::default());
+        let ctx = ResolveContext::new(dir.path().to_path_buf(), AlurConfig::default());
         let resolved = resolve::resolve_ni(vec!["-P".into()], &ctx).unwrap();
 
         assert_eq!(resolved.program, "npm");
@@ -138,7 +138,7 @@ fn ni_non_npm_prod_flag_is_translated_to_production() {
         let dir = tempfile::tempdir().unwrap();
         write_package_json(dir.path(), r#"{"packageManager":"yarn@1.22.0"}"#);
 
-        let ctx = ResolveContext::new(dir.path().to_path_buf(), HniConfig::default());
+        let ctx = ResolveContext::new(dir.path().to_path_buf(), AlurConfig::default());
         let resolved = resolve::resolve_ni(vec!["-P".into()], &ctx).unwrap();
 
         assert_eq!(resolved.program, "yarn");
@@ -152,9 +152,9 @@ fn ni_global_install_uses_configured_global_package_manager() {
         let dir = tempfile::tempdir().unwrap();
         write_package_json(dir.path(), r#"{"packageManager":"pnpm@9.0.0"}"#);
 
-        let cfg = HniConfig {
+        let cfg = AlurConfig {
             global_package_manager: PackageManager::Yarn,
-            ..HniConfig::default()
+            ..AlurConfig::default()
         };
         let ctx = ResolveContext::new(dir.path().to_path_buf(), cfg);
         let resolved = resolve::resolve_ni(vec!["-g".into(), "eslint".into()], &ctx).unwrap();
@@ -170,7 +170,7 @@ fn nun_maps_npm_uninstall() {
         let dir = tempfile::tempdir().unwrap();
         write_package_json(dir.path(), r#"{"packageManager":"npm@10.0.0"}"#);
 
-        let ctx = ResolveContext::new(dir.path().to_path_buf(), HniConfig::default());
+        let ctx = ResolveContext::new(dir.path().to_path_buf(), AlurConfig::default());
         let resolved = resolve::resolve_nun(vec!["lodash".into()], &ctx).unwrap();
 
         assert_eq!(resolved.program, "npm");
@@ -184,9 +184,9 @@ fn nun_global_uninstall_uses_configured_global_package_manager() {
         let dir = tempfile::tempdir().unwrap();
         write_package_json(dir.path(), r#"{"packageManager":"pnpm@9.0.0"}"#);
 
-        let cfg = HniConfig {
+        let cfg = AlurConfig {
             global_package_manager: PackageManager::Yarn,
-            ..HniConfig::default()
+            ..AlurConfig::default()
         };
         let ctx = ResolveContext::new(dir.path().to_path_buf(), cfg);
         let resolved = resolve::resolve_nun(vec!["-g".into(), "typescript".into()], &ctx).unwrap();
@@ -202,7 +202,7 @@ fn nun_requires_dependency_target() {
         let dir = tempfile::tempdir().unwrap();
         write_package_json(dir.path(), r#"{"packageManager":"npm@10.0.0"}"#);
 
-        let ctx = ResolveContext::new(dir.path().to_path_buf(), HniConfig::default());
+        let ctx = ResolveContext::new(dir.path().to_path_buf(), AlurConfig::default());
         let err = resolve::resolve_nun(Vec::new(), &ctx).unwrap_err();
 
         assert!(err.to_string().contains("nun requires a dependency"));
@@ -216,7 +216,7 @@ fn ni_frozen_if_present_uses_clean_install_with_lock() {
         write_package_json(dir.path(), r#"{"packageManager":"npm@10.0.0"}"#);
         fs::write(dir.path().join("package-lock.json"), "lock").unwrap();
 
-        let ctx = ResolveContext::new(dir.path().to_path_buf(), HniConfig::default());
+        let ctx = ResolveContext::new(dir.path().to_path_buf(), AlurConfig::default());
         let resolved = resolve::resolve_ni(vec!["--frozen-if-present".into()], &ctx).unwrap();
 
         assert_eq!(resolved.program, "npm");
@@ -230,7 +230,7 @@ fn ni_frozen_if_present_falls_back_to_install_without_lock() {
         let dir = tempfile::tempdir().unwrap();
         write_package_json(dir.path(), r#"{"packageManager":"npm@10.0.0"}"#);
 
-        let ctx = ResolveContext::new(dir.path().to_path_buf(), HniConfig::default());
+        let ctx = ResolveContext::new(dir.path().to_path_buf(), AlurConfig::default());
         let resolved = resolve::resolve_ni(vec!["--frozen-if-present".into()], &ctx).unwrap();
 
         assert_eq!(resolved.program, "npm");
@@ -244,7 +244,7 @@ fn ni_frozen_always_uses_clean_install() {
         let dir = tempfile::tempdir().unwrap();
         write_package_json(dir.path(), r#"{"packageManager":"npm@10.0.0"}"#);
 
-        let ctx = ResolveContext::new(dir.path().to_path_buf(), HniConfig::default());
+        let ctx = ResolveContext::new(dir.path().to_path_buf(), AlurConfig::default());
         let resolved = resolve::resolve_ni(vec!["--frozen".into()], &ctx).unwrap();
 
         assert_eq!(resolved.program, "npm");
@@ -258,7 +258,7 @@ fn nr_maps_pnpm_run() {
         let dir = tempfile::tempdir().unwrap();
         write_package_json(dir.path(), r#"{"packageManager":"pnpm@9.0.0"}"#);
 
-        let ctx = ResolveContext::new(dir.path().to_path_buf(), HniConfig::default());
+        let ctx = ResolveContext::new(dir.path().to_path_buf(), AlurConfig::default());
         let resolved = resolve::resolve_nr(vec!["dev".into()], &ctx).unwrap();
 
         assert_eq!(resolved.program, "pnpm");
@@ -272,7 +272,7 @@ fn nr_without_args_defaults_to_start() {
         let dir = tempfile::tempdir().unwrap();
         write_package_json(dir.path(), r#"{"packageManager":"npm@10.0.0"}"#);
 
-        let ctx = ResolveContext::new(dir.path().to_path_buf(), HniConfig::default());
+        let ctx = ResolveContext::new(dir.path().to_path_buf(), AlurConfig::default());
         let resolved = resolve::resolve_nr(Vec::new(), &ctx).unwrap();
 
         assert_eq!(resolved.program, "npm");
@@ -286,7 +286,7 @@ fn nr_npm_with_extra_args_inserts_double_dash() {
         let dir = tempfile::tempdir().unwrap();
         write_package_json(dir.path(), r#"{"packageManager":"npm@10.0.0"}"#);
 
-        let ctx = ResolveContext::new(dir.path().to_path_buf(), HniConfig::default());
+        let ctx = ResolveContext::new(dir.path().to_path_buf(), AlurConfig::default());
         let resolved = resolve::resolve_nr(vec!["dev".into(), "--port=3000".into()], &ctx).unwrap();
 
         assert_eq!(resolved.program, "npm");
@@ -300,7 +300,7 @@ fn nr_if_present_for_npm_is_inserted_after_run() {
         let dir = tempfile::tempdir().unwrap();
         write_package_json(dir.path(), r#"{"packageManager":"npm@10.0.0"}"#);
 
-        let ctx = ResolveContext::new(dir.path().to_path_buf(), HniConfig::default());
+        let ctx = ResolveContext::new(dir.path().to_path_buf(), AlurConfig::default());
         let resolved =
             resolve::resolve_nr(vec!["build".into(), "--if-present".into()], &ctx).unwrap();
 
@@ -320,7 +320,7 @@ fn nr_if_present_for_npm_with_extra_args_keeps_double_dash() {
         let dir = tempfile::tempdir().unwrap();
         write_package_json(dir.path(), r#"{"packageManager":"npm@10.0.0"}"#);
 
-        let ctx = ResolveContext::new(dir.path().to_path_buf(), HniConfig::default());
+        let ctx = ResolveContext::new(dir.path().to_path_buf(), AlurConfig::default());
         let resolved = resolve::resolve_nr(
             vec!["dev".into(), "--if-present".into(), "--port=3000".into()],
             &ctx,
@@ -343,7 +343,7 @@ fn nr_if_present_for_non_run_command_is_prefixed() {
         let dir = tempfile::tempdir().unwrap();
         write_package_json(dir.path(), r#"{"packageManager":"deno@1.46.0"}"#);
 
-        let ctx = ResolveContext::new(dir.path().to_path_buf(), HniConfig::default());
+        let ctx = ResolveContext::new(dir.path().to_path_buf(), AlurConfig::default());
         let resolved =
             resolve::resolve_nr(vec!["build".into(), "--if-present".into()], &ctx).unwrap();
 
@@ -359,7 +359,7 @@ fn nr_fast_mode_does_not_require_detected_package_manager() {
             let dir = tempfile::tempdir().unwrap();
             write_package_json(dir.path(), r#"{"name":"x","scripts":{"dev":"vite"}}"#);
 
-            let ctx = ResolveContext::new(dir.path().to_path_buf(), HniConfig::default());
+            let ctx = ResolveContext::new(dir.path().to_path_buf(), AlurConfig::default());
             let resolved = resolve::resolve_nr(vec!["dev".into()], &ctx).unwrap();
 
             assert!(matches!(
@@ -382,7 +382,7 @@ fn nlx_fast_mode_does_not_require_detected_package_manager() {
             fs::write(&bin, "#!/bin/sh\nexit 0\n").unwrap();
             make_executable(&bin);
 
-            let ctx = ResolveContext::new(dir.path().to_path_buf(), HniConfig::default());
+            let ctx = ResolveContext::new(dir.path().to_path_buf(), AlurConfig::default());
             let resolved = resolve::resolve_nlx(vec!["hello".into()], &ctx).unwrap();
 
             assert!(matches!(
@@ -403,7 +403,7 @@ fn node_run_uses_native_fast_path() {
             r#"{"packageManager":"npm@10.0.0","scripts":{"dev":"vite"}}"#,
         );
 
-        let ctx = ResolveContext::new(dir.path().to_path_buf(), HniConfig::default());
+        let ctx = ResolveContext::new(dir.path().to_path_buf(), AlurConfig::default());
         let resolved = resolve::resolve_nr(vec!["dev".into()], &ctx).unwrap();
 
         assert!(matches!(
@@ -422,7 +422,7 @@ fn node_run_fast_path_does_not_require_detected_package_manager() {
             let dir = tempfile::tempdir().unwrap();
             write_package_json(dir.path(), r#"{"name":"x","scripts":{"dev":"vite"}}"#);
 
-            let ctx = ResolveContext::new(dir.path().to_path_buf(), HniConfig::default());
+            let ctx = ResolveContext::new(dir.path().to_path_buf(), AlurConfig::default());
             let resolved = resolve::resolve_nr(vec!["dev".into()], &ctx).unwrap();
 
             assert!(matches!(
@@ -444,7 +444,7 @@ fn node_run_uses_native_fast_path_with_hooks() {
             r#"{"packageManager":"npm@10.0.0","scripts":{"predev":"echo pre","dev":"vite"}}"#,
         );
 
-        let ctx = ResolveContext::new(dir.path().to_path_buf(), HniConfig::default());
+        let ctx = ResolveContext::new(dir.path().to_path_buf(), AlurConfig::default());
         let resolved = resolve::resolve_nr(vec!["dev".into()], &ctx).unwrap();
 
         assert!(matches!(
@@ -464,7 +464,7 @@ fn node_run_falls_back_to_package_manager_when_fast_env_is_unsupported() {
             r#"{"packageManager":"npm@10.0.0","scripts":{"dev":"echo $npm_package_name"}}"#,
         );
 
-        let ctx = ResolveContext::new(dir.path().to_path_buf(), HniConfig::default());
+        let ctx = ResolveContext::new(dir.path().to_path_buf(), AlurConfig::default());
         let resolved = resolve::resolve_nr(vec!["dev".into()], &ctx).unwrap();
 
         assert_eq!(resolved.program, "npm");
@@ -486,9 +486,9 @@ fn nr_fast_mode_uses_native_script_execution() {
             r#"{"packageManager":"npm@10.0.0","scripts":{"dev":"vite"}}"#,
         );
 
-        let cfg = HniConfig {
+        let cfg = AlurConfig {
             fast_mode: true,
-            ..HniConfig::default()
+            ..AlurConfig::default()
         };
         let ctx = ResolveContext::new(dir.path().to_path_buf(), cfg);
         let resolved = resolve::resolve_nr(vec!["dev".into(), "--port=3000".into()], &ctx).unwrap();
@@ -511,9 +511,9 @@ fn nr_fast_mode_is_available_on_windows_too() {
             r#"{"packageManager":"npm@10.0.0","scripts":{"dev":"echo ok"}}"#,
         );
 
-        let cfg = HniConfig {
+        let cfg = AlurConfig {
             fast_mode: true,
-            ..HniConfig::default()
+            ..AlurConfig::default()
         };
         let ctx = ResolveContext::new(dir.path().to_path_buf(), cfg);
         let resolved = resolve::resolve_nr(vec!["dev".into()], &ctx).unwrap();
@@ -534,9 +534,9 @@ fn nr_fast_mode_if_present_missing_script_is_native_noop() {
             r#"{"packageManager":"npm@10.0.0","scripts":{}}"#,
         );
 
-        let cfg = HniConfig {
+        let cfg = AlurConfig {
             fast_mode: true,
-            ..HniConfig::default()
+            ..AlurConfig::default()
         };
         let ctx = ResolveContext::new(dir.path().to_path_buf(), cfg);
         let resolved = resolve::resolve_nr(
@@ -564,9 +564,9 @@ fn nr_fast_mode_if_present_missing_script_skips_prehook_too() {
             r#"{"packageManager":"npm@10.0.0","scripts":{"premissing":"echo pre"}}"#,
         );
 
-        let cfg = HniConfig {
+        let cfg = AlurConfig {
             fast_mode: true,
-            ..HniConfig::default()
+            ..AlurConfig::default()
         };
         let ctx = ResolveContext::new(dir.path().to_path_buf(), cfg);
         let resolved =
@@ -591,9 +591,9 @@ fn nr_fast_mode_falls_back_for_yarn_berry_pnp() {
         );
         fs::write(dir.path().join(".pnp.cjs"), "module.exports = {};\n").unwrap();
 
-        let cfg = HniConfig {
+        let cfg = AlurConfig {
             fast_mode: true,
-            ..HniConfig::default()
+            ..AlurConfig::default()
         };
         let ctx = ResolveContext::new(dir.path().to_path_buf(), cfg);
         let resolved = resolve::resolve_nr(vec!["dev".into()], &ctx).unwrap();
@@ -622,9 +622,9 @@ fn nr_fast_mode_falls_back_for_yarn_berry_pnp_workspace() {
         write_package_json(root.as_path(), r#"{"packageManager":"yarn@4.0.0"}"#);
         write_package_json(app.as_path(), r#"{"name":"app","scripts":{"dev":"vite"}}"#);
 
-        let cfg = HniConfig {
+        let cfg = AlurConfig {
             fast_mode: true,
-            ..HniConfig::default()
+            ..AlurConfig::default()
         };
         let ctx = ResolveContext::new(app, cfg);
         let resolved = resolve::resolve_nr(vec!["dev".into()], &ctx).unwrap();
@@ -642,7 +642,7 @@ fn nci_uses_immutable_for_yarn_berry() {
         write_package_json(dir.path(), r#"{"packageManager":"yarn@4.2.0"}"#);
         fs::write(dir.path().join("yarn.lock"), "# lock").unwrap();
 
-        let ctx = ResolveContext::new(dir.path().to_path_buf(), HniConfig::default());
+        let ctx = ResolveContext::new(dir.path().to_path_buf(), AlurConfig::default());
         let resolved = resolve::resolve_nci(Vec::new(), &ctx).unwrap();
 
         assert_eq!(resolved.program, "yarn");
@@ -657,7 +657,7 @@ fn nci_locked_project_preserves_install_flags() {
         write_package_json(dir.path(), r#"{"packageManager":"npm@10.0.0"}"#);
         fs::write(dir.path().join("package-lock.json"), "lock").unwrap();
 
-        let ctx = ResolveContext::new(dir.path().to_path_buf(), HniConfig::default());
+        let ctx = ResolveContext::new(dir.path().to_path_buf(), AlurConfig::default());
         let resolved = resolve::resolve_nci(vec!["--prefer-offline".into()], &ctx).unwrap();
 
         assert_eq!(resolved.program, "npm");
@@ -671,7 +671,7 @@ fn nci_without_lockfile_falls_back_to_install() {
         let dir = tempfile::tempdir().unwrap();
         write_package_json(dir.path(), r#"{"packageManager":"pnpm@9.0.0"}"#);
 
-        let ctx = ResolveContext::new(dir.path().to_path_buf(), HniConfig::default());
+        let ctx = ResolveContext::new(dir.path().to_path_buf(), AlurConfig::default());
         let resolved = resolve::resolve_nci(Vec::new(), &ctx).unwrap();
 
         assert_eq!(resolved.program, "pnpm");
@@ -686,7 +686,7 @@ fn nci_deno_lockfile_uses_frozen_install() {
         write_package_json(dir.path(), r#"{"packageManager":"deno@1.46.0"}"#);
         fs::write(dir.path().join("deno.lock"), "lock").unwrap();
 
-        let ctx = ResolveContext::new(dir.path().to_path_buf(), HniConfig::default());
+        let ctx = ResolveContext::new(dir.path().to_path_buf(), AlurConfig::default());
         let resolved = resolve::resolve_nci(Vec::new(), &ctx).unwrap();
 
         assert_eq!(resolved.program, "deno");
@@ -709,7 +709,7 @@ fn ni_in_workspace_package_uses_root_package_manager() {
         fs::create_dir_all(&pkg).unwrap();
         write_package_json(&pkg, r#"{"name":"app"}"#);
 
-        let ctx = ResolveContext::new(pkg, HniConfig::default());
+        let ctx = ResolveContext::new(pkg, AlurConfig::default());
         let resolved = resolve::resolve_ni(vec!["vite".into()], &ctx).unwrap();
 
         assert_eq!(resolved.program, "pnpm");
@@ -727,7 +727,7 @@ fn nci_in_workspace_package_uses_root_lockfile() {
         fs::create_dir_all(&pkg).unwrap();
         write_package_json(&pkg, r#"{"name":"app"}"#);
 
-        let ctx = ResolveContext::new(pkg, HniConfig::default());
+        let ctx = ResolveContext::new(pkg, AlurConfig::default());
         let resolved = resolve::resolve_nci(Vec::new(), &ctx).unwrap();
 
         assert_eq!(resolved.program, "pnpm");
@@ -754,7 +754,7 @@ fn nci_in_pnpm_workspace_without_lockfile_uses_plain_install() {
         fs::create_dir_all(&pkg).unwrap();
         write_package_json(&pkg, r#"{"name":"app"}"#);
 
-        let ctx = ResolveContext::new(pkg, HniConfig::default());
+        let ctx = ResolveContext::new(pkg, AlurConfig::default());
         let resolved = resolve::resolve_nci(Vec::new(), &ctx).unwrap();
 
         assert_eq!(resolved.program, "pnpm");
@@ -768,7 +768,7 @@ fn nlx_npm_uses_npx() {
         let dir = tempfile::tempdir().unwrap();
         write_package_json(dir.path(), r#"{"packageManager":"npm@10.0.0"}"#);
 
-        let ctx = ResolveContext::new(dir.path().to_path_buf(), HniConfig::default());
+        let ctx = ResolveContext::new(dir.path().to_path_buf(), AlurConfig::default());
         let resolved = resolve::resolve_nlx(vec!["vitest".into()], &ctx).unwrap();
 
         assert_eq!(resolved.program, "npx");
@@ -786,9 +786,9 @@ fn nlx_fast_mode_uses_local_bin_when_present() {
         fs::write(&local_bin, "").unwrap();
         make_executable(&local_bin);
 
-        let cfg = HniConfig {
+        let cfg = AlurConfig {
             fast_mode: true,
-            ..HniConfig::default()
+            ..AlurConfig::default()
         };
         let ctx = ResolveContext::new(dir.path().to_path_buf(), cfg);
         let resolved = resolve::resolve_nlx(vec!["vitest".into(), "--help".into()], &ctx).unwrap();
@@ -817,9 +817,9 @@ fn nlx_fast_mode_falls_back_to_package_manager_when_local_bin_is_missing() {
         let dir = tempfile::tempdir().unwrap();
         write_package_json(dir.path(), r#"{"packageManager":"npm@10.0.0"}"#);
 
-        let cfg = HniConfig {
+        let cfg = AlurConfig {
             fast_mode: true,
-            ..HniConfig::default()
+            ..AlurConfig::default()
         };
         let ctx = ResolveContext::new(dir.path().to_path_buf(), cfg);
         let resolved = resolve::resolve_nlx(vec!["vitest".into()], &ctx).unwrap();
@@ -845,9 +845,9 @@ fn nlx_fast_mode_deno_remote_exec_ignores_malformed_ancestor_manifests() {
         fs::write(root.join("package.json"), r#"{"name":"broken""#).unwrap();
         fs::write(project.join("deno.json"), r#"{"tasks":{"dev":"echo ok"}}"#).unwrap();
 
-        let cfg = HniConfig {
+        let cfg = AlurConfig {
             fast_mode: true,
-            ..HniConfig::default()
+            ..AlurConfig::default()
         };
         let ctx = ResolveContext::new(project, cfg);
         let resolved = resolve::resolve_nlx(vec!["create-vite".into()], &ctx).unwrap();
@@ -869,9 +869,9 @@ fn nlx_fast_mode_uses_declared_package_bin_when_present() {
             r#"{"name":"tooling","packageManager":"npm@10.0.0","bin":{"hello":"bin/hello.js"}}"#,
         );
 
-        let cfg = HniConfig {
+        let cfg = AlurConfig {
             fast_mode: true,
-            ..HniConfig::default()
+            ..AlurConfig::default()
         };
         let ctx = ResolveContext::new(dir.path().to_path_buf(), cfg);
         let resolved = resolve::resolve_nlx(vec!["hello".into(), "--flag".into()], &ctx).unwrap();
@@ -917,9 +917,9 @@ fn nlx_fast_mode_uses_pnpm_hoisted_local_bin_when_present() {
             make_executable(&bin_dir.join("vitest"));
         }
 
-        let cfg = HniConfig {
+        let cfg = AlurConfig {
             fast_mode: true,
-            ..HniConfig::default()
+            ..AlurConfig::default()
         };
         let ctx = ResolveContext::new(dir.path().to_path_buf(), cfg);
         let resolved = resolve::resolve_nlx(vec!["vitest".into()], &ctx).unwrap();
@@ -960,9 +960,9 @@ fn nlx_fast_mode_falls_back_for_yarn_berry_pnp_declared_bin() {
             r#"{"name":"tooling","packageManager":"yarn@4.0.0","bin":{"hello":"bin/hello.js"}}"#,
         );
 
-        let cfg = HniConfig {
+        let cfg = AlurConfig {
             fast_mode: true,
-            ..HniConfig::default()
+            ..AlurConfig::default()
         };
         let ctx = ResolveContext::new(dir.path().to_path_buf(), cfg);
         let resolved = resolve::resolve_nlx(vec!["hello".into()], &ctx).unwrap();
@@ -979,7 +979,7 @@ fn nlx_pnpm_uses_dlx() {
         let dir = tempfile::tempdir().unwrap();
         write_package_json(dir.path(), r#"{"packageManager":"pnpm@9.0.0"}"#);
 
-        let ctx = ResolveContext::new(dir.path().to_path_buf(), HniConfig::default());
+        let ctx = ResolveContext::new(dir.path().to_path_buf(), AlurConfig::default());
         let resolved = resolve::resolve_nlx(vec!["vitest".into()], &ctx).unwrap();
 
         assert_eq!(resolved.program, "pnpm");
@@ -993,7 +993,7 @@ fn nlx_yarn_berry_uses_dlx() {
         let dir = tempfile::tempdir().unwrap();
         write_package_json(dir.path(), r#"{"packageManager":"yarn@4.0.0"}"#);
 
-        let ctx = ResolveContext::new(dir.path().to_path_buf(), HniConfig::default());
+        let ctx = ResolveContext::new(dir.path().to_path_buf(), AlurConfig::default());
         let resolved = resolve::resolve_nlx(vec!["vitest".into()], &ctx).unwrap();
 
         assert_eq!(resolved.program, "yarn");
@@ -1007,7 +1007,7 @@ fn nlx_bun_uses_x() {
         let dir = tempfile::tempdir().unwrap();
         write_package_json(dir.path(), r#"{"packageManager":"bun@1.1.0"}"#);
 
-        let ctx = ResolveContext::new(dir.path().to_path_buf(), HniConfig::default());
+        let ctx = ResolveContext::new(dir.path().to_path_buf(), AlurConfig::default());
         let resolved = resolve::resolve_nlx(vec!["vitest".into()], &ctx).unwrap();
 
         assert_eq!(resolved.program, "bun");
@@ -1021,7 +1021,7 @@ fn nlx_deno_wraps_target_with_npm_prefix() {
         let dir = tempfile::tempdir().unwrap();
         write_package_json(dir.path(), r#"{"packageManager":"deno@1.46.0"}"#);
 
-        let ctx = ResolveContext::new(dir.path().to_path_buf(), HniConfig::default());
+        let ctx = ResolveContext::new(dir.path().to_path_buf(), AlurConfig::default());
         let resolved = resolve::resolve_nlx(vec!["vitest".into(), "--help".into()], &ctx).unwrap();
 
         assert_eq!(resolved.program, "deno");
@@ -1035,9 +1035,9 @@ fn ni_global_rejects_yarn_berry_package_manager() {
         let dir = tempfile::tempdir().unwrap();
         write_package_json(dir.path(), r#"{"packageManager":"npm@10.0.0"}"#);
 
-        let cfg = HniConfig {
+        let cfg = AlurConfig {
             global_package_manager: PackageManager::YarnBerry,
-            ..HniConfig::default()
+            ..AlurConfig::default()
         };
 
         let ctx = ResolveContext::new(dir.path().to_path_buf(), cfg);
@@ -1054,9 +1054,9 @@ fn ni_global_rejects_yarn_berry_package_manager() {
 fn resolves_from_default_package_manager_when_no_project_hints_exist() {
     with_skip_pm_check(|| {
         let dir = tempfile::tempdir().unwrap();
-        let cfg = HniConfig {
+        let cfg = AlurConfig {
             default_package_manager: Some(PackageManager::Bun),
-            ..HniConfig::default()
+            ..AlurConfig::default()
         };
 
         let ctx = ResolveContext::new(dir.path().to_path_buf(), cfg);

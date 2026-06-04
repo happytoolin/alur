@@ -10,11 +10,11 @@ mod support;
 fn init_command_renders_bash_setup() {
     support::with_env_lock(|| {
         let home = TestHome::new();
-        let output = home.run_hni(&["init", "bash"]);
+        let output = home.run_alur(&["init", "bash"]);
         assert!(output.status.success());
 
         let stdout = String::from_utf8_lossy(&output.stdout);
-        assert!(stdout.contains("# hni init"));
+        assert!(stdout.contains("# alur init"));
         assert!(stdout.contains("export PATH="));
         assert!(!stdout.contains("node() {"));
         assert!(home.managed_node().exists());
@@ -33,9 +33,9 @@ fn internal_real_node_path_uses_explicit_env_override() {
         fs::write(&real_node, "#!/bin/sh\nexit 0\n").unwrap();
         set_executable_if_needed(&real_node);
 
-        let output = support::run_hni(
+        let output = support::run_alur(
             vec!["internal", "real-node-path"],
-            &[("HNI_REAL_NODE", real_node.to_string_lossy().as_ref())],
+            &[("ALUR_REAL_NODE", real_node.to_string_lossy().as_ref())],
         );
         assert!(output.status.success());
         assert_eq!(
@@ -54,15 +54,15 @@ fn internal_real_node_path_reports_resolution_failure_when_unavailable() {
         fs::create_dir_all(&empty_path).unwrap();
 
         let output = home
-            .hni_command()
+            .alur_command()
             .args(["internal", "real-node-path"])
             .env("PATH", empty_path)
             .output()
-            .expect("failed to run hni");
+            .expect("failed to run alur");
         assert!(!output.status.success());
         assert!(String::from_utf8_lossy(&output.stdout).trim().is_empty());
         let stderr = String::from_utf8_lossy(&output.stderr);
-        assert!(stderr.contains("hni: execution error"));
+        assert!(stderr.contains("alur: execution error"));
         assert!(stderr.contains("unable to locate real node binary"));
     });
 }
@@ -70,11 +70,11 @@ fn internal_real_node_path_reports_resolution_failure_when_unavailable() {
 #[test]
 fn doctor_reports_shell_setup_fields() {
     support::with_env_lock(|| {
-        let output = support::run_hni(vec!["doctor"], &[("HNI_SKIP_PM_CHECK", "1")]);
+        let output = support::run_alur(vec!["doctor"], &[("ALUR_SKIP_PM_CHECK", "1")]);
         assert!(output.status.success());
 
         let stdout = String::from_utf8_lossy(&output.stdout);
-        assert!(stdout.contains("current_hni:"));
+        assert!(stdout.contains("current_alur:"));
         assert!(stdout.contains("path_node:"));
         assert!(stdout.contains("real_node:"));
         assert!(stdout.contains("managed_node_shim:"));
@@ -91,13 +91,13 @@ fn bash_init_gives_node_shim_precedence_and_preserves_real_node() {
         };
 
         let home = TestHome::new();
-        let hni_bin = home.path().join("hni-bin");
+        let alur_bin = home.path().join("alur-bin");
         let real_node_bin = home.path().join("real-node-bin");
 
-        fs::create_dir_all(&hni_bin).unwrap();
+        fs::create_dir_all(&alur_bin).unwrap();
         fs::create_dir_all(&real_node_bin).unwrap();
 
-        let copied_hni = copy_hni_as(&hni_bin, "hni");
+        let copied_alur = copy_alur_as(&alur_bin, "alur");
 
         let fake_node = real_node_bin.join("node");
         write_executable(&fake_node, "#!/bin/sh\nexit 0\n");
@@ -107,7 +107,7 @@ fn bash_init_gives_node_shim_precedence_and_preserves_real_node() {
         let path = path_with_current(&[&real_node_bin, managed_dir]);
         let script = format!(
             "eval \"$({} init bash)\"\nnode -- -v >/dev/null 2>&1\nprintf 'NODE_TYPE=%s\\nNODE_PATH=%s\\n' \"$(type -t node)\" \"$(command -v node)\"\n",
-            copied_hni.display()
+            copied_alur.display()
         );
 
         let output = home
@@ -133,14 +133,14 @@ fn bash_init_gives_node_shim_precedence_and_preserves_real_node() {
         assert_eq!(
             Path::new(reported_node_path),
             expected_node.as_path(),
-            "node should resolve to hni's managed shim path"
+            "node should resolve to alur's managed shim path"
         );
         assert_eq!(
             std::fs::read_link(&expected_node)
                 .unwrap()
                 .canonicalize()
                 .unwrap(),
-            copied_hni.canonicalize().unwrap()
+            copied_alur.canonicalize().unwrap()
         );
     });
 }
@@ -152,28 +152,28 @@ fn init_repairs_broken_and_stale_managed_node_symlinks() {
         use std::os::unix::fs::symlink;
 
         let home = TestHome::new();
-        let hni_bin = home.path().join("hni-bin");
+        let alur_bin = home.path().join("alur-bin");
 
-        fs::create_dir_all(&hni_bin).unwrap();
+        fs::create_dir_all(&alur_bin).unwrap();
 
-        let first_hni = copy_hni_as(&hni_bin, "hni-first");
-        let second_hni = copy_hni_as(&hni_bin, "hni-second");
+        let first_alur = copy_alur_as(&alur_bin, "alur-first");
+        let second_alur = copy_alur_as(&alur_bin, "alur-second");
 
         let managed_node = home.managed_node();
         fs::create_dir_all(managed_node.parent().unwrap()).unwrap();
-        symlink(home.path().join("missing-hni"), &managed_node).unwrap();
+        symlink(home.path().join("missing-alur"), &managed_node).unwrap();
 
-        let first = home.run_init_from(&first_hni, "bash");
+        let first = home.run_init_from(&first_alur, "bash");
         assert!(first.status.success());
-        assert_managed_node_targets(&managed_node, &first_hni);
+        assert_managed_node_targets(&managed_node, &first_alur);
 
-        let second = home.run_init_from(&second_hni, "bash");
+        let second = home.run_init_from(&second_alur, "bash");
         assert!(second.status.success());
-        assert_managed_node_targets(&managed_node, &second_hni);
+        assert_managed_node_targets(&managed_node, &second_alur);
 
-        let rerun = home.run_init_from(&second_hni, "bash");
+        let rerun = home.run_init_from(&second_alur, "bash");
         assert!(rerun.status.success());
-        assert_managed_node_targets(&managed_node, &second_hni);
+        assert_managed_node_targets(&managed_node, &second_alur);
     });
 }
 
@@ -182,7 +182,7 @@ fn init_repairs_broken_and_stale_managed_node_symlinks() {
 fn powershell_init_creates_regular_node_exe_copy() {
     support::with_env_lock(|| {
         let home = TestHome::new();
-        let output = home.run_hni(&["init", "powershell"]);
+        let output = home.run_alur(&["init", "powershell"]);
         assert!(output.status.success());
 
         let managed_node = home.managed_node();
@@ -191,7 +191,7 @@ fn powershell_init_creates_regular_node_exe_copy() {
         assert!(!metadata.file_type().is_symlink());
         assert_eq!(
             fs::read(&managed_node).unwrap(),
-            fs::read(support::hni_executable_path()).unwrap()
+            fs::read(support::alur_executable_path()).unwrap()
         );
     });
 }
@@ -203,9 +203,9 @@ fn powershell_init_replaces_stale_node_exe_copy() {
         let home = TestHome::new();
         let managed_node = home.managed_node();
         fs::create_dir_all(managed_node.parent().unwrap()).unwrap();
-        fs::write(&managed_node, b"stale hni launcher").unwrap();
+        fs::write(&managed_node, b"stale alur launcher").unwrap();
 
-        let output = home.run_hni(&["init", "powershell"]);
+        let output = home.run_alur(&["init", "powershell"]);
         assert!(output.status.success());
 
         let metadata = fs::symlink_metadata(&managed_node).unwrap();
@@ -213,7 +213,7 @@ fn powershell_init_replaces_stale_node_exe_copy() {
         assert!(!metadata.file_type().is_symlink());
         assert_eq!(
             fs::read(&managed_node).unwrap(),
-            fs::read(support::hni_executable_path()).unwrap()
+            fs::read(support::alur_executable_path()).unwrap()
         );
     });
 }
@@ -227,15 +227,15 @@ fn bash_init_keeps_package_manager_shebangs_on_real_node() {
         };
 
         let home = TestHome::new();
-        let hni_bin = home.path().join("hni-bin");
+        let alur_bin = home.path().join("alur-bin");
         let real_node_bin = home.path().join("real-node-bin");
         let pm_bin = home.path().join("pm-bin");
 
-        fs::create_dir_all(&hni_bin).unwrap();
+        fs::create_dir_all(&alur_bin).unwrap();
         fs::create_dir_all(&real_node_bin).unwrap();
         fs::create_dir_all(&pm_bin).unwrap();
 
-        let copied_hni = copy_hni_as(&hni_bin, "hni");
+        let copied_alur = copy_alur_as(&alur_bin, "alur");
 
         let fake_node = real_node_bin.join("node");
         write_executable(
@@ -249,8 +249,8 @@ fn bash_init_keeps_package_manager_shebangs_on_real_node() {
         let base_path = path_with_current(&[&pm_bin, &real_node_bin]);
         let script = format!(
             "eval \"$({} init bash)\"\n{} --version\n",
-            copied_hni.display(),
-            copied_hni.display()
+            copied_alur.display(),
+            copied_alur.display()
         );
 
         let output = home
@@ -286,11 +286,11 @@ fn internal_real_node_path_follows_current_path_without_cache() {
         write_executable(&second_node, "#!/bin/sh\nexit 0\n");
 
         let first_output = home
-            .hni_command()
+            .alur_command()
             .args(["internal", "real-node-path"])
             .env("PATH", path_with_current(&[&first_bin]))
             .output()
-            .expect("failed to run hni");
+            .expect("failed to run alur");
         assert!(first_output.status.success());
         assert_eq!(
             String::from_utf8_lossy(&first_output.stdout).trim(),
@@ -298,11 +298,11 @@ fn internal_real_node_path_follows_current_path_without_cache() {
         );
 
         let second_output = home
-            .hni_command()
+            .alur_command()
             .args(["internal", "real-node-path"])
             .env("PATH", path_with_current(&[&second_bin]))
             .output()
-            .expect("failed to run hni");
+            .expect("failed to run alur");
         assert!(second_output.status.success());
         assert_eq!(
             String::from_utf8_lossy(&second_output.stdout).trim(),
@@ -356,18 +356,18 @@ impl TestHome {
         expected_managed_node_path(&self.home, &self.data)
     }
 
-    fn hni_command(&self) -> Command {
-        self.command(&support::hni_executable_path())
+    fn alur_command(&self) -> Command {
+        self.command(&support::alur_executable_path())
     }
 
     fn command(&self, program: &Path) -> Command {
         let mut cmd = Command::new(program);
-        cmd.env_remove("HNI_CONFIG_FILE")
-            .env_remove("HNI_DEFAULT_PACKAGE_MANAGER")
-            .env_remove("HNI_GLOBAL_PACKAGE_MANAGER")
-            .env_remove("HNI_FAST_MODE")
-            .env_remove("HNI_REAL_NODE")
-            .env("HNI_SKIP_PM_CHECK", "1")
+        cmd.env_remove("ALUR_CONFIG_FILE")
+            .env_remove("ALUR_DEFAULT_PACKAGE_MANAGER")
+            .env_remove("ALUR_GLOBAL_PACKAGE_MANAGER")
+            .env_remove("ALUR_FAST_MODE")
+            .env_remove("ALUR_REAL_NODE")
+            .env("ALUR_SKIP_PM_CHECK", "1")
             .env("HOME", &self.home)
             .env("XDG_DATA_HOME", &self.data)
             .env("LOCALAPPDATA", &self.data)
@@ -376,19 +376,19 @@ impl TestHome {
         cmd
     }
 
-    fn run_hni(&self, args: &[&str]) -> Output {
-        self.hni_command()
+    fn run_alur(&self, args: &[&str]) -> Output {
+        self.alur_command()
             .args(args)
             .output()
-            .expect("failed to run hni")
+            .expect("failed to run alur")
     }
 
     #[cfg(unix)]
-    fn run_init_from(&self, hni: &Path, shell: &str) -> Output {
-        self.command(hni)
+    fn run_init_from(&self, alur: &Path, shell: &str) -> Output {
+        self.command(alur)
             .args(["init", shell])
             .output()
-            .expect("failed to run hni init")
+            .expect("failed to run alur init")
     }
 }
 
@@ -397,19 +397,19 @@ fn expected_managed_node_path(fake_home: &Path, fake_data: &Path) -> PathBuf {
         fake_home
             .join("Library")
             .join("Application Support")
-            .join("hni")
+            .join("alur")
             .join("bin")
     } else {
-        fake_data.join("hni").join("bin")
+        fake_data.join("alur").join("bin")
     };
 
     bin_dir.join(if cfg!(windows) { "node.exe" } else { "node" })
 }
 
 #[cfg(unix)]
-fn copy_hni_as(dir: &Path, name: &str) -> PathBuf {
+fn copy_alur_as(dir: &Path, name: &str) -> PathBuf {
     let path = dir.join(name);
-    fs::copy(support::hni_executable_path(), &path).unwrap();
+    fs::copy(support::alur_executable_path(), &path).unwrap();
     set_executable_if_needed(&path);
     path
 }
@@ -433,9 +433,9 @@ fn path_with_current(entries: &[&Path]) -> std::ffi::OsString {
 }
 
 #[cfg(unix)]
-fn assert_managed_node_targets(managed_node: &Path, hni: &Path) {
+fn assert_managed_node_targets(managed_node: &Path, alur: &Path) {
     assert_eq!(
         fs::read_link(managed_node).unwrap().canonicalize().unwrap(),
-        hni.canonicalize().unwrap()
+        alur.canonicalize().unwrap()
     );
 }

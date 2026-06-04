@@ -359,7 +359,7 @@ function compareCases() {
       case: 'ni --version',
       commands: [
         { name: 'antfu', bin: 'ni', args: ['--version'] },
-        { name: 'hni', bin: 'ni', args: ['--version'] },
+        { name: 'alur', bin: 'ni', args: ['--version'] },
       ],
       requiredBins: [],
     },
@@ -376,8 +376,8 @@ function fastCases(fixturePaths) {
         group: 'nr',
         case: `nr noop (${pm.label})`,
         commands: [
-          { name: 'pm', bin: 'nr', args: ['-C', fixturePaths[pm.fixtureKey], 'noop'], env: { HNI_FAST_MODE: 'false' } },
-          { name: 'fast', bin: 'nr', args: ['-C', fixturePaths[pm.fixtureKey], 'noop'], env: { HNI_FAST_MODE: 'true' } },
+          { name: 'pm', bin: 'nr', args: ['-C', fixturePaths[pm.fixtureKey], 'noop'], env: { ALUR_FAST_MODE: 'false' } },
+          { name: 'fast', bin: 'nr', args: ['-C', fixturePaths[pm.fixtureKey], 'noop'], env: { ALUR_FAST_MODE: 'true' } },
         ],
         requiredBins: pm.requiredBins,
       },
@@ -386,8 +386,8 @@ function fastCases(fixturePaths) {
         group: 'nr',
         case: `nr hooks (${pm.label})`,
         commands: [
-          { name: 'pm', bin: 'nr', args: ['-C', fixturePaths[pm.fixtureKey], 'hooks'], env: { HNI_FAST_MODE: 'false' } },
-          { name: 'fast', bin: 'nr', args: ['-C', fixturePaths[pm.fixtureKey], 'hooks'], env: { HNI_FAST_MODE: 'true' } },
+          { name: 'pm', bin: 'nr', args: ['-C', fixturePaths[pm.fixtureKey], 'hooks'], env: { ALUR_FAST_MODE: 'false' } },
+          { name: 'fast', bin: 'nr', args: ['-C', fixturePaths[pm.fixtureKey], 'hooks'], env: { ALUR_FAST_MODE: 'true' } },
         ],
         requiredBins: pm.requiredBins,
       },
@@ -396,8 +396,8 @@ function fastCases(fixturePaths) {
         group: 'node-run',
         case: `node run noop (${pm.label})`,
         commands: [
-          { name: 'pm', bin: 'node', args: ['-C', fixturePaths[pm.fixtureKey], 'run', 'noop'], env: { HNI_FAST_MODE: 'false' } },
-          { name: 'fast', bin: 'node', args: ['-C', fixturePaths[pm.fixtureKey], 'run', 'noop'], env: { HNI_FAST_MODE: 'true' } },
+          { name: 'pm', bin: 'node', args: ['-C', fixturePaths[pm.fixtureKey], 'run', 'noop'], env: { ALUR_FAST_MODE: 'false' } },
+          { name: 'fast', bin: 'node', args: ['-C', fixturePaths[pm.fixtureKey], 'run', 'noop'], env: { ALUR_FAST_MODE: 'true' } },
         ],
         requiredBins: pm.requiredBins,
       },
@@ -409,8 +409,8 @@ function fastCases(fixturePaths) {
     group: 'nlx',
     case: 'nlx hello --flag (npm local bin)',
     commands: [
-      { name: 'pm', bin: 'nlx', args: ['-C', fixturePaths.npm, 'hello', '--flag'], env: { HNI_FAST_MODE: 'false' } },
-      { name: 'fast', bin: 'nlx', args: ['-C', fixturePaths.npm, 'hello', '--flag'], env: { HNI_FAST_MODE: 'true' } },
+      { name: 'pm', bin: 'nlx', args: ['-C', fixturePaths.npm, 'hello', '--flag'], env: { ALUR_FAST_MODE: 'false' } },
+      { name: 'fast', bin: 'nlx', args: ['-C', fixturePaths.npm, 'hello', '--flag'], env: { ALUR_FAST_MODE: 'true' } },
     ],
     requiredBins: ['npm'],
   })
@@ -426,11 +426,11 @@ function runtimeCases(fixturePaths) {
       case: 'task noop',
       commands: [
         {
-          name: 'hni',
+          name: 'alur',
           kind: 'exec',
           bin: 'nr',
           args: ['-C', fixturePaths.pnpm, 'noop'],
-          env: { HNI_FAST_MODE: 'true' },
+          env: { ALUR_FAST_MODE: 'true' },
         },
         {
           name: 'bun',
@@ -451,11 +451,11 @@ function runtimeCases(fixturePaths) {
       case: 'task hooks',
       commands: [
         {
-          name: 'hni',
+          name: 'alur',
           kind: 'exec',
           bin: 'nr',
           args: ['-C', fixturePaths.pnpm, 'hooks'],
-          env: { HNI_FAST_MODE: 'true' },
+          env: { ALUR_FAST_MODE: 'true' },
         },
         {
           name: 'bun',
@@ -484,11 +484,11 @@ function directCases(fixturePaths) {
         commands: [
           directRunCommand(pm, fixture, 'noop'),
           {
-            name: 'hni',
+            name: 'alur',
             kind: 'exec',
             bin: 'nr',
             args: ['-C', fixture, 'noop'],
-            env: { HNI_FAST_MODE: 'true' },
+            env: { ALUR_FAST_MODE: 'true' },
           },
         ],
         requiredBins: pm.requiredBins,
@@ -500,11 +500,11 @@ function directCases(fixturePaths) {
         commands: [
           directRunCommand(pm, fixture, 'hooks'),
           {
-            name: 'hni',
+            name: 'alur',
             kind: 'exec',
             bin: 'nr',
             args: ['-C', fixture, 'hooks'],
-            env: { HNI_FAST_MODE: 'true' },
+            env: { ALUR_FAST_MODE: 'true' },
           },
         ],
         requiredBins: pm.requiredBins,
@@ -520,11 +520,11 @@ function directCases(fixturePaths) {
         commands: [
           localExec,
           {
-            name: 'hni',
+            name: 'alur',
             kind: 'exec',
             bin: 'nlx',
             args: ['-C', fixture, 'hello', '--flag'],
-            env: { HNI_FAST_MODE: 'true' },
+            env: { ALUR_FAST_MODE: 'true' },
           },
         ],
         requiredBins: pm.requiredBins,
@@ -735,7 +735,7 @@ function printTrackSummary(payload, format) {
   if (payload.track === 'runtime') {
     lines.push(
       'case'.padEnd(28) +
-        'hni (ms)'.padStart(12) +
+        'alur (ms)'.padStart(12) +
         'bun (ms)'.padStart(12) +
         'deno (ms)'.padStart(12),
     )
@@ -743,7 +743,7 @@ function printTrackSummary(payload, format) {
     for (const row of payload.results) {
       lines.push(
         row.case.padEnd(28) +
-          row.participants.hni.mean.toFixed(2).padStart(12) +
+          row.participants.alur.mean.toFixed(2).padStart(12) +
           row.participants.bun.mean.toFixed(2).padStart(12) +
           row.participants.deno.mean.toFixed(2).padStart(12),
       )
@@ -864,13 +864,13 @@ function makeTrackOverviewLine(payload) {
 function makeTrackTable(payload) {
   if (payload.track === 'runtime') {
     const lines = [
-      '| Case | hni | bun | deno |',
+      '| Case | alur | bun | deno |',
       '| --- | ---: | ---: | ---: |',
     ]
 
     for (const row of payload.results) {
       lines.push(
-        `| ${row.case} | ${formatMs(row.participants.hni.mean)} | ${formatMs(row.participants.bun.mean)} | ${formatMs(row.participants.deno.mean)} |`,
+        `| ${row.case} | ${formatMs(row.participants.alur.mean)} | ${formatMs(row.participants.bun.mean)} | ${formatMs(row.participants.deno.mean)} |`,
       )
     }
 
@@ -1145,9 +1145,9 @@ function fixtureDirectEnv(pmId) {
   return {}
 }
 
-function fixtureHniEnv(pmId, fastEnabled) {
+function fixtureAlurEnv(pmId, fastEnabled) {
   return {
-    HNI_FAST_MODE: fastEnabled ? 'true' : 'false',
+    ALUR_FAST_MODE: fastEnabled ? 'true' : 'false',
     ...(pmId === 'npm' ? { npm_config_yes: 'true' } : {}),
   }
 }
@@ -1191,13 +1191,13 @@ function fixtureCases(fixturesRoot) {
             name: 'pm',
             bin: 'nr',
             args: ['-C', fixturePath, 'dev'],
-            env: fixtureHniEnv(pmId, false),
+            env: fixtureAlurEnv(pmId, false),
           },
           {
             name: 'fast',
             bin: 'nr',
             args: ['-C', fixturePath, 'dev'],
-            env: fixtureHniEnv(pmId, true),
+            env: fixtureAlurEnv(pmId, true),
           },
         ],
         requiredBins: requiredBinsForPmId(pmId),
@@ -1214,7 +1214,7 @@ function prepareAliasDir(tempRoot, ourBin) {
 
   const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
   const aliases = readJsonFile(path.join(repoRoot, 'aliases.json'), 'alias manifest')
-  const allNames = ['hni', 'node', ...aliases.hni]
+  const allNames = ['alur', 'node', ...aliases.alur]
 
   for (const name of allNames) {
     createAlias(ourBin, aliasBinPath(aliasDir, name))
@@ -1388,7 +1388,7 @@ function main() {
   const cacheDir = path.join(repoRoot, 'benchmark', '.cache')
   const antfuPrefix = path.join(cacheDir, 'antfu-ni')
   const antfuBinDir = path.join(antfuPrefix, 'bin')
-  const ourBin = path.join(repoRoot, 'target', 'release', 'hni')
+  const ourBin = path.join(repoRoot, 'target', 'release', 'alur')
 
   ensureDir(resultsDir)
   ensureDir(rawDir)
@@ -1413,7 +1413,7 @@ function main() {
     installAntfuNi(repoRoot, antfuPrefix)
   }
 
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'hni-benchmark-'))
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'alur-benchmark-'))
   try {
     const fixturePaths = prepareFixtures(tempRoot)
     const fixtureBenchmarkRoot = prepareFixtureBenchmarkDirs(tempRoot, repoRoot)
@@ -1421,7 +1421,7 @@ function main() {
     const availableBins = availableBinaries()
     const baseEnv = {
       PATH: [aliasDir, antfuBinDir, process.env.PATH].filter(Boolean).join(path.delimiter),
-      HNI_SKIP_PM_CHECK: '1',
+      ALUR_SKIP_PM_CHECK: '1',
     }
 
     const trackPayloads = {}
@@ -1484,7 +1484,7 @@ function main() {
         repoRoot,
         fixtures: track === 'fixtures' ? { root: fixtureBenchmarkRoot } : fixturePaths,
         binaries: {
-          hni: relativePath(repoRoot, ourBin),
+          alur: relativePath(repoRoot, ourBin),
           antfu_prefix: needsCompare ? relativePath(repoRoot, antfuPrefix) : null,
           hyperfine: ensureBinary('hyperfine'),
         },

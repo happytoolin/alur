@@ -1,4 +1,4 @@
-use hni::{
+use alur::{
     core::types::{Intent, NodeShimMode},
     features::node_shim,
 };

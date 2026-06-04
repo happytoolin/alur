@@ -1,7 +1,7 @@
 use std::fs;
 
-use hni::core::{
-    config::HniConfig,
+use alur::core::{
+    config::AlurConfig,
     detect::detect,
     types::{DetectionSource, PackageManager},
 };
@@ -19,18 +19,18 @@ fn config_loads_and_env_overrides() {
         )
         .unwrap();
 
-        support::set_var("HNI_CONFIG_FILE", &cfg_path);
-        support::set_var("HNI_GLOBAL_PACKAGE_MANAGER", "npm");
-        support::set_var("HNI_FAST_MODE", "false");
+        support::set_var("ALUR_CONFIG_FILE", &cfg_path);
+        support::set_var("ALUR_GLOBAL_PACKAGE_MANAGER", "npm");
+        support::set_var("ALUR_FAST_MODE", "false");
 
-        let cfg = HniConfig::load().unwrap();
+        let cfg = AlurConfig::load().unwrap();
         assert_eq!(cfg.default_package_manager, Some(PackageManager::Pnpm));
         assert_eq!(cfg.global_package_manager, PackageManager::Npm);
         assert!(!cfg.fast_mode);
 
-        support::remove_var("HNI_CONFIG_FILE");
-        support::remove_var("HNI_GLOBAL_PACKAGE_MANAGER");
-        support::remove_var("HNI_FAST_MODE");
+        support::remove_var("ALUR_CONFIG_FILE");
+        support::remove_var("ALUR_GLOBAL_PACKAGE_MANAGER");
+        support::remove_var("ALUR_FAST_MODE");
     });
 }
 
@@ -40,9 +40,9 @@ fn explicit_config_path_must_exist() {
         let dir = tempfile::tempdir().unwrap();
         let missing = dir.path().join("missing-config.toml");
 
-        support::set_var("HNI_CONFIG_FILE", &missing);
-        let err = HniConfig::load().unwrap_err();
-        support::remove_var("HNI_CONFIG_FILE");
+        support::set_var("ALUR_CONFIG_FILE", &missing);
+        let err = AlurConfig::load().unwrap_err();
+        support::remove_var("ALUR_CONFIG_FILE");
 
         let chain = err.chain().map(ToString::to_string).collect::<Vec<_>>();
         assert!(
@@ -68,7 +68,7 @@ fn detect_prefers_package_manager_field_over_lockfile() {
     )
     .unwrap();
 
-    let cfg = HniConfig::default();
+    let cfg = AlurConfig::default();
     let detected = detect(dir.path(), &cfg).unwrap();
 
     assert_eq!(detected.agent, Some(PackageManager::YarnBerry));
@@ -78,9 +78,9 @@ fn detect_prefers_package_manager_field_over_lockfile() {
 #[test]
 fn detect_uses_config_fallback_when_no_lock_or_package_manager() {
     let dir = tempfile::tempdir().unwrap();
-    let cfg = HniConfig {
+    let cfg = AlurConfig {
         default_package_manager: Some(PackageManager::Bun),
-        ..HniConfig::default()
+        ..AlurConfig::default()
     };
 
     let detected = detect(dir.path(), &cfg).unwrap();

@@ -11,19 +11,19 @@ use crate::{
 pub fn print_doctor(ctx: &ResolveContext) {
     let cwd = ctx.cwd();
     let config = &ctx.config;
-    let current_hni = std::env::current_exe()
+    let current_alur = std::env::current_exe()
         .ok()
         .map(|path| dunce::canonicalize(&path).unwrap_or(path));
     let path_node = which::which("node").ok();
     let resolved_real_node = resolve_real_node_path().ok();
     let managed_node_shim = managed_node_shim_path();
 
-    println!("hni doctor");
+    println!("alur doctor");
     println!();
     println!("cwd: {}", cwd.display());
     println!(
-        "current_hni: {}",
-        current_hni
+        "current_alur: {}",
+        current_alur
             .as_ref()
             .map_or_else(|| "unavailable".to_string(), |p| p.display().to_string())
     );

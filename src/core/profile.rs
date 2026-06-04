@@ -68,7 +68,7 @@ fn render(stats: &ProfileStats, iterations: usize) -> String {
         .unwrap_or_default();
 
     let mut lines = vec![
-        "hni profile-loop timings".to_string(),
+        "alur profile-loop timings".to_string(),
         format!("iterations: {iterations}"),
         "span,calls,total_us,mean_us,per_iter_us,pct_of_max_span".to_string(),
     ];
@@ -108,7 +108,7 @@ mod tests {
         measure("demo.span", || {});
 
         let output = finish(2).unwrap();
-        assert!(output.contains("hni profile-loop timings"));
+        assert!(output.contains("alur profile-loop timings"));
         assert!(output.contains("iterations: 2"));
         assert!(output.contains("demo.span,2,"));
     }

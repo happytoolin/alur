@@ -11,14 +11,14 @@ use thiserror::Error;
 use super::types::PackageManager;
 
 #[derive(Debug, Clone)]
-pub struct HniConfig {
+pub struct AlurConfig {
     pub default_package_manager: Option<PackageManager>,
     pub global_package_manager: PackageManager,
     pub fast_mode: bool,
     pub config_path: Option<PathBuf>,
 }
 
-impl Default for HniConfig {
+impl Default for AlurConfig {
     fn default() -> Self {
         Self {
             default_package_manager: None,
@@ -31,7 +31,7 @@ impl Default for HniConfig {
 
 #[derive(Debug, Default, Deserialize)]
 #[serde(default)]
-struct HniConfigValues {
+struct AlurConfigValues {
     default_package_manager: Option<PackageManager>,
     global_package_manager: Option<PackageManager>,
     fast_mode: Option<bool>,
@@ -43,9 +43,9 @@ enum ConfigError {
     FileNotFound(PathBuf),
 }
 
-impl HniConfig {
+impl AlurConfig {
     pub fn load() -> Result<Self> {
-        let explicit_path = env::var_os("HNI_CONFIG_FILE").map(PathBuf::from);
+        let explicit_path = env::var_os("ALUR_CONFIG_FILE").map(PathBuf::from);
         let config_path = match explicit_path {
             Some(path) if path.exists() => Some(path),
             Some(path) => {
@@ -61,8 +61,8 @@ impl HniConfig {
             figment = figment.merge(Toml::file(path));
         }
 
-        let values: HniConfigValues = figment
-            .merge(Env::prefixed("HNI_"))
+        let values: AlurConfigValues = figment
+            .merge(Env::prefixed("ALUR_"))
             .extract()
             .context("config error: failed to load configuration")?;
 
@@ -79,12 +79,12 @@ impl HniConfig {
 }
 
 fn default_config_path() -> Option<PathBuf> {
-    Some(dirs::config_dir()?.join("hni").join("config.toml"))
+    Some(dirs::config_dir()?.join("alur").join("config.toml"))
 }
 
 #[cfg(test)]
 fn default_config_path_with_config_dir(config_dir: &std::path::Path) -> PathBuf {
-    config_dir.join("hni").join("config.toml")
+    config_dir.join("alur").join("config.toml")
 }
 
 #[cfg(test)]
@@ -107,7 +107,7 @@ mod tests {
         )
         .unwrap();
 
-        let values: HniConfigValues = Figment::new().merge(Toml::file(&path)).extract().unwrap();
+        let values: AlurConfigValues = Figment::new().merge(Toml::file(&path)).extract().unwrap();
 
         assert_eq!(values.default_package_manager, Some(PackageManager::Pnpm));
         assert_eq!(values.global_package_manager, Some(PackageManager::Yarn));
@@ -126,6 +126,6 @@ mod tests {
     fn default_config_path_uses_config_toml() {
         let dir = tempdir().unwrap();
         let resolved = default_config_path_with_config_dir(dir.path());
-        assert_eq!(resolved, dir.path().join("hni").join("config.toml"));
+        assert_eq!(resolved, dir.path().join("alur").join("config.toml"));
     }
 }

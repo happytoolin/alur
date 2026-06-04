@@ -6,7 +6,7 @@ pub fn render_error(error: &Error) -> String {
     if messages.len() <= 1 {
         let full = error.to_string();
         if let Some((primary, context)) = split_categorized(&full) {
-            let mut rendered = format!("hni: {primary}");
+            let mut rendered = format!("alur: {primary}");
             if let Some(context) = context {
                 rendered.push('\n');
                 rendered.push_str("context: ");
@@ -15,15 +15,15 @@ pub fn render_error(error: &Error) -> String {
             return rendered;
         }
 
-        return format!("hni: {error}");
+        return format!("alur: {error}");
     }
 
     let Some(primary_index) = messages.iter().position(|message| is_categorized(message)) else {
-        return format!("hni: {error}");
+        return format!("alur: {error}");
     };
 
     let primary = &messages[primary_index];
-    let mut rendered = format!("hni: {primary}");
+    let mut rendered = format!("alur: {primary}");
 
     let contexts = messages
         .iter()
@@ -83,7 +83,7 @@ mod tests {
 
         assert_eq!(
             render_error(&error),
-            "hni: execution error\ncontext: runner detail"
+            "alur: execution error\ncontext: runner detail"
         );
     }
 }

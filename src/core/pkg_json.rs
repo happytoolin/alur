@@ -117,12 +117,12 @@ mod tests {
 
         let mapped = PackageJson {
             bin: PackageBin::Map(BTreeMap::from([(
-                "hni".to_string(),
+                "alur".to_string(),
                 "dist/index.js".to_string(),
             )])),
             ..PackageJson::default()
         };
-        assert_eq!(mapped.bin_command_path("hni"), Some("dist/index.js"));
+        assert_eq!(mapped.bin_command_path("alur"), Some("dist/index.js"));
         assert_eq!(mapped.bin_command_path("missing"), None);
     }
 

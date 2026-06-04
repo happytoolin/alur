@@ -128,7 +128,7 @@ const COMMAND_SPECS: &[CommandSpec] = &[
         invocation: InvocationKind::NodeShim,
         help_topic: HelpTopic::Node,
         about: "package-manager-aware node shim",
-        long_about: "Interprets npm-like verbs and routes them through hni command resolution.\n\
+        long_about: "Interprets npm-like verbs and routes them through alur command resolution.\n\
                      Non-routed invocations pass through to the real Node.js binary.",
         examples: "Passthrough examples:\n\
                      \n\
@@ -168,7 +168,7 @@ pub fn command_spec_by_invocation(invocation: InvocationKind) -> Option<&'static
 #[must_use]
 pub fn help_topic_by_name(name: &str) -> Option<HelpTopic> {
     match name {
-        "hni" | "doctor" | "completion" | "help" => Some(HelpTopic::Hni),
+        "alur" | "doctor" | "completion" | "help" => Some(HelpTopic::Alur),
         "init" => Some(HelpTopic::Init),
         "install" => Some(HelpTopic::Ni),
         "run" => Some(HelpTopic::Nr),
@@ -183,7 +183,7 @@ pub fn help_topic_by_name(name: &str) -> Option<HelpTopic> {
 
 #[must_use]
 pub fn help_topic_for_invocation(invocation: InvocationKind) -> HelpTopic {
-    command_spec_by_invocation(invocation).map_or(HelpTopic::Hni, |spec| spec.help_topic)
+    command_spec_by_invocation(invocation).map_or(HelpTopic::Alur, |spec| spec.help_topic)
 }
 
 #[must_use]
@@ -194,7 +194,7 @@ pub fn invocation_from_name(name: &str) -> Option<InvocationKind> {
 #[must_use]
 pub fn help_command_for_topic(topic: HelpTopic) -> Command {
     match topic {
-        HelpTopic::Hni => super::help::top_level_help(),
+        HelpTopic::Alur => super::help::top_level_help(),
         HelpTopic::Init => init_help(),
         _ => {
             let Some(spec) = command_specs().iter().find(|spec| spec.help_topic == topic) else {

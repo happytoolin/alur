@@ -4,12 +4,12 @@ use anyhow::Result;
 use thiserror::Error;
 
 use super::{
-    config::HniConfig,
+    config::AlurConfig,
     project::{ProjectDiscovery, ScanMode},
     types::{DetectionResult, PackageManager},
 };
 
-pub fn detect(cwd: &Path, config: &HniConfig) -> Result<DetectionResult> {
+pub fn detect(cwd: &Path, config: &AlurConfig) -> Result<DetectionResult> {
     Ok(ProjectDiscovery::scan(cwd, config, ScanMode::Full)?.detection)
 }
 
@@ -22,7 +22,7 @@ pub fn ensure_package_manager_available(
     pm: PackageManager,
     version_hint: Option<&str>,
 ) -> Result<()> {
-    if env::var_os("HNI_SKIP_PM_CHECK").is_some() {
+    if env::var_os("ALUR_SKIP_PM_CHECK").is_some() {
         return Ok(());
     }
 
@@ -86,7 +86,7 @@ fn parse_user_agent(value: &str) -> Option<PackageManager> {
 mod tests {
     use super::*;
     use crate::core::{
-        config::HniConfig,
+        config::AlurConfig,
         project::{
             detect_install_metadata_in_dir, detect_lockfile_in_dir, parse_package_manager_field,
         },
@@ -104,7 +104,7 @@ mod tests {
         )
         .unwrap();
 
-        let out = detect(dir.path(), &HniConfig::default()).unwrap();
+        let out = detect(dir.path(), &AlurConfig::default()).unwrap();
         assert_eq!(out.agent, Some(PackageManager::Pnpm));
         assert_eq!(out.source, DetectionSource::PackageManagerField);
     }
@@ -115,7 +115,7 @@ mod tests {
         fs::write(dir.path().join("yarn.lock"), "x").unwrap();
         fs::write(dir.path().join("pnpm-lock.yaml"), "x").unwrap();
 
-        let out = detect(dir.path(), &HniConfig::default()).unwrap();
+        let out = detect(dir.path(), &AlurConfig::default()).unwrap();
         assert_eq!(out.agent, Some(PackageManager::Pnpm));
     }
 
@@ -126,7 +126,7 @@ mod tests {
         fs::write(dir.path().join("pnpm-lock.yaml"), "x").unwrap();
         fs::write(dir.path().join("bun.lockb"), "x").unwrap();
 
-        let out = detect(dir.path(), &HniConfig::default()).unwrap();
+        let out = detect(dir.path(), &AlurConfig::default()).unwrap();
         assert_eq!(out.agent, Some(PackageManager::Bun));
     }
 
@@ -211,7 +211,7 @@ mod tests {
         )
         .unwrap();
 
-        let out = detect(dir.path(), &HniConfig::default()).unwrap();
+        let out = detect(dir.path(), &AlurConfig::default()).unwrap();
         assert_eq!(out.agent, Some(PackageManager::Pnpm));
         assert_eq!(out.source, DetectionSource::DevEnginesField);
         assert_eq!(out.version_hint.as_deref(), Some("9.0.0"));

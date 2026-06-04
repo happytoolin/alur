@@ -1,10 +1,10 @@
 {
-  "name": "@happytoolin/hni",
+  "name": "@happytoolin/alur",
   "version": "0.0.3",
   "license": "GPL-3.0-only",
   "exports": {
     ".": "./jsr/mod.ts",
-    "./hni": "./jsr/hni.ts",
+    "./alur": "./jsr/alur.ts",
     "./ni": "./jsr/ni.ts",
     "./nr": "./jsr/nr.ts",
     "./nlx": "./jsr/nlx.ts",

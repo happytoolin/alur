@@ -55,7 +55,7 @@ function wrapperSource(alias) {
 
 const { run } = require("./binary");
 process.argv.splice(2, 0, ${JSON.stringify(alias)});
-run("hni");
+run("alur");
 `;
 }
 
@@ -67,13 +67,13 @@ function main() {
 
   const packageJsonPath = path.join(packageDir, "package.json");
   const packageJson = readJson(packageJsonPath, "generated package manifest");
-  const aliases = readJson(aliasesPath, "alias manifest").hni ?? [];
+  const aliases = readJson(aliasesPath, "alias manifest").alur ?? [];
 
-  if (!packageJson.bin?.hni) {
-    throw new Error("generated npm package is missing bin.hni");
+  if (!packageJson.bin?.alur) {
+    throw new Error("generated npm package is missing bin.alur");
   }
 
-  packageJson.bin.hni = "run-hni.js";
+  packageJson.bin.alur = "run-alur.js";
   for (const alias of aliases) {
     const wrapper = `run-${alias}.js`;
     packageJson.bin[alias] = wrapper;

@@ -9,7 +9,11 @@ mod support;
 
 #[test]
 fn compare_pm_mode_with_installed_antfu_when_available() {
-    if std::env::var("HNI_ENABLE_PARITY_REFERENCE").ok().as_deref() != Some("1") {
+    if std::env::var("ALUR_ENABLE_PARITY_REFERENCE")
+        .ok()
+        .as_deref()
+        != Some("1")
+    {
         return;
     }
 
@@ -26,11 +30,11 @@ fn compare_pm_mode_with_installed_antfu_when_available() {
             return;
         };
 
-        let our_bin = hni_executable_path();
+        let our_bin = alur_executable_path();
         if !our_bin.exists() {
             if !required_fixtures.is_empty() {
                 panic!(
-                    "required parity fixtures {:?}, but local hni binary was not found at {}",
+                    "required parity fixtures {:?}, but local alur binary was not found at {}",
                     required_fixtures,
                     our_bin.display()
                 );
@@ -65,7 +69,7 @@ fn compare_pm_mode_with_installed_antfu_when_available() {
                     &fixture.path,
                     &case.args,
                     "?",
-                    &[("HNI_SKIP_PM_CHECK", "1")],
+                    &[("ALUR_SKIP_PM_CHECK", "1")],
                 );
 
                 let our_bin_path = if cfg!(windows) {
@@ -79,7 +83,7 @@ fn compare_pm_mode_with_installed_antfu_when_available() {
                     &fixture.path,
                     &case.args,
                     "--print-command",
-                    &[("HNI_SKIP_PM_CHECK", "1"), ("HNI_FAST_MODE", "false")],
+                    &[("ALUR_SKIP_PM_CHECK", "1"), ("ALUR_FAST_MODE", "false")],
                 );
 
                 assert_eq!(
@@ -356,20 +360,20 @@ fn create_alias(target: &Path, dir: &Path, alias: &str) {
     }
 }
 
-fn hni_executable_path() -> PathBuf {
-    if let Ok(path) = std::env::var("CARGO_BIN_EXE_hni") {
+fn alur_executable_path() -> PathBuf {
+    if let Ok(path) = std::env::var("CARGO_BIN_EXE_alur") {
         return PathBuf::from(path);
     }
 
     let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     path.push("target");
     path.push("debug");
-    path.push(if cfg!(windows) { "hni.exe" } else { "hni" });
+    path.push(if cfg!(windows) { "alur.exe" } else { "alur" });
     path
 }
 
 fn required_fixtures() -> BTreeSet<String> {
-    std::env::var("HNI_PARITY_REQUIRE_FIXTURES")
+    std::env::var("ALUR_PARITY_REQUIRE_FIXTURES")
         .ok()
         .into_iter()
         .flat_map(|raw| {

@@ -74,7 +74,7 @@ fn print_command_does_not_execute_np_or_node_p() {
         );
         assert!(np_output.status.success());
         let np_stdout = String::from_utf8_lossy(&np_output.stdout);
-        assert!(np_stdout.contains("hni batch:parallel"));
+        assert!(np_stdout.contains("alur batch:parallel"));
         assert!(!marker_np.exists());
 
         let node_output = run_alias_output(
@@ -91,7 +91,7 @@ fn print_command_does_not_execute_np_or_node_p() {
         );
         assert!(node_output.status.success());
         let node_stdout = String::from_utf8_lossy(&node_output.stdout);
-        assert!(node_stdout.contains("hni batch:parallel"));
+        assert!(node_stdout.contains("alur batch:parallel"));
         assert!(!marker_node.exists());
     });
 }
@@ -142,9 +142,9 @@ fn prepare_bin_dir(cwd: &Path) -> PathBuf {
     let bin_dir = cwd.join("bin");
     fs::create_dir_all(&bin_dir).unwrap();
 
-    let exe = hni_executable_path();
+    let exe = alur_executable_path();
     if !exe.exists() {
-        panic!("hni executable not found at {}", exe.display());
+        panic!("alur executable not found at {}", exe.display());
     }
 
     create_alias(&exe, &bin_dir, "np");
@@ -153,15 +153,15 @@ fn prepare_bin_dir(cwd: &Path) -> PathBuf {
     bin_dir
 }
 
-fn hni_executable_path() -> PathBuf {
-    if let Ok(path) = std::env::var("CARGO_BIN_EXE_hni") {
+fn alur_executable_path() -> PathBuf {
+    if let Ok(path) = std::env::var("CARGO_BIN_EXE_alur") {
         return PathBuf::from(path);
     }
 
     let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     path.push("target");
     path.push("debug");
-    path.push(if cfg!(windows) { "hni.exe" } else { "hni" });
+    path.push(if cfg!(windows) { "alur.exe" } else { "alur" });
     path
 }
 
@@ -178,7 +178,7 @@ fn run_alias_output(
     };
 
     let mut cmd = Command::new(bin_dir.join(alias_bin));
-    cmd.args(args).env("HNI_SKIP_PM_CHECK", "1");
+    cmd.args(args).env("ALUR_SKIP_PM_CHECK", "1");
 
     for (key, value) in extra_env {
         cmd.env(key, value);

@@ -4,7 +4,7 @@ use anyhow::Result;
 use semver::Comparator;
 
 use crate::core::{
-    config::HniConfig,
+    config::AlurConfig,
     pkg_json::{DeclaredPackageManagerSpec, PackageJson, package_json_path, read_package_json},
     types::{DetectionResult, DetectionSource, PackageManager},
 };
@@ -60,7 +60,7 @@ pub(crate) enum ScanMode {
 }
 
 impl ProjectDiscovery {
-    pub(crate) fn scan(cwd: &Path, config: &HniConfig, mode: ScanMode) -> Result<Self> {
+    pub(crate) fn scan(cwd: &Path, config: &AlurConfig, mode: ScanMode) -> Result<Self> {
         let mut ancestors = Vec::new();
         let mut nearest_package = None;
         let mut bin_dirs = Vec::new();
@@ -160,7 +160,7 @@ fn scan_complete(
 
 fn fallback_detection_for_mode(
     mode: ScanMode,
-    config: &HniConfig,
+    config: &AlurConfig,
     has_lock: bool,
 ) -> DetectionResult {
     match mode {
@@ -203,7 +203,7 @@ pub(crate) fn resolve_declared_package_bin(
     Ok(None)
 }
 
-pub(crate) fn fallback_detection(config: &HniConfig, has_lock: bool) -> DetectionResult {
+pub(crate) fn fallback_detection(config: &AlurConfig, has_lock: bool) -> DetectionResult {
     if let Some(agent) = config.default_package_manager {
         return DetectionResult {
             agent: Some(agent),
@@ -230,7 +230,7 @@ pub(crate) fn fallback_detection(config: &HniConfig, has_lock: bool) -> Detectio
     }
 }
 
-fn config_only_detection(config: &HniConfig, has_lock: bool) -> DetectionResult {
+fn config_only_detection(config: &AlurConfig, has_lock: bool) -> DetectionResult {
     if let Some(agent) = config.default_package_manager {
         return DetectionResult {
             agent: Some(agent),
@@ -426,7 +426,7 @@ mod tests {
         fs::write(root.join("package.json"), r#"{"name":"root"}"#).unwrap();
 
         let discovery =
-            ProjectDiscovery::scan(&nested, &HniConfig::default(), ScanMode::Full).unwrap();
+            ProjectDiscovery::scan(&nested, &AlurConfig::default(), ScanMode::Full).unwrap();
         let found = discovery.nearest_package.unwrap();
         assert_eq!(found.root, root);
     }
@@ -459,7 +459,7 @@ mod tests {
         fs::write(pkg.join("bin").join("hello.js"), "console.log('hi')").unwrap();
 
         let discovery =
-            ProjectDiscovery::scan(&nested, &HniConfig::default(), ScanMode::Full).unwrap();
+            ProjectDiscovery::scan(&nested, &AlurConfig::default(), ScanMode::Full).unwrap();
         let resolved = resolve_declared_package_bin(&discovery.ancestors, "hello").unwrap();
         assert_eq!(resolved, Some(pkg.join("bin").join("hello.js")));
     }

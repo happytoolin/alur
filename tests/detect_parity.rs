@@ -1,7 +1,7 @@
 use std::fs;
 
-use hni::core::{
-    config::HniConfig,
+use alur::core::{
+    config::AlurConfig,
     detect::{detect, detect_user_agent},
     types::{DetectionResult, DetectionSource, PackageManager},
 };
@@ -18,7 +18,7 @@ struct FixtureExpectation {
 }
 
 #[test]
-fn packager_fixtures_match_hni_semantics() {
+fn packager_fixtures_match_alur_semantics() {
     run_fixture_cases(
         "packager",
         &[
@@ -83,7 +83,7 @@ fn packager_fixtures_match_hni_semantics() {
 }
 
 #[test]
-fn dev_engines_fixtures_match_hni_semantics() {
+fn dev_engines_fixtures_match_alur_semantics() {
     run_fixture_cases(
         "dev-engines",
         &[
@@ -148,7 +148,7 @@ fn dev_engines_fixtures_match_hni_semantics() {
 }
 
 #[test]
-fn lockfile_fixtures_match_hni_semantics() {
+fn lockfile_fixtures_match_alur_semantics() {
     run_fixture_cases(
         "lockfile",
         &[
@@ -206,7 +206,7 @@ fn lockfile_fixtures_match_hni_semantics() {
 }
 
 #[test]
-fn install_metadata_fixtures_match_hni_semantics() {
+fn install_metadata_fixtures_match_alur_semantics() {
     run_fixture_cases(
         "install-metadata",
         &[
@@ -299,7 +299,7 @@ fn package_manager_and_ancestor_lockfile_still_report_has_lock() {
     fs::write(root.path().join("pnpm-lock.yaml"), "lock").unwrap();
     write_package_json(&pkg, r#"{"packageManager":"npm@10.0.0"}"#);
 
-    let detected = detect(&pkg, &HniConfig::default()).unwrap();
+    let detected = detect(&pkg, &AlurConfig::default()).unwrap();
     assert_eq!(detected.agent, Some(PackageManager::Npm));
     assert_eq!(detected.source, DetectionSource::PackageManagerField);
     assert!(detected.has_lock);
@@ -369,7 +369,7 @@ fn run_fixture_cases(category: &str, cases: &[FixtureExpectation]) {
 fn detect_fixture(category: &str, name: &str) -> DetectionResult {
     let dir = tempfile::tempdir().unwrap();
     support::copy_fixture_into(category, name, dir.path());
-    detect(dir.path(), &HniConfig::default()).unwrap()
+    detect(dir.path(), &AlurConfig::default()).unwrap()
 }
 
 fn write_package_json(dir: &std::path::Path, raw: &str) {
