@@ -11,31 +11,82 @@
 ![bun](https://img.shields.io/badge/bun-supported-111111?logo=bun&logoColor=white)
 ![deno](https://img.shields.io/badge/deno-supported-000000?logo=deno&logoColor=white)
 
-Fast package manager routing for `npm`, `yarn`, `pnpm`, `bun`, and `deno`.
+Website: [`alur.happytoolin.com`](https://alur.happytoolin.com)
 
-`alur` is inspired by Antfu's [`ni`](https://github.com/antfu-collective/ni#readme), but packaged as a single multicall binary with extra shell setup for a `node` shim.
+`alur` is a native package-manager command router for `npm`, `yarn`, `pnpm`, `bun`, and `deno`.
 
-`alur` is still beta software and may have bugs.
-The supported interface is the CLI; the Rust crate modules are internal and do not carry a stable API guarantee.
+It has three main jobs:
 
-One install gives you:
+1. Fast mode runs eligible scripts and local bins directly, skipping package-manager CLI startup.
+2. The `ni` command family gives you one set of commands across every package manager.
+3. The optional `node` shim lets you type `node install`, `node run`, and `node exec` like Node had Bun-style package commands.
 
-- `alur`
-- `ni`, `nr`, `nlx`, `nun`, `nci`, `np`, `ns`
-- `node` shim via `alur init <shell>` (managed launcher)
+`alur` is beta software. The supported interface is the CLI; Rust crate modules are internal and do not carry a stable API guarantee.
 
-## Install
+## Quick Start
 
-### npm (global)
+Install it on macOS / Linux:
+
+```bash
+curl -fsSL https://bin.happytoolin.com/alur | sh
+alur --version
+```
+
+Install it with PowerShell:
+
+```powershell
+irm https://bin.happytoolin.com/alur.ps1 | iex
+alur --version
+```
+
+Or install from npm:
 
 ```bash
 npm install -g @happytoolin/alur
 alur --version
 ```
 
-This installs `alur` and the `ni`-family aliases (`ni`, `nr`, `nlx`, `nun`, `nci`, `np`, `ns`) onto your global npm bin path.
-The `node` shim is only enabled through `alur init <shell>`.
-Under the hood, the npm postinstall downloads the matching native `alur` binary from the GitHub release.
+Use the short commands:
+
+```bash
+ni vite              # add vite with the detected package manager
+nr dev               # run the dev script, using fast mode when safe
+nlx eslint .         # run a local bin directly when possible
+nci                  # clean install from the lockfile
+```
+
+Or use the explicit `alur` commands:
+
+```bash
+alur install vite
+alur run dev
+alur exec eslint .
+alur ci
+```
+
+Enable the optional `node` shim when you want Node to behave like an all-in-one package command:
+
+```bash
+eval "$(alur init zsh)"
+node install vite
+node run dev
+node exec vitest
+```
+
+## Install
+
+### npm
+
+```bash
+npm install -g @happytoolin/alur
+alur --version
+```
+
+The npm package installs `alur` plus the multicall aliases: `ni`, `nr`, `nlx`, `nun`, `nci`, `np`, and `ns`.
+
+The `node` shim is not enabled by npm install. It is always opt-in through `alur init <shell>`.
+
+Under the hood, npm postinstall downloads the matching native `alur` binary from the GitHub release.
 
 ### Homebrew
 
@@ -45,104 +96,137 @@ brew install alur
 alur --version
 ```
 
-### Script install (macOS / Linux)
+### Script Install
+
+macOS / Linux:
+
+```bash
+curl -fsSL https://bin.happytoolin.com/alur | sh
+```
+
+Shell script alias:
+
+```bash
+curl -fsSL https://bin.happytoolin.com/alur.sh | sh
+```
+
+PowerShell:
+
+```powershell
+irm https://bin.happytoolin.com/alur.ps1 | iex
+```
+
+Direct GitHub release URLs are available too:
 
 ```bash
 curl --proto '=https' --tlsv1.2 -LsSf https://github.com/happytoolin/alur/releases/latest/download/alur-installer.sh | sh
 ```
 
-To pin a specific version:
+Pin a specific version:
 
 ```bash
 curl --proto '=https' --tlsv1.2 -LsSf https://github.com/happytoolin/alur/releases/download/v0.0.3/alur-installer.sh | sh
 ```
 
-### Script install (PowerShell)
-
-```powershell
-powershell -ExecutionPolicy Bypass -c "irm https://github.com/happytoolin/alur/releases/latest/download/alur-installer.ps1 | iex"
-```
-
-### CI / automation
+CI example:
 
 ```bash
 curl --proto '=https' --tlsv1.2 -LsSf https://github.com/happytoolin/alur/releases/download/v0.0.3/alur-installer.sh | sh
 echo 'export PATH="$HOME/.cargo/bin:$PATH"' >> "$GITHUB_ENV"
 ```
 
-Use the versioned release URL to pin. Use `releases/latest/download` to track the latest release.
+Use `releases/latest/download` to follow the latest release. Use a versioned release URL for repeatable automation.
 
-## Enable the `node` shim
+## Feature 1: Fast Mode
 
-Once `alur` is installed, run `alur init` for your shell to enable the `node` shim.
-This creates a managed `node` launcher (a symlink on Unix, copied executable on Windows) and outputs a PATH setup line for your shell config.
+Fast mode is the default for eligible `nr`, `alur run`, `nlx`, `alur exec`, and matching `node` shim commands.
 
-Add the output to the **end** of your shell rc file (after nvm / mise / asdf / fnm / volta init):
-
-**zsh** (`~/.zshrc`):
+Instead of starting `npm run`, `pnpm exec`, or another package-manager CLI, `alur` resolves the script or local executable itself and launches it directly.
 
 ```bash
-eval "$(alur init zsh)"
+nr dev
+alur run test -- --watch
+nlx eslint .
+node run dev
+node exec vitest
 ```
 
-**bash** (`~/.bashrc`):
+Fast mode currently targets common local work:
+
+- `package.json` scripts, including `pre<script>` and `post<script>` lifecycle hooks
+- nearest `deno.json` / `deno.jsonc` tasks in Deno projects
+- local bins in `node_modules/.bin`
+- pnpm hoisted bins under `node_modules/.pnpm/node_modules/.bin`
+- package-local `bin` entries
+
+If `alur` cannot prove the fast path is correct, it falls back to package-manager mode.
+
+Common fallback cases include Yarn Plug'n'Play, Deno workspaces, remote package exec, and scripts that depend on package-manager-specific env expansion.
+
+Control it per command:
 
 ```bash
-eval "$(alur init bash)"
+nr --fast dev        # prefer fast mode
+nr --pm dev          # force package-manager mode
+nlx --pm create-vite@latest
+node run --pm dev
 ```
 
-**fish** (`~/.config/fish/config.fish`):
-
-```fish
-alur init fish | source
-```
-
-**PowerShell** (`$PROFILE`):
-
-```powershell
-Invoke-Expression (& alur init powershell)
-```
-
-**Nushell** (`~/.config/nushell/config.nu`):
-
-```nu
-alur init nushell | save --force ~/.config/nushell/alur.nu
-source ~/.config/nushell/alur.nu
-```
-
-Once added, restart your shell. `node` will route known npm verbs through alur
-(`node install vite` → `ni vite`) and pass everything else through to the real Node.js.
-
-## Commands
-
-### Canonical `alur` commands
+Inspect what happened:
 
 ```bash
-alur install vite
-alur uninstall lodash
-alur run dev
-alur exec vitest
-alur ci
-alur parallel "pnpm dev" "pnpm test"
-alur sequential "pnpm lint" "pnpm test"
+nr dev --print-command
+nr dev --explain
+alur doctor
 ```
 
-### `ni`
+Latest tracked fast benchmark snapshot: fast mode averaged `4.59x` faster than package-manager mode, with local-bin exec cases like `nlx hello --flag` reaching `47.43x`.
 
-Install dependencies or add new ones.
+See [`benchmark/LATEST.md`](benchmark/LATEST.md) for the current snapshot and [`docs/fast-compat.md`](docs/fast-compat.md) for the exact compatibility rules.
+
+## Feature 2: Short Commands
+
+Use one command vocabulary and let `alur` pick the right package manager from the project.
+
+| Task                                 | Short command | Explicit command  |
+| ------------------------------------ | ------------- | ----------------- |
+| Install dependencies or add packages | `ni`          | `alur install`    |
+| Run scripts                          | `nr`          | `alur run`        |
+| Execute package binaries             | `nlx`         | `alur exec`       |
+| Uninstall packages                   | `nun`         | `alur uninstall`  |
+| Clean install                        | `nci`         | `alur ci`         |
+| Run shell commands in parallel       | `np`          | `alur parallel`   |
+| Run shell commands sequentially      | `ns`          | `alur sequential` |
+
+### Install / Add
+
+`ni` installs dependencies when called with no package names. It adds packages when package names are present.
 
 ```bash
 ni
 ni vite
+ni react react-dom
 ni -D vitest
 ni -g eslint
 ni --frozen
 ni --frozen-if-present
 ```
 
-### `nr`
+Examples by detected package manager:
 
-Run package scripts.
+| Project | `ni`           | `ni vite`       |
+| ------- | -------------- | --------------- |
+| npm     | `npm i`        | `npm i vite`    |
+| yarn    | `yarn install` | `yarn add vite` |
+| pnpm    | `pnpm i`       | `pnpm add vite` |
+| bun     | `bun install`  | `bun add vite`  |
+| deno    | `deno install` | `deno add vite` |
+
+Global installs use `global_package_manager`, which defaults to `npm`.
+
+### Run Scripts
+
+`nr` runs package scripts. With no script name, it runs `start`.
 
 ```bash
 nr
@@ -152,9 +236,11 @@ nr test -- --watch
 nr --if-present lint
 ```
 
-### `nlx`
+In fast mode, `nr` can skip the package manager and run the script directly. Use `--pm` when you need exact package-manager behavior.
 
-Execute binaries without adding them permanently to your project.
+### Execute Binaries
+
+`nlx` runs package binaries.
 
 ```bash
 nlx vitest
@@ -162,82 +248,128 @@ nlx eslint .
 nlx create-vite@latest
 ```
 
-### `nun`
+When a local executable can be resolved confidently, `nlx` runs it directly. Remote or ambiguous cases fall back to the detected package manager.
 
-Uninstall dependencies.
+### Uninstall / Clean Install
 
 ```bash
 nun lodash
 nun react react-dom
 nun -g typescript
-```
 
-### `nci`
-
-Run a clean install. If a lockfile exists, `alur` uses the package-manager-specific frozen install command.
-
-```bash
 nci
+nci --prefer-offline
 ```
 
-### `np` / `ns`
+`nci` uses a package-manager-specific frozen install when a lockfile exists. Without a lockfile, it falls back to normal install behavior.
 
-Run shell commands in parallel or sequentially.
+### Parallel / Sequential Shell Commands
+
+Each argument is a separate shell command.
 
 ```bash
 np "pnpm dev" "pnpm test"
 ns "pnpm lint" "pnpm test"
 ```
 
-### `node`
+`np` runs all commands concurrently and returns the first non-zero exit code. `ns` runs commands in order and stops on the first failure.
 
-`alur` can also act as a package-manager-aware `node` shim.
-Enable it by adding `alur init <shell>` to your shell config first.
+## Feature 3: Node Shim
+
+The `node` shim is for people who want package commands to feel built into Node.
+
+After init, these work:
 
 ```bash
+node install
 node install vite
-node uninstall lodash
+node add react
 node run dev
 node exec vitest
+node x eslint .
 node ci
 node p "echo one" "echo two"
+node s "pnpm lint" "pnpm test"
 ```
 
-Regular Node.js usage still passes through:
+That gives Node a Bun-like command surface, while still using your project's real package manager.
+
+The shim only routes known npm-like verbs:
+
+| `node` input                      | Routes to                 |
+| --------------------------------- | ------------------------- |
+| `node install`, `node i`          | install or add behavior   |
+| `node add`                        | add behavior              |
+| `node uninstall`, `node remove`   | uninstall behavior        |
+| `node run`                        | script runner             |
+| `node exec`, `node x`, `node dlx` | binary executor           |
+| `node ci`                         | clean install             |
+| `node p`                          | parallel shell commands   |
+| `node s`                          | sequential shell commands |
+
+Everything else passes through to the real Node.js binary:
 
 ```bash
 node script.js
 node -v
+node --watch server.js
 node -- --trace-warnings
 ```
 
-### Utilities
+### Enable It
+
+Run `alur init` for your shell and put the output at the end of your shell config, after tools like `nvm`, `mise`, `asdf`, `fnm`, or `volta`.
+
+zsh (`~/.zshrc`):
 
 ```bash
-alur help ni
-alur completion zsh
-alur init bash
-alur doctor
+eval "$(alur init zsh)"
 ```
 
-## Global Flags
-
-These work across `alur` and the multicall aliases:
+bash (`~/.bashrc`):
 
 ```bash
---print-command
---explain
--C <dir>
--v --version
--h --help
+eval "$(alur init bash)"
 ```
 
-Use `--` to forward flags to the underlying package manager or script:
+fish (`~/.config/fish/config.fish`):
 
-```bash
-alur install -- --help
-nr test -- --watch
+```fish
+alur init fish | source
 ```
+
+PowerShell (`$PROFILE`):
+
+```powershell
+Invoke-Expression (& alur init powershell)
+```
+
+Nushell (`~/.config/nushell/config.nu`):
+
+```nu
+alur init nushell | save --force ~/.config/nushell/alur.nu
+source ~/.config/nushell/alur.nu
+```
+
+Restart your shell after editing your config.
+
+`alur init` creates a managed `node` launcher and prints shell-specific PATH setup. On routed commands, `alur` finds the real Node.js binary and keeps normal Node behavior available.
+
+If real Node cannot be found, set `ALUR_REAL_NODE=/absolute/path/to/node`.
+
+To disable the shim, remove the `alur init` line from your shell config and restart the shell.
+
+## Package Manager Detection
+
+`alur` detects the package manager from:
+
+1. `packageManager` in `package.json`
+2. lockfiles such as `pnpm-lock.yaml`, `pnpm-workspace.yaml`, `yarn.lock`, `package-lock.json`, `bun.lockb`, or `deno.lock`
+3. `devEngines.packageManager` in `package.json`
+4. install metadata such as `.pnp.cjs`, `node_modules/.pnpm`, or `node_modules/.package-lock.json`
+5. config defaults if detection is unavailable
+
+When detection fails, add a `packageManager` field, commit a lockfile, or set `default_package_manager`.
 
 ## Configuration
 
@@ -261,29 +393,43 @@ Environment overrides:
 - `ALUR_DEFAULT_PACKAGE_MANAGER`
 - `ALUR_GLOBAL_PACKAGE_MANAGER`
 - `ALUR_FAST_MODE`
+- `ALUR_REAL_NODE`
 
-## How It Works
+## Global Flags
 
-`alur` detects the package manager from:
+These work across `alur`, the `ni` aliases, and routed `node` shim commands:
 
-1. `packageManager` in `package.json`
-2. lockfiles such as `pnpm-lock.yaml`, `pnpm-workspace.yaml`, `yarn.lock`, `package-lock.json`, `bun.lockb`, or `deno.lock`
-3. `devEngines.packageManager` in `package.json`
-4. install metadata such as `.pnp.cjs`, `node_modules/.pnpm`, or `node_modules/.package-lock.json`
-5. config defaults if detection is unavailable
+```bash
+--fast
+--pm
+--print-command
+--explain
+-C <dir>
+-v --version
+-h --help
+```
 
-Then it maps the command family to the right underlying command:
+Use `--` to forward flags to the underlying package manager or script:
 
-- `ni` -> install or add
-- `nr` -> run or task
-- `nlx` -> `npx` / `pnpm dlx` / `yarn dlx` / `bun x`
-- `nun` -> uninstall or remove
-- `nci` -> frozen install when lockfiles exist
-- `np` / `ns` -> parallel or sequential shell commands
+```bash
+alur install -- --help
+nr test -- --watch
+node run test -- --watch
+```
+
+## Utilities
+
+```bash
+alur help
+alur help ni
+alur completion zsh
+alur init bash
+alur doctor
+```
 
 ## Troubleshooting
 
-### PowerShell `ni` alias conflict
+### PowerShell `ni` Alias Conflict
 
 PowerShell ships with a built-in `ni` alias for `New-Item`.
 
@@ -294,53 +440,41 @@ Remove-Item Alias:ni -ErrorAction SilentlyContinue
 Invoke-Expression (& alur init powershell)
 ```
 
-### Check what `alur` resolved
+### Check What Will Run
+
+Use `--print-command` for the resolved command and `--explain` for detection details:
 
 ```bash
 ni vite --print-command
 nr dev --explain
-alur doctor
+node install vite --print-command
+```
+
+### Skip Fast Mode For Exact PM Behavior
+
+Fast mode intentionally does not emulate every package-manager edge case.
+
+Use `--pm` for Yarn PnP projects, Deno workspaces, package-manager-specific env expansion, or debugging exact package-manager behavior:
+
+```bash
+nr --pm build
+nlx --pm create-vite@latest
+node run --pm dev
 ```
 
 ## Benchmarking
 
-The active benchmark suite lives in [`benchmark/`](benchmark/).
+The benchmark suite lives in [`benchmark/`](benchmark/).
 
-If you use [`just`](https://github.com/casey/just), the common local commands are wrapped in [`justfile`](justfile):
-
-```bash
-just build-release
-just test
-just test-fast
-just ci
-just bench
-```
-
-Run the default local benchmark with:
+Common local commands:
 
 ```bash
 npm ci
 npm run bench
-just bench
+npm run bench -- --track=all --runs=100 --warmups=10
 ```
 
-Pass options through either entrypoint:
-
-```bash
-npm run bench -- --track=compare
-npm run bench -- --track=fast
-npm run bench -- --track=runtime
-npm run bench -- --track=direct
-just bench --track=direct --runs=3 --warmups=1 --no-build
-```
-
-Run the full release-style matrix with:
-
-```bash
-npm run bench -- --track=all --runs=500 --warmups=50
-```
-
-Generate flamegraphs with:
+Generate flamegraphs:
 
 ```bash
 ./benchmark/profile.sh
@@ -350,91 +484,9 @@ Tracked benchmark docs:
 
 - current snapshot: [`benchmark/LATEST.md`](benchmark/LATEST.md)
 - lightweight history: [`benchmark/HISTORY.md`](benchmark/HISTORY.md)
+- benchmark guide: [`benchmark/README.md`](benchmark/README.md)
 - fast-mode compatibility: [`docs/fast-compat.md`](docs/fast-compat.md)
 
-### Representative Results
+## Acknowledgement
 
-All numbers below were measured on macOS (Apple Silicon) with the release binary, using `hyperfine` with 10 warmups and 100 measured runs per case. See [`benchmark/LATEST.md`](benchmark/LATEST.md) for the raw tracked snapshot.
-
-**Headline:** `alur --fast` is **7.4x faster** than running package managers directly, and **4.6x faster** than `alur` in its own PM fallback mode.
-
-#### 1. Fast mode vs PM mode (inside alur)
-
-Fast mode bypasses the package manager CLI entirely and runs scripts / local bins natively.
-
-| Case                     | PM mode | Fast mode |   Speedup |
-| ------------------------ | ------: | --------: | --------: |
-| `nr noop (npm)`          |  246 ms |     37 ms |  **6.6x** |
-| `nr noop (pnpm)`         |  799 ms |     49 ms | **16.4x** |
-| `nr noop (yarn)`         |  348 ms |     38 ms |  **9.3x** |
-| `node run noop (pnpm)`   |  956 ms |     34 ms | **28.4x** |
-| `nlx hello --flag (npm)` |  288 ms |     17 ms | **17.0x** |
-| `nr noop (bun)`          |   70 ms |     37 ms |  **1.9x** |
-| `nr noop (deno)`         |   80 ms |     35 ms |  **2.2x** |
-
-_Geometric mean across all package managers: **4.6x**._
-
-pnpm and yarn see the biggest wins because their CLIs carry the most startup overhead. Bun and Deno are already fast, so the margin is smaller (but still consistently ahead).
-
-#### 2. alur fast vs direct package-manager usage
-
-This is the real-world comparison: what users actually type today versus using `alur`.
-
-| Case                     | Direct PM | alur --fast |   Speedup |
-| ------------------------ | --------: | ---------: | --------: |
-| `npm run noop`           |    320 ms |      53 ms |  **6.1x** |
-| `pnpm run noop`          |    749 ms |      41 ms | **18.2x** |
-| `yarn run noop`          |    443 ms |      34 ms | **13.0x** |
-| `npx hello --flag`       |    300 ms |     4.8 ms | **62.0x** |
-| `pnpm exec hello --flag` |    733 ms |     8.9 ms | **82.8x** |
-| `bun run noop`           |     79 ms |      34 ms |  **2.4x** |
-| `deno task noop`         |     50 ms |      34 ms |  **1.5x** |
-
-_Geometric mean: **7.4x**._
-
-Local bin execution is the standout feature: `npx` and `pnpm exec` spend hundreds of milliseconds resolving, validating, and bootstrapping before they even start your binary. `alur` resolves the bin once and runs it directly.
-
-#### 3. alur vs Antfu's `ni`
-
-For startup/version checks, `alur` is faster:
-
-| Case           | antfu/ni |   alur |  Speedup |
-| -------------- | -------: | ----: | -------: |
-| `ni --version` |   149 ms | 92 ms | **1.6x** |
-
-_Current compare track keeps only version startup because `alur` no longer carries legacy `?` command-printing compatibility._
-
-#### 4. Runtime comparison vs Bun and Deno
-
-Even against native runtime task execution, `alur` holds its own:
-
-| Case         |   alur |    bun |  deno |
-| ------------ | ----: | -----: | ----: |
-| `task noop`  | 33 ms |  78 ms | 49 ms |
-| `task hooks` | 90 ms | 210 ms | 77 ms |
-
-`alur` is **2.3x faster than bun** for task execution and slightly faster than Deno for simple scripts.
-
-### Methodology
-
-The benchmark suite lives in [`benchmark/`](benchmark/) and uses `hyperfine` to time the release binary. It covers five angles:
-
-- **`direct`** — normal package-manager commands (`npm run`, `pnpm exec`, etc.) vs `alur --fast`
-- **`fast`** — `alur` PM mode vs `alur` fast mode (isolates the native-execution win)
-- **`compare`** — `alur` vs `@antfu/ni` on startup/version overhead
-- **`runtime`** — `alur` vs `bun` vs `deno` on actual task execution time
-- **`fixtures`** — real project fixtures from `tests/fixtures/` across all detection categories
-
-Run the full matrix locally:
-
-```bash
-npm run bench -- --track=all --runs=100 --warmups=10
-```
-
-Or generate flamegraphs:
-
-```bash
-./benchmark/profile.sh
-```
-
-Tracked snapshots are kept in [`benchmark/LATEST.md`](benchmark/LATEST.md).
+The short command family follows the spirit of Antfu's [`ni`](https://github.com/antfu-collective/ni#readme).
