@@ -1,7 +1,8 @@
-//! ALUR - ni-compatible package manager command router with node shim.
+//! alur - fast package-manager routing with short commands and an opt-in Node shim.
 //!
-//! This crate provides a unified interface for working with multiple package managers
-//! (npm, yarn, pnpm, bun) using ni-compatible commands.
+//! This crate powers the `alur` CLI, including package-manager detection, fast
+//! script/local-bin execution, multicall command aliases, and the optional `node`
+//! shim.
 
 pub mod app;
 pub mod core;

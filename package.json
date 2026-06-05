@@ -2,19 +2,27 @@
   "name": "alur",
   "version": "0.0.3",
   "private": true,
-  "description": "ni-compatible package manager command router with node shim",
+  "description": "Fast package-manager routing with short commands and an opt-in Node shim",
   "license": "GPL-3.0-only",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/happytoolin/alur.git"
   },
-  "homepage": "https://github.com/happytoolin/alur#readme",
+  "homepage": "https://alur.happytoolin.com",
   "bugs": {
     "url": "https://github.com/happytoolin/alur/issues"
   },
   "keywords": [
     "cli",
+    "package-manager",
+    "task-runner",
+    "script-runner",
+    "node-shim",
+    "fast",
     "ni",
+    "nr",
+    "nlx",
+    "npx",
     "npm",
     "pnpm",
     "yarn",

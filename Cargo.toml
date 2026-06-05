@@ -4,11 +4,11 @@ version = "0.0.3"
 authors = ["Spark <helllo@kamran.sh>"]
 categories = ["command-line-utilities", "development-tools"]
 edition = "2024"
-keywords = ["package-manager", "npm", "yarn", "pnpm", "cli"]
+keywords = ["package-manager", "task-runner", "node-shim", "npm", "cli"]
 license = "GPL-3.0-only"
 repository = "https://github.com/happytoolin/alur"
-homepage = "https://github.com/happytoolin/alur"
-description = "ni-compatible package manager command router with node shim"
+homepage = "https://alur.happytoolin.com"
+description = "Fast package-manager routing with short commands and an opt-in Node shim"
 include = [
   "/Cargo.lock",
   "/Cargo.toml",
