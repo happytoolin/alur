@@ -2,6 +2,9 @@ mod support;
 
 use support::run_alur;
 
+#[cfg(unix)]
+use std::fs;
+
 #[test]
 fn explicit_missing_config_path_reports_config_error() {
     support::with_env_lock(|| {
@@ -34,6 +37,77 @@ fn pre_execution_commands_do_not_load_config() {
             &[("ALUR_CONFIG_FILE", missing.as_ref())],
         );
         assert!(completion.status.success(), "{completion:?}");
+
+        let version = run_alur(vec!["--version"], &[("ALUR_CONFIG_FILE", missing.as_ref())]);
+        assert!(version.status.success(), "{version:?}");
+        assert!(String::from_utf8_lossy(&version.stdout).contains("alur v"));
+    });
+}
+
+#[cfg(unix)]
+#[test]
+fn node_passthrough_does_not_load_config() {
+    support::with_env_lock(|| {
+        let work = tempfile::tempdir().unwrap();
+        let missing = work.path().join("missing-config.toml");
+        let real_node = work.path().join("real-node");
+
+        fs::write(&real_node, "#!/bin/sh\nprintf 'v99.0.0\\n'\n").unwrap();
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mut perms = fs::metadata(&real_node).unwrap().permissions();
+            perms.set_mode(0o755);
+            fs::set_permissions(&real_node, perms).unwrap();
+        }
+
+        let output = support::run_alur_as(
+            "node",
+            vec!["--version"],
+            &[
+                ("ALUR_CONFIG_FILE", missing.to_string_lossy().as_ref()),
+                ("ALUR_REAL_NODE", real_node.to_string_lossy().as_ref()),
+            ],
+        );
+
+        assert!(output.status.success(), "{output:?}");
+        assert_eq!(String::from_utf8_lossy(&output.stdout).trim(), "v99.0.0");
+    });
+}
+
+#[cfg(unix)]
+#[test]
+fn original_node_shapes_keep_their_args_and_skip_config() {
+    support::with_env_lock(|| {
+        let work = tempfile::tempdir().unwrap();
+        let missing = work.path().join("missing-config.toml");
+        let real_node = work.path().join("real-node");
+
+        fs::write(&real_node, "#!/bin/sh\nprintf '%s\\n' \"$@\"\n").unwrap();
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mut perms = fs::metadata(&real_node).unwrap().permissions();
+            perms.set_mode(0o755);
+            fs::set_permissions(&real_node, perms).unwrap();
+        }
+
+        for args in [
+            vec!["--run", "dev", "--print-command"],
+            vec!["test", "--print-command", "--explain"],
+        ] {
+            let output = support::run_alur_as(
+                "node",
+                args.clone(),
+                &[
+                    ("ALUR_CONFIG_FILE", missing.to_string_lossy().as_ref()),
+                    ("ALUR_REAL_NODE", real_node.to_string_lossy().as_ref()),
+                ],
+            );
+
+            assert!(output.status.success(), "{output:?}");
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            let actual = stdout.lines().collect::<Vec<_>>();
+            assert_eq!(actual, args);
+        }
     });
 }
 

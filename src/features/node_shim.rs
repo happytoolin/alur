@@ -30,32 +30,29 @@ pub fn decide(args: &[String]) -> (NodeShimMode, Vec<String>) {
         return (NodeShimMode::PassthroughNode, Vec::new());
     };
 
-    if first == "--" {
-        return (NodeShimMode::PassthroughNode, rest.to_vec());
-    }
-
-    if first.starts_with('-') {
-        return (NodeShimMode::PassthroughNode, args.to_vec());
-    }
-
-    let verb = first.to_ascii_lowercase();
-    let routed_args = rest.to_vec();
-
-    match verb.as_str() {
-        "p" => (NodeShimMode::RunParallel, routed_args),
-        "s" => (NodeShimMode::RunSequential, routed_args),
-        "install" | "i" => route(Intent::Install, routed_args),
-        "add" => route(Intent::Add, routed_args),
-        "uninstall" | "remove" => route(Intent::Uninstall, routed_args),
-        "run" => route(Intent::Run, routed_args),
-        "exec" | "x" | "dlx" => route(Intent::Execute, routed_args),
-        "ci" => route(Intent::CleanInstall, routed_args),
-        _ => (NodeShimMode::PassthroughNode, args.to_vec()),
+    match routed_mode_for_verb(first) {
+        Some(mode) => (mode, rest.to_vec()),
+        None => (NodeShimMode::PassthroughNode, args.to_vec()),
     }
 }
 
-fn route(intent: Intent, args: Vec<String>) -> (NodeShimMode, Vec<String>) {
-    (NodeShimMode::RouteToIntent(intent), args)
+#[must_use]
+pub fn is_routed_verb(value: &str) -> bool {
+    routed_mode_for_verb(value).is_some()
+}
+
+fn routed_mode_for_verb(value: &str) -> Option<NodeShimMode> {
+    match value {
+        "p" => Some(NodeShimMode::RunParallel),
+        "s" => Some(NodeShimMode::RunSequential),
+        "install" | "i" => Some(NodeShimMode::RouteToIntent(Intent::Install)),
+        "add" => Some(NodeShimMode::RouteToIntent(Intent::Add)),
+        "uninstall" | "remove" => Some(NodeShimMode::RouteToIntent(Intent::Uninstall)),
+        "run" => Some(NodeShimMode::RouteToIntent(Intent::Run)),
+        "exec" | "x" | "dlx" => Some(NodeShimMode::RouteToIntent(Intent::Execute)),
+        "ci" => Some(NodeShimMode::RouteToIntent(Intent::CleanInstall)),
+        _ => None,
+    }
 }
 
 #[cfg(test)]
@@ -79,7 +76,7 @@ mod tests {
     #[test]
     fn passthrough_double_dash() {
         let (mode, args) = decide(&["--".into(), "-v".into()]);
-        assert_eq!(args, vec!["-v"]);
+        assert_eq!(args, vec!["--", "-v"]);
         assert!(matches!(mode, NodeShimMode::PassthroughNode));
     }
 
@@ -101,6 +98,13 @@ mod tests {
     fn passthrough_flag_first() {
         let (mode, args) = decide(&["-p".into(), "1+1".into()]);
         assert_eq!(args, vec!["-p", "1+1"]);
+        assert!(matches!(mode, NodeShimMode::PassthroughNode));
+    }
+
+    #[test]
+    fn passthrough_node_builtin_run_flag() {
+        let (mode, args) = decide(&["--run".into(), "dev".into()]);
+        assert_eq!(args, vec!["--run", "dev"]);
         assert!(matches!(mode, NodeShimMode::PassthroughNode));
     }
 
@@ -136,10 +140,22 @@ mod tests {
     }
 
     #[test]
-    fn routes_verbs_case_insensitively() {
+    fn passthrough_uppercase_verbs() {
         let (mode, args) = decide(&["RUN".into(), "dev".into()]);
-        assert_eq!(args, vec!["dev"]);
-        assert!(matches!(mode, NodeShimMode::RouteToIntent(Intent::Run)));
+        assert_eq!(args, vec!["RUN", "dev"]);
+        assert!(matches!(mode, NodeShimMode::PassthroughNode));
+    }
+
+    #[test]
+    fn routes_install_aliases() {
+        for verb in ["install", "i", "add"] {
+            let (mode, args) = decide(&[verb.into(), "vite".into()]);
+            assert_eq!(args, vec!["vite"]);
+            assert!(matches!(
+                mode,
+                NodeShimMode::RouteToIntent(Intent::Install | Intent::Add)
+            ));
+        }
     }
 
     #[test]

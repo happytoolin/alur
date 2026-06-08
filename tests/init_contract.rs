@@ -220,7 +220,7 @@ fn powershell_init_replaces_stale_node_exe_copy() {
 
 #[cfg(unix)]
 #[test]
-fn bash_init_keeps_package_manager_shebangs_on_real_node() {
+fn bash_init_keeps_node_version_on_real_node() {
     support::with_env_lock(|| {
         let Some(bash) = which::which("bash").ok() else {
             return;
@@ -229,11 +229,9 @@ fn bash_init_keeps_package_manager_shebangs_on_real_node() {
         let home = TestHome::new();
         let alur_bin = home.path().join("alur-bin");
         let real_node_bin = home.path().join("real-node-bin");
-        let pm_bin = home.path().join("pm-bin");
 
         fs::create_dir_all(&alur_bin).unwrap();
         fs::create_dir_all(&real_node_bin).unwrap();
-        fs::create_dir_all(&pm_bin).unwrap();
 
         let copied_alur = copy_alur_as(&alur_bin, "alur");
 
@@ -243,13 +241,9 @@ fn bash_init_keeps_package_manager_shebangs_on_real_node() {
             "#!/bin/sh\nif [ \"$1\" = \"--version\" ]; then\n  printf 'v99.0.0\\n'\n  exit 0\nfi\nprintf '99.0.0\\n'\n",
         );
 
-        let fake_npm = pm_bin.join("npm");
-        write_executable(&fake_npm, "#!/usr/bin/env node\nconsole.log('npm');\n");
-
-        let base_path = path_with_current(&[&pm_bin, &real_node_bin]);
+        let base_path = path_with_current(&[&real_node_bin]);
         let script = format!(
-            "eval \"$({} init bash)\"\n{} --version\n",
-            copied_alur.display(),
+            "eval \"$({} init bash)\"\nnode --version\n",
             copied_alur.display()
         );
 
@@ -263,9 +257,59 @@ fn bash_init_keeps_package_manager_shebangs_on_real_node() {
 
         assert!(output.status.success());
         let stdout = String::from_utf8_lossy(&output.stdout);
-        assert!(stdout.contains("node       v99.0.0"));
-        assert!(stdout.contains("agent      npm (99.0.0)"));
-        assert!(stdout.contains("global     npm (99.0.0)"));
+        assert_eq!(stdout.lines().count(), 1);
+        assert_eq!(stdout.trim(), "v99.0.0");
+    });
+}
+
+#[cfg(unix)]
+#[test]
+fn zsh_init_keeps_node_version_on_real_node() {
+    support::with_env_lock(|| {
+        let Some(zsh) = which::which("zsh").ok() else {
+            return;
+        };
+
+        let home = TestHome::new();
+        let alur_bin = home.path().join("alur-bin");
+        let real_node_bin = home.path().join("real-node-bin");
+        let project = home.path().join("project");
+
+        fs::create_dir_all(&alur_bin).unwrap();
+        fs::create_dir_all(&real_node_bin).unwrap();
+        fs::create_dir_all(&project).unwrap();
+        fs::write(
+            project.join("package.json"),
+            r#"{"name":"x","packageManager":"pnpm@9.0.0"}"#,
+        )
+        .unwrap();
+
+        let copied_alur = copy_alur_as(&alur_bin, "alur");
+
+        let fake_node = real_node_bin.join("node");
+        write_executable(
+            &fake_node,
+            "#!/bin/sh\nif [ \"$1\" = \"--version\" ]; then\n  printf 'v99.0.0\\n'\n  exit 0\nfi\nprintf '99.0.0\\n'\n",
+        );
+
+        let base_path = path_with_current(&[&real_node_bin]);
+        let script = format!(
+            "eval \"$({} init zsh)\"\nnode --version\n",
+            copied_alur.display()
+        );
+
+        let output = home
+            .command(&zsh)
+            .arg("-f")
+            .arg("-c")
+            .arg(script)
+            .env("PATH", base_path)
+            .current_dir(&project)
+            .output()
+            .expect("failed to run zsh init flow");
+
+        assert!(output.status.success());
+        assert_eq!(String::from_utf8_lossy(&output.stdout).trim(), "v99.0.0");
     });
 }
 

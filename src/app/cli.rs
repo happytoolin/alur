@@ -11,6 +11,7 @@ use crate::app::{
     init::SUPPORTED_SHELL_NAMES,
 };
 use crate::core::types::{HelpTopic, InvocationKind};
+use crate::features::node_shim;
 
 const ALUR_AFTER_HELP: &str = "Quick examples:\n\
 \n\
@@ -63,7 +64,7 @@ pub enum ParsedCommand {
     },
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 #[allow(clippy::struct_excessive_bools)]
 struct SharedFlags {
     cwd: Vec<PathBuf>,
@@ -142,7 +143,7 @@ struct ClapSharedFlags {
         help = "run as if in <dir>"
     )]
     cwd: Vec<PathBuf>,
-    #[arg(short = 'v', long, global = true, help = "show versions")]
+    #[arg(short = 'v', long, global = true, help = "show alur version")]
     version: bool,
     #[arg(short = 'h', long, global = true, help = "show help")]
     help: bool,
@@ -280,7 +281,7 @@ pub fn parse_from_env() -> Result<ParsedInvocation> {
     };
 
     let invocation = invocation_from_argv0(argv0);
-    let (shared_flags, command_args) = extract_shared_flags(&argv[1..])?;
+    let (shared_flags, command_args) = extract_invocation_flags(invocation, &argv[1..])?;
 
     if invocation == InvocationKind::Alur {
         parse_alur(argv0, &command_args, shared_flags)
@@ -467,6 +468,28 @@ fn normalized_program_name(argv0: &str) -> String {
     name.strip_suffix(".exe").unwrap_or(&name).to_string()
 }
 
+fn extract_invocation_flags(
+    invocation: InvocationKind,
+    args: &[String],
+) -> Result<(SharedFlags, Vec<String>)> {
+    if invocation == InvocationKind::NodeShim {
+        extract_node_shim_shared_flags(args)
+    } else {
+        extract_shared_flags(args)
+    }
+}
+
+fn extract_node_shim_shared_flags(args: &[String]) -> Result<(SharedFlags, Vec<String>)> {
+    if args
+        .first()
+        .is_some_and(|first| node_shim::is_routed_verb(first))
+    {
+        extract_shared_flags(args)
+    } else {
+        Ok((SharedFlags::default(), args.to_vec()))
+    }
+}
+
 fn extract_shared_flags(args: &[String]) -> Result<(SharedFlags, Vec<String>)> {
     let mut flags = SharedFlags {
         cwd: Vec::new(),
@@ -573,7 +596,7 @@ mod tests {
             .first()
             .ok_or_else(|| anyhow!("parse error: missing argv[0]"))?;
         let invocation = invocation_from_argv0(argv0);
-        let (shared_flags, args) = extract_shared_flags(&owned[1..])?;
+        let (shared_flags, args) = extract_invocation_flags(invocation, &owned[1..])?;
 
         if invocation == InvocationKind::Alur {
             parse_alur(argv0, &args, shared_flags)
@@ -668,6 +691,143 @@ mod tests {
         match parsed.command {
             ParsedCommand::PrintHelp(HelpTopic::Nlx) => {}
             _ => panic!("expected nlx help command"),
+        }
+    }
+
+    #[test]
+    fn node_shim_version_flag_is_forwarded_to_node() {
+        let parsed = parse_args(&["node", "--version"]).unwrap();
+
+        match parsed.command {
+            ParsedCommand::Execute { invocation, args } => {
+                assert_eq!(invocation, InvocationKind::NodeShim);
+                assert_eq!(args, vec!["--version"]);
+            }
+            _ => panic!("expected node shim execute command"),
+        }
+    }
+
+    #[test]
+    fn node_shim_help_flag_is_forwarded_to_node() {
+        let parsed = parse_args(&["node", "--help"]).unwrap();
+
+        match parsed.command {
+            ParsedCommand::Execute { invocation, args } => {
+                assert_eq!(invocation, InvocationKind::NodeShim);
+                assert_eq!(args, vec!["--help"]);
+            }
+            _ => panic!("expected node shim execute command"),
+        }
+    }
+
+    #[test]
+    fn node_shim_does_not_consume_alur_like_flags_before_original_node_args() {
+        let parsed = parse_args(&[
+            "node",
+            "--print-command",
+            "--explain",
+            "--fast",
+            "--pm",
+            "-C",
+            "conditions",
+            "script.js",
+        ])
+        .unwrap();
+
+        assert!(!parsed.print_command);
+        assert!(!parsed.explain);
+        assert_eq!(parsed.fast_override, None);
+        assert_eq!(parsed.cwd, env::current_dir().unwrap());
+        match parsed.command {
+            ParsedCommand::Execute { invocation, args } => {
+                assert_eq!(invocation, InvocationKind::NodeShim);
+                assert_eq!(
+                    args,
+                    vec![
+                        "--print-command",
+                        "--explain",
+                        "--fast",
+                        "--pm",
+                        "-C",
+                        "conditions",
+                        "script.js"
+                    ]
+                );
+            }
+            _ => panic!("expected node shim execute command"),
+        }
+    }
+
+    #[test]
+    fn node_shim_preserves_node_builtin_run_flag() {
+        let parsed = parse_args(&["node", "--run", "dev", "--print-command"]).unwrap();
+
+        assert!(!parsed.print_command);
+        match parsed.command {
+            ParsedCommand::Execute { invocation, args } => {
+                assert_eq!(invocation, InvocationKind::NodeShim);
+                assert_eq!(args, vec!["--run", "dev", "--print-command"]);
+            }
+            _ => panic!("expected node shim execute command"),
+        }
+    }
+
+    #[test]
+    fn node_shim_preserves_unknown_first_arg_and_later_alur_flags() {
+        let parsed = parse_args(&["node", "test", "--print-command", "--explain"]).unwrap();
+
+        assert!(!parsed.print_command);
+        assert!(!parsed.explain);
+        match parsed.command {
+            ParsedCommand::Execute { invocation, args } => {
+                assert_eq!(invocation, InvocationKind::NodeShim);
+                assert_eq!(args, vec!["test", "--print-command", "--explain"]);
+            }
+            _ => panic!("expected node shim execute command"),
+        }
+    }
+
+    #[test]
+    fn node_shim_consumes_alur_flags_after_alias_verb() {
+        let parsed = parse_args(&["node", "remove", "--print-command", "lodash"]).unwrap();
+
+        assert!(parsed.print_command);
+        match parsed.command {
+            ParsedCommand::Execute { invocation, args } => {
+                assert_eq!(invocation, InvocationKind::NodeShim);
+                assert_eq!(args, vec!["remove", "lodash"]);
+            }
+            _ => panic!("expected node shim execute command"),
+        }
+    }
+
+    #[test]
+    fn node_shim_consumes_alur_flags_after_routed_verb() {
+        let parsed =
+            parse_args(&["node", "run", "-Ctmp", "--pm", "--print-command", "dev"]).unwrap();
+
+        assert!(parsed.print_command);
+        assert_eq!(parsed.fast_override, Some(false));
+        assert_eq!(parsed.cwd, env::current_dir().unwrap().join("tmp"));
+        match parsed.command {
+            ParsedCommand::Execute { invocation, args } => {
+                assert_eq!(invocation, InvocationKind::NodeShim);
+                assert_eq!(args, vec!["run", "dev"]);
+            }
+            _ => panic!("expected node shim execute command"),
+        }
+    }
+
+    #[test]
+    fn node_shim_preserves_double_dash_for_original_node() {
+        let parsed = parse_args(&["node", "--", "--version"]).unwrap();
+
+        match parsed.command {
+            ParsedCommand::Execute { invocation, args } => {
+                assert_eq!(invocation, InvocationKind::NodeShim);
+                assert_eq!(args, vec!["--", "--version"]);
+            }
+            _ => panic!("expected node shim execute command"),
         }
     }
 }

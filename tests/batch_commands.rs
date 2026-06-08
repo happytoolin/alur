@@ -81,9 +81,9 @@ fn print_command_does_not_execute_np_or_node_p() {
             &bin_dir,
             "node",
             vec![
+                "p",
                 "-C",
                 cwd.to_str().unwrap(),
-                "p",
                 &cmd_node,
                 "--print-command",
             ],
@@ -123,7 +123,7 @@ fn node_parallel_and_sequential_without_commands_succeed() {
         let node_p_output = run_alias_output(
             &bin_dir,
             "node",
-            vec!["-C", cwd.to_str().unwrap(), "p"],
+            vec!["p", "-C", cwd.to_str().unwrap()],
             &[],
         );
         assert!(node_p_output.status.success());
@@ -131,7 +131,7 @@ fn node_parallel_and_sequential_without_commands_succeed() {
         let node_s_output = run_alias_output(
             &bin_dir,
             "node",
-            vec!["-C", cwd.to_str().unwrap(), "s"],
+            vec!["s", "-C", cwd.to_str().unwrap()],
             &[],
         );
         assert!(node_s_output.status.success());

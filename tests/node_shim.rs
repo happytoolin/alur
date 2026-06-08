@@ -33,7 +33,7 @@ fn passthroughs_unknown_verb() {
 fn passthroughs_with_double_dash() {
     let (mode, args) = node_shim::decide(&["--".into(), "-v".into()]);
     assert!(matches!(mode, NodeShimMode::PassthroughNode));
-    assert_eq!(args, vec!["-v"]);
+    assert_eq!(args, vec!["--", "-v"]);
 }
 
 #[test]
@@ -55,4 +55,32 @@ fn passthroughs_flag_first_invocation() {
     let (mode, args) = node_shim::decide(&["-p".into(), "1+1".into()]);
     assert!(matches!(mode, NodeShimMode::PassthroughNode));
     assert_eq!(args, vec!["-p", "1+1"]);
+}
+
+#[test]
+fn passthroughs_node_builtin_run_flag() {
+    let (mode, args) = node_shim::decide(&["--run".into(), "dev".into()]);
+    assert!(matches!(mode, NodeShimMode::PassthroughNode));
+    assert_eq!(args, vec!["--run", "dev"]);
+}
+
+#[test]
+fn routes_install_aliases() {
+    for verb in ["i", "add"] {
+        let (mode, args) = node_shim::decide(&[verb.into(), "vite".into()]);
+        assert!(matches!(
+            mode,
+            NodeShimMode::RouteToIntent(Intent::Install | Intent::Add)
+        ));
+        assert_eq!(args, vec!["vite"]);
+    }
+}
+
+#[test]
+fn routes_exec_aliases() {
+    for verb in ["x", "dlx"] {
+        let (mode, args) = node_shim::decide(&[verb.into(), "vitest".into()]);
+        assert!(matches!(mode, NodeShimMode::RouteToIntent(Intent::Execute)));
+        assert_eq!(args, vec!["vitest"]);
+    }
 }

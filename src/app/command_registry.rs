@@ -128,20 +128,25 @@ const COMMAND_SPECS: &[CommandSpec] = &[
         invocation: InvocationKind::NodeShim,
         help_topic: HelpTopic::Node,
         about: "package-manager-aware node shim",
-        long_about: "Interprets npm-like verbs and routes them through alur command resolution.\n\
-                     Non-routed invocations pass through to the real Node.js binary.",
+        long_about: "Interprets known alur shim verbs and aliases, then routes them through alur command resolution.\n\
+                     Every other invocation passes through to the real Node.js binary without argument parsing.",
         examples: "Passthrough examples:\n\
                      \n\
                      node script.js\n\
                      node -v\n\
+                     node --run dev\n\
                      node -- --trace-warnings\n\
                      \n\
                      Routed examples:\n\
                      \n\
                      node install vite\n\
+                     node add react\n\
                      node uninstall lodash\n\
+                     node remove lodash\n\
                      node run dev -- --port=3000\n\
+                     node x eslint .\n\
                      node p \"echo one\" \"echo two\"\n\
+                     node s \"echo one\" \"echo two\"\n\
                      \n\
                      Routed verbs: p, s, install|i, add, uninstall|remove, run, exec|x|dlx, ci",
         handler: node_shim::handle,

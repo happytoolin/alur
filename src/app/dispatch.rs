@@ -14,9 +14,9 @@ use crate::{
     },
     core::{
         config::AlurConfig,
-        resolve::ResolveContext,
+        resolve::{ResolveContext, resolve_node_passthrough},
         runner,
-        types::{ExecutionMode, InvocationKind, ResolvedExecution},
+        types::{ExecutionMode, InvocationKind, NodeShimMode, ResolvedExecution},
     },
     platform::node::resolve_real_node_path,
 };
@@ -50,8 +50,7 @@ pub fn run_from_env() -> Result<ExitCode> {
             Ok(ExitCode::SUCCESS)
         }
         ParsedCommand::PrintVersions => {
-            let resolve_ctx = resolve_context(&parsed, false)?;
-            print_versions(&resolve_ctx);
+            print_versions();
             Ok(ExitCode::SUCCESS)
         }
         ParsedCommand::Doctor => {
@@ -70,6 +69,14 @@ pub fn run_from_env() -> Result<ExitCode> {
             Ok(ExitCode::SUCCESS)
         }
         ParsedCommand::Execute { invocation, args } => {
+            if invocation == InvocationKind::NodeShim {
+                let (mode, routed_args) = crate::features::node_shim::decide(&args);
+                if matches!(mode, NodeShimMode::PassthroughNode) {
+                    let resolved = resolve_node_passthrough(routed_args, &parsed.cwd);
+                    return runner::run(&resolved).context("execution error");
+                }
+            }
+
             let verify_package_manager_availability = !parsed.print_command && !parsed.explain;
             let resolve_ctx = resolve_context(&parsed, verify_package_manager_availability)?;
             let resolved = dispatch_invocation(invocation, args, &resolve_ctx)?;
