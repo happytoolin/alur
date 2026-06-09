@@ -211,11 +211,11 @@ fn node_run_uses_native_fast_path() {
         let run_output = support::run_alur_as(
             "node",
             vec![
+                "run",
                 "-C",
                 project.to_str().unwrap(),
                 "--fast",
                 "--print-command",
-                "run",
                 "dev",
             ],
             &[("ALUR_SKIP_PM_CHECK", "1")],
@@ -244,11 +244,11 @@ fn node_run_uses_native_fast_path_with_hooks() {
         let run_output = support::run_alur_as(
             "node",
             vec![
+                "run",
                 "-C",
                 project.to_str().unwrap(),
                 "--fast",
                 "--print-command",
-                "run",
                 "dev",
             ],
             &[("ALUR_SKIP_PM_CHECK", "1")],
@@ -277,11 +277,11 @@ fn node_run_uses_native_fast_path_with_lifecycle_env() {
         let run_output = support::run_alur_as(
             "node",
             vec![
+                "run",
                 "-C",
                 project.to_str().unwrap(),
                 "--fast",
                 "--print-command",
-                "run",
                 "dev",
             ],
             &[("ALUR_SKIP_PM_CHECK", "1")],
@@ -351,11 +351,11 @@ fn node_exec_inherits_native_resolution() {
         let exec_output = support::run_alur_as(
             "node",
             vec![
+                "exec",
                 "-C",
                 project.to_str().unwrap(),
                 "--fast",
                 "--print-command",
-                "exec",
                 "hello",
                 "world",
             ],

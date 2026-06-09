@@ -300,7 +300,7 @@ fn alur_pre_execution_commands_are_available() {
         let version = run_alur(vec!["--version"], &[("ALUR_SKIP_PM_CHECK", "1")]);
         assert!(version.status.success());
         let version_out = String::from_utf8_lossy(&version.stdout);
-        assert!(version_out.contains("alur       v"));
+        assert!(version_out.contains("alur v"));
 
         let init_home = work.path().join("init-home");
         let init_data = work.path().join("init-data");

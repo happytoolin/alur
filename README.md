@@ -284,6 +284,8 @@ After init, these work:
 node install
 node install vite
 node add react
+node uninstall lodash
+node remove lodash
 node run dev
 node exec vitest
 node x eslint .
@@ -294,7 +296,7 @@ node s "pnpm lint" "pnpm test"
 
 That gives Node a Bun-like command surface, while still using your project's real package manager.
 
-The shim only routes known npm-like verbs:
+The shim routes known alur shim verbs and aliases:
 
 | `node` input                      | Routes to                 |
 | --------------------------------- | ------------------------- |
@@ -312,6 +314,7 @@ Everything else passes through to the real Node.js binary:
 ```bash
 node script.js
 node -v
+node --run dev
 node --watch server.js
 node -- --trace-warnings
 ```
@@ -407,6 +410,15 @@ These work across `alur`, the `ni` aliases, and routed `node` shim commands:
 -C <dir>
 -v --version
 -h --help
+```
+
+For the `node` shim, alur only parses these flags after a routed verb. Normal
+Node.js flags and non-routed first arguments are passed through untouched:
+
+```bash
+node run --pm dev --print-command
+node --run dev --print-command
+node --conditions=dev script.js
 ```
 
 Use `--` to forward flags to the underlying package manager or script:

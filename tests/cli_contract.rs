@@ -48,7 +48,7 @@ fn help_and_version_contracts_are_alur_first() {
         );
         assert!(version.status.success());
         let version_out = String::from_utf8_lossy(&version.stdout);
-        assert!(version_out.contains("alur       v"));
+        assert!(version_out.contains("alur v"));
     });
 }
 

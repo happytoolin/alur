@@ -124,10 +124,10 @@ fn multicall_aliases_resolve_expected_commands() {
             &bin_dir,
             "node",
             vec![
+                "run",
                 "-C",
                 npm_proj.to_str().unwrap(),
                 "--pm",
-                "run",
                 "dev",
                 "--print-command",
             ],
@@ -139,9 +139,9 @@ fn multicall_aliases_resolve_expected_commands() {
             &bin_dir,
             "node",
             vec![
+                "remove",
                 "-C",
                 npm_proj.to_str().unwrap(),
-                "remove",
                 "lodash",
                 "--print-command",
             ],
@@ -256,9 +256,9 @@ fn multicall_aliases_resolve_expected_commands() {
             &bin_dir,
             "node",
             vec![
+                "p",
                 "-C",
                 npm_proj.to_str().unwrap(),
-                "p",
                 "echo one",
                 "echo two",
                 "--print-command",
@@ -274,9 +274,9 @@ fn multicall_aliases_resolve_expected_commands() {
             &bin_dir,
             "node",
             vec![
+                "s",
                 "-C",
                 npm_proj.to_str().unwrap(),
-                "s",
                 "echo one",
                 "echo two",
                 "--print-command",
@@ -288,19 +288,7 @@ fn multicall_aliases_resolve_expected_commands() {
             "alur batch:sequential \"echo one\" \"echo two\""
         );
 
-        let fake_node = work.path().join(if cfg!(windows) {
-            "real-node.exe"
-        } else {
-            "real-node"
-        });
-        fs::write(&fake_node, "#!/bin/sh\nexit 0\n").unwrap();
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            let mut perms = fs::metadata(&fake_node).unwrap().permissions();
-            perms.set_mode(0o755);
-            fs::set_permissions(&fake_node, perms).unwrap();
-        }
+        let fake_node = write_fake_real_node(work.path());
 
         let passthrough_out = run_alias(
             &bin_dir,
@@ -309,8 +297,8 @@ fn multicall_aliases_resolve_expected_commands() {
             &[("ALUR_REAL_NODE", fake_node.to_str().unwrap())],
         );
         let output = passthrough_out.trim();
-        assert!(output.contains(fake_node.to_string_lossy().as_ref()));
         assert!(output.contains("script.js"));
+        assert!(output.contains("--print-command"));
 
         let node_flag_out = run_alias(
             &bin_dir,
@@ -319,9 +307,19 @@ fn multicall_aliases_resolve_expected_commands() {
             &[("ALUR_REAL_NODE", fake_node.to_str().unwrap())],
         );
         let output = node_flag_out.trim();
-        assert!(output.contains(fake_node.to_string_lossy().as_ref()));
         assert!(output.contains("-p"));
         assert!(output.contains("1+1"));
+        assert!(output.contains("--print-command"));
+
+        let node_version_out = run_alias(
+            &bin_dir,
+            "node",
+            vec!["--version", "--print-command"],
+            &[("ALUR_REAL_NODE", fake_node.to_str().unwrap())],
+        );
+        let output = node_version_out.trim();
+        assert!(output.contains("--version"));
+        assert!(output.contains("--print-command"));
     });
 }
 
@@ -359,6 +357,29 @@ fn run_alias(bin_dir: &Path, alias: &str, args: Vec<&str>, extra_env: &[(&str, &
     );
 
     String::from_utf8_lossy(&output.stdout).to_string()
+}
+
+fn write_fake_real_node(dir: &Path) -> PathBuf {
+    #[cfg(windows)]
+    {
+        let path = dir.join("real-node.cmd");
+        fs::write(&path, "@echo off\r\n:loop\r\nif \"%~1\"==\"\" exit /b 0\r\necho %~1\r\nshift\r\ngoto loop\r\n")
+            .unwrap();
+        path
+    }
+
+    #[cfg(unix)]
+    {
+        let path = dir.join("real-node");
+        fs::write(&path, "#!/bin/sh\nprintf '%s\\n' \"$@\"\n").unwrap();
+
+        use std::os::unix::fs::PermissionsExt;
+        let mut perms = fs::metadata(&path).unwrap().permissions();
+        perms.set_mode(0o755);
+        fs::set_permissions(&path, perms).unwrap();
+
+        path
+    }
 }
 
 fn create_alias(target: &Path, dir: &Path, alias: &str) {

@@ -89,7 +89,7 @@ fn with_global_flags(cmd: Command) -> Command {
             Arg::new("version")
                 .short('v')
                 .long("version")
-                .help("show versions")
+                .help("show alur version")
                 .action(ArgAction::SetTrue),
         )
         .arg(
