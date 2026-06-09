@@ -275,9 +275,16 @@ jobs:
           RELEASE_COMMIT: "${{ github.sha }}"
         run: |
           # Write and read notes from a file to avoid quoting breaking things
-          printf "%s" "$ANNOUNCEMENT_BODY" \
-            | sed "s/npm install alur@/npm install @happytoolin\\/alur@/g" \
-            > $RUNNER_TEMP/notes.txt
+          printf "%s" "$ANNOUNCEMENT_BODY" > "$RUNNER_TEMP/notes.txt"
+
+          VERSION="${{ needs.plan.outputs.tag }}"
+          VERSION="${VERSION#v}"
+          export VERSION
+
+          perl -0pi -e 's#Install prebuilt binaries via shell script\n```sh\n.*?\n```#Install prebuilt binaries via shell script\n```sh\ncurl -fsSL https://bin.happytoolin.com/alur | sh\n```#s' "$RUNNER_TEMP/notes.txt"
+          perl -0pi -e 's#Install prebuilt binaries via powershell script\n```sh\n.*?\n```#Install prebuilt binaries via powershell script\n```powershell\nirm https://bin.happytoolin.com/alur.ps1 | iex\n```#s' "$RUNNER_TEMP/notes.txt"
+          perl -0pi -e 'my $v = $ENV{"VERSION"}; s#npm install alur\@\Q$v\E#npm install -g \@happytoolin/alur\@$v#g' "$RUNNER_TEMP/notes.txt"
+          perl -0pi -e 'my $v = $ENV{"VERSION"}; s#Install prebuilt binaries into your npm project\n```sh\nnpm install -g \@happytoolin/alur\@\Q$v\E\n```#Install prebuilt binaries globally via npm\n```sh\nnpm install -g \@happytoolin/alur\@$v\n```\n\nInstall globally from JSR\n```sh\ndeno install --global -A -n alur jsr:\@happytoolin/alur\@$v/alur\n```#s' "$RUNNER_TEMP/notes.txt"
 
           gh release create "${{ needs.plan.outputs.tag }}" --target "$RELEASE_COMMIT" $PRERELEASE_FLAG --title "$ANNOUNCEMENT_TITLE" --notes-file "$RUNNER_TEMP/notes.txt" artifacts/*
 

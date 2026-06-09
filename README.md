@@ -50,6 +50,13 @@ npm install -g @happytoolin/alur
 alur --version
 ```
 
+Or install globally from JSR with Deno:
+
+```bash
+deno install --global -A -n alur jsr:@happytoolin/alur/alur
+alur --version
+```
+
 Use the short commands:
 
 ```bash
@@ -100,6 +107,13 @@ brew install alur
 alur --version
 ```
 
+### JSR
+
+```bash
+deno install --global -A -n alur jsr:@happytoolin/alur/alur
+alur --version
+```
+
 ### Script Install
 
 macOS / Linux:
@@ -129,13 +143,13 @@ curl --proto '=https' --tlsv1.2 -LsSf https://github.com/happytoolin/alur/releas
 Pin a specific version:
 
 ```bash
-curl --proto '=https' --tlsv1.2 -LsSf https://github.com/happytoolin/alur/releases/download/v0.0.4/alur-installer.sh | sh
+curl --proto '=https' --tlsv1.2 -LsSf https://github.com/happytoolin/alur/releases/download/v0.0.5/alur-installer.sh | sh
 ```
 
 CI example:
 
 ```bash
-curl --proto '=https' --tlsv1.2 -LsSf https://github.com/happytoolin/alur/releases/download/v0.0.4/alur-installer.sh | sh
+curl --proto '=https' --tlsv1.2 -LsSf https://github.com/happytoolin/alur/releases/download/v0.0.5/alur-installer.sh | sh
 echo 'export PATH="$HOME/.cargo/bin:$PATH"' >> "$GITHUB_ENV"
 ```
 
