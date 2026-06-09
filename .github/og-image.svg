@@ -3,7 +3,7 @@
   <desc id="desc">alur provides fast package manager routing across npm, yarn, pnpm, bun, and deno.</desc>
 
   <defs>
-    <filter id="panelShadow" x="52" y="472" width="517" height="126" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+    <filter id="panelShadow" x="46" y="472" width="760" height="126" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
       <feDropShadow dx="0" dy="18" stdDeviation="16" flood-color="#050604" flood-opacity="0.42"/>
     </filter>
 
@@ -28,7 +28,7 @@
   </g>
 
   <g filter="url(#panelShadow)">
-    <rect x="82" y="504" width="428" height="68" rx="17" fill="#0B0D0D"/>
+    <rect x="76" y="504" width="660" height="68" rx="17" fill="#0B0D0D"/>
   </g>
   <g class="mono">
     <text x="112" y="547" fill="#E9BD6D" font-size="27" font-weight="800">$</text>
