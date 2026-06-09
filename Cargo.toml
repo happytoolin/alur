@@ -1,6 +1,6 @@
 [package]
 name = "alur"
-version = "0.0.3"
+version = "0.0.4"
 authors = ["Spark <helllo@kamran.sh>"]
 categories = ["command-line-utilities", "development-tools"]
 edition = "2024"
