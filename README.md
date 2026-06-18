@@ -62,7 +62,7 @@ Use the short commands:
 ```bash
 ni vite              # add vite with the detected package manager
 nr dev               # run the dev script, using fast mode when safe
-nlx eslint .         # run a local bin directly when possible
+nex eslint .         # run a local bin directly when possible
 nci                  # clean install from the lockfile
 ```
 
@@ -93,7 +93,7 @@ npm install -g @happytoolin/alur
 alur --version
 ```
 
-The npm package installs `alur` plus the multicall aliases: `ni`, `nr`, `nlx`, `nun`, `nci`, `np`, and `ns`.
+The npm package installs `alur` plus the multicall aliases: `ni`, `nr`, `nex`, `nrm`, `nci`, `npar`, and `nseq`.
 
 The `node` shim is not enabled by npm install. It is always opt-in through `alur init <shell>`.
 
@@ -157,14 +157,14 @@ Use `releases/latest/download` to follow the latest release. Use a versioned rel
 
 ## Feature 1: Fast Mode
 
-Fast mode is the default for eligible `nr`, `alur run`, `nlx`, `alur exec`, and matching `node` shim commands.
+Fast mode is the default for eligible `nr`, `alur run`, `nex`, `alur exec`, and matching `node` shim commands.
 
 Instead of starting `npm run`, `pnpm exec`, or another package-manager CLI, `alur` resolves the script or local executable itself and launches it directly.
 
 ```bash
 nr dev
 alur run test -- --watch
-nlx eslint .
+nex eslint .
 node run dev
 node exec vitest
 ```
@@ -186,7 +186,7 @@ Control it per command:
 ```bash
 nr --fast dev        # prefer fast mode
 nr --pm dev          # force package-manager mode
-nlx --pm create-vite@latest
+nex --pm create-vite@latest
 node run --pm dev
 ```
 
@@ -198,7 +198,7 @@ nr dev --explain
 alur doctor
 ```
 
-Latest tracked fast benchmark snapshot: fast mode averaged `4.59x` faster than package-manager mode, with local-bin exec cases like `nlx hello --flag` reaching `47.43x`.
+Latest tracked fast benchmark snapshot: fast mode averaged `4.59x` faster than package-manager mode, with local-bin exec cases like `nex hello --flag` reaching `47.43x`.
 
 See [`benchmark/LATEST.md`](benchmark/LATEST.md) for the current snapshot and [`docs/fast-compat.md`](docs/fast-compat.md) for the exact compatibility rules.
 
@@ -210,11 +210,11 @@ Use one command vocabulary and let `alur` pick the right package manager from th
 | ------------------------------------ | ------------- | ----------------- |
 | Install dependencies or add packages | `ni`          | `alur install`    |
 | Run scripts                          | `nr`          | `alur run`        |
-| Execute package binaries             | `nlx`         | `alur exec`       |
-| Uninstall packages                   | `nun`         | `alur uninstall`  |
+| Execute package binaries             | `nex`         | `alur exec`       |
+| Uninstall packages                   | `nrm`         | `alur uninstall`  |
 | Clean install                        | `nci`         | `alur ci`         |
-| Run shell commands in parallel       | `np`          | `alur parallel`   |
-| Run shell commands sequentially      | `ns`          | `alur sequential` |
+| Run shell commands in parallel       | `npar`        | `alur parallel`   |
+| Run shell commands sequentially      | `nseq`        | `alur sequential` |
 
 ### Install / Add
 
@@ -258,22 +258,22 @@ In fast mode, `nr` can skip the package manager and run the script directly. Use
 
 ### Execute Binaries
 
-`nlx` runs package binaries.
+`nex` runs package binaries.
 
 ```bash
-nlx vitest
-nlx eslint .
-nlx create-vite@latest
+nex vitest
+nex eslint .
+nex create-vite@latest
 ```
 
-When a local executable can be resolved confidently, `nlx` runs it directly. Remote or ambiguous cases fall back to the detected package manager.
+When a local executable can be resolved confidently, `nex` runs it directly. Remote or ambiguous cases fall back to the detected package manager.
 
 ### Uninstall / Clean Install
 
 ```bash
-nun lodash
-nun react react-dom
-nun -g typescript
+nrm lodash
+nrm react react-dom
+nrm -g typescript
 
 nci
 nci --prefer-offline
@@ -286,11 +286,11 @@ nci --prefer-offline
 Each argument is a separate shell command.
 
 ```bash
-np "pnpm dev" "pnpm test"
-ns "pnpm lint" "pnpm test"
+npar "pnpm dev" "pnpm test"
+nseq "pnpm lint" "pnpm test"
 ```
 
-`np` runs all commands concurrently and returns the first non-zero exit code. `ns` runs commands in order and stops on the first failure.
+`npar` runs all commands concurrently and returns the first non-zero exit code. `nseq` runs commands in order and stops on the first failure.
 
 ## Feature 3: Node Shim
 
@@ -488,7 +488,7 @@ Use `--pm` for Yarn PnP projects, Deno workspaces, package-manager-specific env 
 
 ```bash
 nr --pm build
-nlx --pm create-vite@latest
+nex --pm create-vite@latest
 node run --pm dev
 ```
 

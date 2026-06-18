@@ -1,13 +1,5 @@
 import type { CSSProperties, ReactNode } from "react";
-import {
-  AbsoluteFill,
-  Easing,
-  interpolate,
-  Sequence,
-  spring,
-  useCurrentFrame,
-  useVideoConfig,
-} from "remotion";
+import { AbsoluteFill, Easing, interpolate, Sequence, spring, useCurrentFrame, useVideoConfig } from "remotion";
 
 type Accent = keyof typeof colors;
 type Visual = "confusion" | "featureLaunch" | "fastDelegate" | "nodePassthrough";
@@ -48,8 +40,7 @@ const colors = {
 };
 
 const mono: CSSProperties = {
-  fontFamily:
-    '"SFMono-Regular", "Cascadia Code", "Liberation Mono", Menlo, Consolas, monospace',
+  fontFamily: "\"SFMono-Regular\", \"Cascadia Code\", \"Liberation Mono\", Menlo, Consolas, monospace",
 };
 
 type CodeToken = {
@@ -59,7 +50,7 @@ type CodeToken = {
 
 const full: CSSProperties = {
   fontFamily:
-    '"SF Pro Display", "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+    "\"SF Pro Display\", \"Inter\", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
   color: colors.paper,
   backgroundColor: colors.ink,
 };
@@ -74,8 +65,7 @@ const clamp = {
 const appear = (frame: number, start: number, duration = 26) =>
   interpolate(frame, [start, start + duration], [0, 1], clamp);
 
-const rise = (frame: number, start: number, amount = 24) =>
-  interpolate(frame, [start, start + 26], [amount, 0], clamp);
+const rise = (frame: number, start: number, amount = 24) => interpolate(frame, [start, start + 26], [amount, 0], clamp);
 
 const stringTokens = (text: string): CodeToken[] => {
   const tokens: CodeToken[] = [];
@@ -140,7 +130,7 @@ export const videos: VideoSpec[] = [
     kicker: "one command everywhere",
     headline: "One vocabulary. Two ways in.",
     subhead:
-      "Use ni, nr, and nlx across package managers. Turn on the optional Node shim when you want node install too.",
+      "Use ni, nr, and nex across package managers. Turn on the optional Node shim when you want node install too.",
     footer: "same commands across npm, pnpm, yarn, bun, and deno",
     durationInFrames: 480,
     visual: "confusion",
@@ -158,13 +148,13 @@ export const videos: VideoSpec[] = [
     headline: "One CLI. Every package manager.",
     subhead:
       "Switch projects without switching muscle memory: install, run, exec, clean install, uninstall, parallel, sequential.",
-    footer: "ni | nr | nlx | nci | nun | np | ns",
+    footer: "ni | nr | nex | nci | nrm | npar | nseq",
     durationInFrames: 1110,
     visual: "featureLaunch",
     thumbnail: {
       title: "Every package manager. One CLI.",
       subtitle: "Install, run, exec, clean install, parallel, sequential",
-      chips: ["ni", "nr", "nlx", "nci", "nun", "np", "ns"],
+      chips: ["ni", "nr", "nex", "nci", "nrm", "npar", "nseq"],
       accent: "yellow",
     },
   },
@@ -181,7 +171,7 @@ export const videos: VideoSpec[] = [
     thumbnail: {
       title: "Introducing fast mode",
       subtitle: "Faster when safe. Compatible when needed.",
-      chips: ["nr --fast", "nlx", "node run"],
+      chips: ["nr --fast", "nex", "node run"],
       accent: "green",
     },
   },
@@ -190,8 +180,7 @@ export const videos: VideoSpec[] = [
     part: "04/04",
     kicker: "node stays node",
     headline: "Use node install. Keep Node intact.",
-    subhead:
-      "Package commands become easier. Regular Node commands keep working exactly like before.",
+    subhead: "Package commands become easier. Regular Node commands keep working exactly like before.",
     footer: "alur.happytoolin.com",
     durationInFrames: 420,
     visual: "nodePassthrough",
@@ -219,8 +208,7 @@ export const ThreadVideo = ({ spec }: ThreadVideoProps) => {
         style={{
           position: "absolute",
           inset: 0,
-          background:
-            "linear-gradient(135deg, #111111 0%, #17130f 48%, #101419 100%)",
+          background: "linear-gradient(135deg, #111111 0%, #17130f 48%, #101419 100%)",
         }}
       />
       <div
@@ -789,7 +777,9 @@ const LaunchScene = ({
         position: "absolute",
         inset: "76px 58px 82px",
         opacity: progress,
-        transform: `scale(${interpolate(progress, [0, 1], [0.95, 1])}) translateY(${interpolate(progress, [0, 1], [26, 0])}px)`,
+        transform: `scale(${interpolate(progress, [0, 1], [0.95, 1])}) translateY(${
+          interpolate(progress, [0, 1], [26, 0])
+        }px)`,
       }}
     >
       {children}
@@ -856,7 +846,7 @@ const TerminalInstallScene = () => {
   const typed = command.slice(0, Math.min(command.length, Math.floor(frame / 1.25)));
   const output = [
     "ready for every repo",
-    "commands: ni nr nlx nci nun np ns",
+    "commands: ni nr nex nci nrm npar nseq",
     "works with npm, pnpm@11, yarn, bun, deno",
     "optional: node install, node run, node exec",
   ];
@@ -873,7 +863,10 @@ const TerminalInstallScene = () => {
         }}
       >
         <div style={{ ...mono, fontSize: 22, lineHeight: 1.45 }}>
-          <div style={{ color: colors.green }}>$ {typed}<span style={{ color: colors.paper }}>_</span></div>
+          <div style={{ color: colors.green }}>
+            $ {typed}
+            <span style={{ color: colors.paper }}>_</span>
+          </div>
           <div style={{ marginTop: 26, color: colors.yellow, fontSize: 34, fontWeight: 800 }}>
             ALUR
           </div>
@@ -891,7 +884,10 @@ const TerminalInstallScene = () => {
             ))}
           </div>
         </div>
-        <LaunchBadge title="Stop switching tools" lines={["type one command", "keep each project's choice", "use Node-style package commands"]} />
+        <LaunchBadge
+          title="Stop switching tools"
+          lines={["type one command", "keep each project's choice", "use Node-style package commands"]}
+        />
       </div>
     </AppWindow>
   );
@@ -962,11 +958,11 @@ const CommandCatalogScene = () => {
   const commands = [
     ["ni", "install packages", "ni vite", "add dependencies", "green"],
     ["nr", "run scripts", "nr dev", "start dev", "cyan"],
-    ["nlx", "run tools", "nlx vitest", "project CLIs", "violet"],
+    ["nex", "run tools", "nex vitest", "project CLIs", "violet"],
     ["nci", "clean install", "nci", "fresh install", "yellow"],
-    ["nun", "remove packages", "nun lodash", "remove dependency", "red"],
-    ["np", "parallel tasks", 'np "lint" "test"', "together", "green"],
-    ["ns", "ordered tasks", 'ns "clean" "build"', "in order", "cyan"],
+    ["nrm", "remove packages", "nrm lodash", "remove dependency", "red"],
+    ["npar", "parallel tasks", "npar \"lint\" \"test\"", "together", "green"],
+    ["nseq", "ordered tasks", "nseq \"clean\" \"build\"", "in order", "cyan"],
     ["node", "optional shim", "node install vite", "Node-style commands", "yellow"],
   ] as const;
 
@@ -1005,7 +1001,7 @@ const ParallelSequentialScene = () => {
   return (
     <AppWindow title="run tasks your way">
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 26, height: "100%" }}>
-        <LaunchPanel title='np "lint" "test" "build"' accent="green">
+        <LaunchPanel title='npar "lint" "test" "build"' accent="green">
           <div style={{ display: "grid", gap: 18, marginTop: 22 }}>
             {parallel.map((task, index) => (
               <TaskBar key={task} label={task} progressFrame={frame - index * 6} accent="green" />
@@ -1013,7 +1009,7 @@ const ParallelSequentialScene = () => {
           </div>
           <div style={{ color: colors.muted, marginTop: 26, fontSize: 16 }}>Parallel jobs start together.</div>
         </LaunchPanel>
-        <LaunchPanel title='ns "clean" "build" "deploy"' accent="yellow">
+        <LaunchPanel title='nseq "clean" "build" "deploy"' accent="yellow">
           <div style={{ display: "grid", gap: 18, marginTop: 22 }}>
             {sequential.map((task, index) => (
               <TaskBar key={task} label={task} progressFrame={frame - index * 38} accent="yellow" />
@@ -1192,7 +1188,9 @@ const TaskBar = ({
     <div style={{ ...mono }}>
       <div style={{ display: "flex", justifyContent: "space-between", color: colors.paper, fontSize: 16 }}>
         <span>{label}</span>
-        <span style={{ color: progress >= 1 ? colors[accent] : colors.muted }}>{progress >= 1 ? "done" : "running"}</span>
+        <span style={{ color: progress >= 1 ? colors[accent] : colors.muted }}>
+          {progress >= 1 ? "done" : "running"}
+        </span>
       </div>
       <div style={{ height: 8, marginTop: 8, backgroundColor: colors.line }}>
         <div style={{ width: `${progress * 100}%`, height: "100%", backgroundColor: colors[accent] }} />
@@ -1271,7 +1269,7 @@ const FastDelegateVisual = () => {
           title="same commands"
           accent="green"
           language="shell"
-          lines={["$ nr --fast dev", "$ nlx vitest", "$ node run dev"]}
+          lines={["$ nr --fast dev", "$ nex vitest", "$ node run dev"]}
         />
       </div>
     </>
@@ -1390,8 +1388,13 @@ const CodeZoom = ({
   const frame = useCurrentFrame();
   const scale = interpolate(frame % 120, [0, 60, 120], [1, 1.025, 1], clamp);
   const longestLine = Math.max(...lines.map((line) => line.length), title.length);
-  const fontSize =
-    lines.length > 4 ? (longestLine > 42 ? 10 : longestLine > 34 ? 12 : 13) : longestLine > 38 ? 11 : longestLine > 30 ? 12 : 13;
+  const fontSize = lines.length > 4
+    ? (longestLine > 42 ? 10 : longestLine > 34 ? 12 : 13)
+    : longestLine > 38
+    ? 11
+    : longestLine > 30
+    ? 12
+    : 13;
 
   return (
     <div
@@ -1423,19 +1426,21 @@ const CodeZoom = ({
         >
           {title}
         </span>
-        {note ? (
-          <div
-            style={{
-              color: colors.muted,
-              fontSize: 10,
-              marginTop: 3,
-              whiteSpace: "nowrap",
-              ...mono,
-            }}
-          >
-            {note}
-          </div>
-        ) : null}
+        {note
+          ? (
+            <div
+              style={{
+                color: colors.muted,
+                fontSize: 10,
+                marginTop: 3,
+                whiteSpace: "nowrap",
+                ...mono,
+              }}
+            >
+              {note}
+            </div>
+          )
+          : null}
       </div>
       {lines.map((line, lineIndex) => (
         <div

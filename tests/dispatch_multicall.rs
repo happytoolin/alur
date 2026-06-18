@@ -31,11 +31,11 @@ fn multicall_aliases_resolve_expected_commands() {
         }
         create_alias(&exe, &bin_dir, "ni");
         create_alias(&exe, &bin_dir, "nr");
-        create_alias(&exe, &bin_dir, "nlx");
-        create_alias(&exe, &bin_dir, "nun");
+        create_alias(&exe, &bin_dir, "nex");
+        create_alias(&exe, &bin_dir, "nrm");
         create_alias(&exe, &bin_dir, "nci");
-        create_alias(&exe, &bin_dir, "np");
-        create_alias(&exe, &bin_dir, "ns");
+        create_alias(&exe, &bin_dir, "npar");
+        create_alias(&exe, &bin_dir, "nseq");
         create_alias(&exe, &bin_dir, "node");
 
         let ni_out = run_alias(
@@ -149,9 +149,9 @@ fn multicall_aliases_resolve_expected_commands() {
         );
         assert_eq!(node_uninstall_out.trim(), "npm uninstall lodash");
 
-        let nlx_out = run_alias(
+        let nex_out = run_alias(
             &bin_dir,
-            "nlx",
+            "nex",
             vec![
                 "-C",
                 npm_proj.to_str().unwrap(),
@@ -164,14 +164,14 @@ fn multicall_aliases_resolve_expected_commands() {
             &[],
         );
         assert!(
-            nlx_out.trim().contains("npx vitest -- --help"),
-            "unexpected nlx print-command output: {}",
-            nlx_out.trim()
+            nex_out.trim().contains("npx vitest -- --help"),
+            "unexpected nex print-command output: {}",
+            nex_out.trim()
         );
 
-        let nun_out = run_alias(
+        let nrm_out = run_alias(
             &bin_dir,
-            "nun",
+            "nrm",
             vec![
                 "-C",
                 npm_proj.to_str().unwrap(),
@@ -180,11 +180,11 @@ fn multicall_aliases_resolve_expected_commands() {
             ],
             &[],
         );
-        assert_eq!(nun_out.trim(), "npm uninstall lodash");
+        assert_eq!(nrm_out.trim(), "npm uninstall lodash");
 
-        let nun_global_out = run_alias(
+        let nrm_global_out = run_alias(
             &bin_dir,
-            "nun",
+            "nrm",
             vec![
                 "-C",
                 npm_proj.to_str().unwrap(),
@@ -194,11 +194,11 @@ fn multicall_aliases_resolve_expected_commands() {
             ],
             &[("ALUR_GLOBAL_PACKAGE_MANAGER", "yarn")],
         );
-        assert_eq!(nun_global_out.trim(), "yarn global remove typescript");
+        assert_eq!(nrm_global_out.trim(), "yarn global remove typescript");
 
-        let nun_global_long_out = run_alias(
+        let nrm_global_long_out = run_alias(
             &bin_dir,
-            "nun",
+            "nrm",
             vec![
                 "-C",
                 npm_proj.to_str().unwrap(),
@@ -208,7 +208,7 @@ fn multicall_aliases_resolve_expected_commands() {
             ],
             &[("ALUR_GLOBAL_PACKAGE_MANAGER", "pnpm")],
         );
-        assert_eq!(nun_global_long_out.trim(), "pnpm remove -g typescript");
+        assert_eq!(nrm_global_long_out.trim(), "pnpm remove -g typescript");
 
         let nci_out = run_alias(
             &bin_dir,
@@ -218,9 +218,9 @@ fn multicall_aliases_resolve_expected_commands() {
         );
         assert_eq!(nci_out.trim(), "npm ci");
 
-        let np_out = run_alias(
+        let npar_out = run_alias(
             &bin_dir,
-            "np",
+            "npar",
             vec![
                 "-C",
                 npm_proj.to_str().unwrap(),
@@ -231,13 +231,13 @@ fn multicall_aliases_resolve_expected_commands() {
             &[],
         );
         assert_eq!(
-            np_out.trim(),
+            npar_out.trim(),
             "alur batch:parallel \"echo one\" \"echo two\""
         );
 
-        let ns_out = run_alias(
+        let nseq_out = run_alias(
             &bin_dir,
-            "ns",
+            "nseq",
             vec![
                 "-C",
                 npm_proj.to_str().unwrap(),
@@ -248,7 +248,7 @@ fn multicall_aliases_resolve_expected_commands() {
             &[],
         );
         assert_eq!(
-            ns_out.trim(),
+            nseq_out.trim(),
             "alur batch:sequential \"echo one\" \"echo two\""
         );
 

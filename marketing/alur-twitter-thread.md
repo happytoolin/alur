@@ -14,7 +14,7 @@ They are useful as proof, but they make the launch feel internal.
 
 Introducing alur — one command vocabulary for JavaScript projects.
 
-Use `ni`, `nr`, `nlx`, `nci` across npm, pnpm, yarn, bun, and deno.
+Use `ni`, `nr`, `nex`, `nci` across npm, pnpm, yarn, bun, and deno.
 
 And if you like Bun-style ergonomics, turn on the optional Node shim:
 
@@ -30,11 +30,11 @@ alur keeps the project's package manager, but lets your commands stay the same.
 
 `ni vite`
 `nr dev`
-`nlx vitest`
+`nex vitest`
 `nci`
-`nun lodash`
-`np "lint" "test"`
-`ns "clean" "build"`
+`nrm lodash`
+`npar "lint" "test"`
+`nseq "clean" "build"`
 
 npm, yarn, pnpm, bun, deno — picked automatically from the project you're in.
 

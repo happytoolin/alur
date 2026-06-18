@@ -9,8 +9,8 @@ struct ModeCase {
     name: &'static str,
     pm_nr: &'static str,
     fast_nr: &'static str,
-    pm_nlx: &'static str,
-    fast_nlx: &'static str,
+    pm_nex: &'static str,
+    fast_nex: &'static str,
     local_bin: bool,
 }
 
@@ -23,8 +23,8 @@ fn fixture_projects_cover_pm_and_fast_resolution_modes() {
                 name: "npm",
                 pm_nr: "npm run dev",
                 fast_nr: "alur fast:run-script dev",
-                pm_nlx: "npx hello --flag",
-                fast_nlx: "alur fast:run-local-bin hello --flag",
+                pm_nex: "npx hello --flag",
+                fast_nex: "alur fast:run-local-bin hello --flag",
                 local_bin: true,
             },
             ModeCase {
@@ -32,8 +32,8 @@ fn fixture_projects_cover_pm_and_fast_resolution_modes() {
                 name: "npm@11",
                 pm_nr: "npm run dev",
                 fast_nr: "alur fast:run-script dev",
-                pm_nlx: "npx hello --flag",
-                fast_nlx: "alur fast:run-local-bin hello --flag",
+                pm_nex: "npx hello --flag",
+                fast_nex: "alur fast:run-local-bin hello --flag",
                 local_bin: true,
             },
             ModeCase {
@@ -41,8 +41,8 @@ fn fixture_projects_cover_pm_and_fast_resolution_modes() {
                 name: "pnpm@11",
                 pm_nr: "pnpm run dev",
                 fast_nr: "alur fast:run-script dev",
-                pm_nlx: "pnpm dlx hello --flag",
-                fast_nlx: "alur fast:run-local-bin hello --flag",
+                pm_nex: "pnpm dlx hello --flag",
+                fast_nex: "alur fast:run-local-bin hello --flag",
                 local_bin: true,
             },
             ModeCase {
@@ -50,8 +50,8 @@ fn fixture_projects_cover_pm_and_fast_resolution_modes() {
                 name: "pnpm-version-range",
                 pm_nr: "pnpm run dev",
                 fast_nr: "alur fast:run-script dev",
-                pm_nlx: "pnpm dlx hello --flag",
-                fast_nlx: "alur fast:run-local-bin hello --flag",
+                pm_nex: "pnpm dlx hello --flag",
+                fast_nex: "alur fast:run-local-bin hello --flag",
                 local_bin: true,
             },
             ModeCase {
@@ -59,8 +59,8 @@ fn fixture_projects_cover_pm_and_fast_resolution_modes() {
                 name: "yarn@berry",
                 pm_nr: "yarn run dev",
                 fast_nr: "alur fast:run-script dev",
-                pm_nlx: "npx hello --flag",
-                fast_nlx: "alur fast:run-local-bin hello --flag",
+                pm_nex: "npx hello --flag",
+                fast_nex: "alur fast:run-local-bin hello --flag",
                 local_bin: true,
             },
             ModeCase {
@@ -68,8 +68,8 @@ fn fixture_projects_cover_pm_and_fast_resolution_modes() {
                 name: "yarn@berry",
                 pm_nr: "yarn run dev",
                 fast_nr: "alur fast:run-script dev",
-                pm_nlx: "yarn dlx hello --flag",
-                fast_nlx: "alur fast:run-local-bin hello --flag",
+                pm_nex: "yarn dlx hello --flag",
+                fast_nex: "alur fast:run-local-bin hello --flag",
                 local_bin: true,
             },
             ModeCase {
@@ -77,8 +77,8 @@ fn fixture_projects_cover_pm_and_fast_resolution_modes() {
                 name: "yarn@berry_pnp-v3",
                 pm_nr: "yarn run dev",
                 fast_nr: "yarn run dev",
-                pm_nlx: "yarn dlx hello --flag",
-                fast_nlx: "yarn dlx hello --flag",
+                pm_nex: "yarn dlx hello --flag",
+                fast_nex: "yarn dlx hello --flag",
                 local_bin: false,
             },
             ModeCase {
@@ -86,8 +86,8 @@ fn fixture_projects_cover_pm_and_fast_resolution_modes() {
                 name: "deno",
                 pm_nr: "deno task dev",
                 fast_nr: "deno task dev",
-                pm_nlx: "deno run npm:hello --flag",
-                fast_nlx: "deno run npm:hello --flag",
+                pm_nex: "deno run npm:hello --flag",
+                fast_nex: "deno run npm:hello --flag",
                 local_bin: false,
             },
         ];
@@ -132,7 +132,7 @@ fn fixture_projects_cover_pm_and_fast_resolution_modes() {
                     "--flag",
                 ],
                 &[("ALUR_SKIP_PM_CHECK", "1"), ("ALUR_FAST_MODE", "false")],
-                case.pm_nlx,
+                case.pm_nex,
             );
             assert_print_command(
                 dir.path(),
@@ -145,7 +145,7 @@ fn fixture_projects_cover_pm_and_fast_resolution_modes() {
                     "--flag",
                 ],
                 &[("ALUR_SKIP_PM_CHECK", "1"), ("ALUR_FAST_MODE", "true")],
-                case.fast_nlx,
+                case.fast_nex,
             );
         }
     });

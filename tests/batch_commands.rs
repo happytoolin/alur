@@ -7,7 +7,7 @@ use std::{
 mod support;
 
 #[test]
-fn ns_stops_on_first_failure() {
+fn nseq_stops_on_first_failure() {
     support::with_env_lock(|| {
         let work = tempfile::tempdir().unwrap();
         let cwd = work.path();
@@ -19,7 +19,7 @@ fn ns_stops_on_first_failure() {
         let bin_dir = prepare_bin_dir(cwd);
         let output = run_alias_output(
             &bin_dir,
-            "ns",
+            "nseq",
             vec!["-C", cwd.to_str().unwrap(), &fail_cmd, &write_cmd],
             &[],
         );
@@ -30,7 +30,7 @@ fn ns_stops_on_first_failure() {
 }
 
 #[test]
-fn np_waits_for_all_commands_then_fails() {
+fn npar_waits_for_all_commands_then_fails() {
     support::with_env_lock(|| {
         let work = tempfile::tempdir().unwrap();
         let cwd = work.path();
@@ -42,7 +42,7 @@ fn np_waits_for_all_commands_then_fails() {
         let bin_dir = prepare_bin_dir(cwd);
         let output = run_alias_output(
             &bin_dir,
-            "np",
+            "npar",
             vec!["-C", cwd.to_str().unwrap(), &fail_cmd, &delayed_write],
             &[],
         );
@@ -53,29 +53,29 @@ fn np_waits_for_all_commands_then_fails() {
 }
 
 #[test]
-fn print_command_does_not_execute_np_or_node_p() {
+fn print_command_does_not_execute_npar_or_node_p() {
     support::with_env_lock(|| {
         let work = tempfile::tempdir().unwrap();
         let cwd = work.path();
 
-        let marker_np = cwd.join("np-print-command.txt");
-        let cmd_np = write_marker_command(&marker_np);
+        let marker_npar = cwd.join("npar-print-command.txt");
+        let cmd_npar = write_marker_command(&marker_npar);
 
         let marker_node = cwd.join("node-p-print-command.txt");
         let cmd_node = write_marker_command(&marker_node);
 
         let bin_dir = prepare_bin_dir(cwd);
 
-        let np_output = run_alias_output(
+        let npar_output = run_alias_output(
             &bin_dir,
-            "np",
-            vec!["-C", cwd.to_str().unwrap(), &cmd_np, "--print-command"],
+            "npar",
+            vec!["-C", cwd.to_str().unwrap(), &cmd_npar, "--print-command"],
             &[],
         );
-        assert!(np_output.status.success());
-        let np_stdout = String::from_utf8_lossy(&np_output.stdout);
-        assert!(np_stdout.contains("alur batch:parallel"));
-        assert!(!marker_np.exists());
+        assert!(npar_output.status.success());
+        let npar_stdout = String::from_utf8_lossy(&npar_output.stdout);
+        assert!(npar_stdout.contains("alur batch:parallel"));
+        assert!(!marker_npar.exists());
 
         let node_output = run_alias_output(
             &bin_dir,
@@ -97,19 +97,29 @@ fn print_command_does_not_execute_np_or_node_p() {
 }
 
 #[test]
-fn np_and_ns_with_no_commands_succeed() {
+fn npar_and_nseq_with_no_commands_succeed() {
     support::with_env_lock(|| {
         let work = tempfile::tempdir().unwrap();
         let cwd = work.path();
         let bin_dir = prepare_bin_dir(cwd);
 
-        let np_output = run_alias_output(&bin_dir, "np", vec!["-C", cwd.to_str().unwrap()], &[]);
-        assert!(np_output.status.success());
-        assert!(String::from_utf8_lossy(&np_output.stdout).trim().is_empty());
+        let npar_output =
+            run_alias_output(&bin_dir, "npar", vec!["-C", cwd.to_str().unwrap()], &[]);
+        assert!(npar_output.status.success());
+        assert!(
+            String::from_utf8_lossy(&npar_output.stdout)
+                .trim()
+                .is_empty()
+        );
 
-        let ns_output = run_alias_output(&bin_dir, "ns", vec!["-C", cwd.to_str().unwrap()], &[]);
-        assert!(ns_output.status.success());
-        assert!(String::from_utf8_lossy(&ns_output.stdout).trim().is_empty());
+        let nseq_output =
+            run_alias_output(&bin_dir, "nseq", vec!["-C", cwd.to_str().unwrap()], &[]);
+        assert!(nseq_output.status.success());
+        assert!(
+            String::from_utf8_lossy(&nseq_output.stdout)
+                .trim()
+                .is_empty()
+        );
     });
 }
 
@@ -147,8 +157,8 @@ fn prepare_bin_dir(cwd: &Path) -> PathBuf {
         panic!("alur executable not found at {}", exe.display());
     }
 
-    create_alias(&exe, &bin_dir, "np");
-    create_alias(&exe, &bin_dir, "ns");
+    create_alias(&exe, &bin_dir, "npar");
+    create_alias(&exe, &bin_dir, "nseq");
     create_alias(&exe, &bin_dir, "node");
     bin_dir
 }

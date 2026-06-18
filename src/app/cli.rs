@@ -22,8 +22,8 @@ alur run dev\n\
 alur run --pm dev\n\
 alur run dev -- --port=3000\n\
 alur exec create-vite@latest\n\
-np \"echo one\" \"echo two\"\n\
-ns \"npm run build\" \"npm run test\"\n\
+npar \"echo one\" \"echo two\"\n\
+nseq \"npm run build\" \"npm run test\"\n\
 alur init bash\n\
 alur doctor\n\
 alur help ni\n\
@@ -79,7 +79,7 @@ struct SharedFlags {
 #[command(
     name = "alur",
     about = "use the right package manager",
-    long_about = "alur is a multicall package-manager router.\nIt powers alur install/uninstall/run/exec/ci/parallel/sequential plus ni, nr, nlx, nun, nci, np, ns, and node.\nFast mode is the default for eligible nr and nlx commands.",
+    long_about = "alur is a multicall package-manager router.\nIt powers alur install/uninstall/run/exec/ci/parallel/sequential plus ni, nr, nex, nrm, nci, npar, nseq, and node.\nFast mode is the default for eligible nr and nex commands.",
     after_help = ALUR_AFTER_HELP,
     disable_help_flag = true,
     disable_version_flag = true,
@@ -96,7 +96,7 @@ struct AlurCli {
 #[command(
     name = "alur",
     about = "use the right package manager",
-    long_about = "alur is a multicall package-manager router.\nIt powers alur install/uninstall/run/exec/ci/parallel/sequential plus ni, nr, nlx, nun, nci, np, ns, and node.\nFast mode is the default for eligible nr and nlx commands.",
+    long_about = "alur is a multicall package-manager router.\nIt powers alur install/uninstall/run/exec/ci/parallel/sequential plus ni, nr, nex, nrm, nci, npar, nseq, and node.\nFast mode is the default for eligible nr and nex commands.",
     after_help = ALUR_AFTER_HELP,
     disable_help_flag = true,
     disable_version_flag = true,
@@ -349,11 +349,11 @@ fn parsed_alur_subcommand(subcommand: AlurSubcommand, program: String) -> Result
     match subcommand {
         AlurSubcommand::Install(args) => Ok(execute_from_args(InvocationKind::Ni, args)),
         AlurSubcommand::Run(args) => Ok(execute_from_args(InvocationKind::Nr, args)),
-        AlurSubcommand::Exec(args) => Ok(execute_from_args(InvocationKind::Nlx, args)),
-        AlurSubcommand::Uninstall(args) => Ok(execute_from_args(InvocationKind::Nun, args)),
+        AlurSubcommand::Exec(args) => Ok(execute_from_args(InvocationKind::Nex, args)),
+        AlurSubcommand::Uninstall(args) => Ok(execute_from_args(InvocationKind::Nrm, args)),
         AlurSubcommand::Ci(args) => Ok(execute_from_args(InvocationKind::Nci, args)),
-        AlurSubcommand::Parallel(args) => Ok(execute_from_args(InvocationKind::Np, args)),
-        AlurSubcommand::Sequential(args) => Ok(execute_from_args(InvocationKind::Ns, args)),
+        AlurSubcommand::Parallel(args) => Ok(execute_from_args(InvocationKind::Npar, args)),
+        AlurSubcommand::Sequential(args) => Ok(execute_from_args(InvocationKind::Nseq, args)),
         AlurSubcommand::Help(args) => Ok(ParsedCommand::PrintHelp(help_target(args.command)?)),
         AlurSubcommand::Doctor => Ok(ParsedCommand::Doctor),
         AlurSubcommand::Completion(args) => Ok(ParsedCommand::Completion {
@@ -375,7 +375,7 @@ fn execute_from_args(invocation: InvocationKind, args: ForwardedArgs) -> ParsedC
 fn normalize_forwarded_args(invocation: InvocationKind, mut args: Vec<String>) -> Vec<String> {
     if matches!(
         invocation,
-        InvocationKind::Ni | InvocationKind::Nun | InvocationKind::Nci
+        InvocationKind::Ni | InvocationKind::Nrm | InvocationKind::Nci
     ) && let Some(separator) = args.iter().position(|arg| arg == "--")
     {
         args.remove(separator);
@@ -674,7 +674,7 @@ mod tests {
 
     #[test]
     fn alias_help_with_args_is_forwarded() {
-        let parsed = parse_args(&["nlx", "vitest", "--help"]).unwrap();
+        let parsed = parse_args(&["nex", "vitest", "--help"]).unwrap();
 
         match parsed.command {
             ParsedCommand::Execute { args, .. } => {
@@ -686,11 +686,11 @@ mod tests {
 
     #[test]
     fn alias_help_without_args_prints_help() {
-        let parsed = parse_args(&["nlx", "--help"]).unwrap();
+        let parsed = parse_args(&["nex", "--help"]).unwrap();
 
         match parsed.command {
-            ParsedCommand::PrintHelp(HelpTopic::Nlx) => {}
-            _ => panic!("expected nlx help command"),
+            ParsedCommand::PrintHelp(HelpTopic::Nex) => {}
+            _ => panic!("expected nex help command"),
         }
     }
 

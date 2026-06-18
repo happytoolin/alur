@@ -11,7 +11,7 @@ struct PmCase {
     local_bins: bool,
     yarn_pnp: bool,
     expected_nr: &'static str,
-    expected_nlx: &'static str,
+    expected_nex: &'static str,
 }
 
 #[test]
@@ -29,7 +29,7 @@ fn fast_mode_matrix_covers_supported_and_fallback_package_managers() {
                 local_bins: true,
                 yarn_pnp: false,
                 expected_nr: "alur fast:run-script dev",
-                expected_nlx: "alur fast:run-local-bin hello --flag",
+                expected_nex: "alur fast:run-local-bin hello --flag",
             },
             PmCase {
                 label: "pnpm",
@@ -38,7 +38,7 @@ fn fast_mode_matrix_covers_supported_and_fallback_package_managers() {
                 local_bins: true,
                 yarn_pnp: false,
                 expected_nr: "alur fast:run-script dev",
-                expected_nlx: "alur fast:run-local-bin hello --flag",
+                expected_nex: "alur fast:run-local-bin hello --flag",
             },
             PmCase {
                 label: "yarn-classic",
@@ -47,7 +47,7 @@ fn fast_mode_matrix_covers_supported_and_fallback_package_managers() {
                 local_bins: true,
                 yarn_pnp: false,
                 expected_nr: "alur fast:run-script dev",
-                expected_nlx: "alur fast:run-local-bin hello --flag",
+                expected_nex: "alur fast:run-local-bin hello --flag",
             },
             PmCase {
                 label: "yarn-berry-node-modules",
@@ -56,7 +56,7 @@ fn fast_mode_matrix_covers_supported_and_fallback_package_managers() {
                 local_bins: true,
                 yarn_pnp: false,
                 expected_nr: "alur fast:run-script dev",
-                expected_nlx: "alur fast:run-local-bin hello --flag",
+                expected_nex: "alur fast:run-local-bin hello --flag",
             },
             PmCase {
                 label: "yarn-berry-pnp",
@@ -65,7 +65,7 @@ fn fast_mode_matrix_covers_supported_and_fallback_package_managers() {
                 local_bins: false,
                 yarn_pnp: true,
                 expected_nr: "yarn run dev",
-                expected_nlx: "yarn dlx hello --flag",
+                expected_nex: "yarn dlx hello --flag",
             },
             PmCase {
                 label: "bun",
@@ -74,7 +74,7 @@ fn fast_mode_matrix_covers_supported_and_fallback_package_managers() {
                 local_bins: true,
                 yarn_pnp: false,
                 expected_nr: "alur fast:run-script dev",
-                expected_nlx: "alur fast:run-local-bin hello --flag",
+                expected_nex: "alur fast:run-local-bin hello --flag",
             },
             PmCase {
                 label: "deno",
@@ -83,7 +83,7 @@ fn fast_mode_matrix_covers_supported_and_fallback_package_managers() {
                 local_bins: false,
                 yarn_pnp: false,
                 expected_nr: "deno task dev",
-                expected_nlx: "deno run npm:hello --flag",
+                expected_nex: "deno run npm:hello --flag",
             },
         ];
 
@@ -132,7 +132,7 @@ fn fast_mode_matrix_covers_supported_and_fallback_package_managers() {
             );
             assert_eq!(String::from_utf8_lossy(&nr.stdout).trim(), case.expected_nr);
 
-            let nlx = run_alur(
+            let nex = run_alur(
                 vec![
                     "exec",
                     "-C",
@@ -145,14 +145,14 @@ fn fast_mode_matrix_covers_supported_and_fallback_package_managers() {
                 &[("ALUR_SKIP_PM_CHECK", "1")],
             );
             assert!(
-                nlx.status.success(),
-                "nlx failed for {}: {}",
+                nex.status.success(),
+                "nex failed for {}: {}",
                 case.label,
-                String::from_utf8_lossy(&nlx.stderr)
+                String::from_utf8_lossy(&nex.stderr)
             );
             assert_eq!(
-                String::from_utf8_lossy(&nlx.stdout).trim(),
-                case.expected_nlx
+                String::from_utf8_lossy(&nex.stdout).trim(),
+                case.expected_nex
             );
         }
     });

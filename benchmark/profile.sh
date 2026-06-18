@@ -69,7 +69,7 @@ cargo build --release >/dev/null
 timing_case pm-pnpm-resolve nr noop -C "$FIXTURE" --pm
 timing_case fast-pnpm-resolve nr noop -C "$FIXTURE" --fast
 timing_case fast-pnpm-hooks-resolve nr hooks -C "$FIXTURE" --fast
-timing_case fast-pnpm-nlx-local nlx hello --flag -C "$FIXTURE" --fast
+timing_case fast-pnpm-nex-local nex hello --flag -C "$FIXTURE" --fast
 timing_case fast-node-run-pnpm node run noop -C "$FIXTURE" --fast
 
 if cargo flamegraph --help >/dev/null 2>&1; then

@@ -8,11 +8,11 @@
     "./alur": "./jsr/alur.ts",
     "./ni": "./jsr/ni.ts",
     "./nr": "./jsr/nr.ts",
-    "./nlx": "./jsr/nlx.ts",
-    "./nun": "./jsr/nun.ts",
+    "./nex": "./jsr/nex.ts",
+    "./nrm": "./jsr/nrm.ts",
     "./nci": "./jsr/nci.ts",
-    "./np": "./jsr/np.ts",
-    "./ns": "./jsr/ns.ts"
+    "./npar": "./jsr/npar.ts",
+    "./nseq": "./jsr/nseq.ts"
   },
   "publish": {
     "include": [

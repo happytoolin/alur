@@ -12,7 +12,7 @@ use alur::{
             command_spec_by_name, command_specs, help_command_for_topic, help_topic_by_name,
             invocation_from_name,
         },
-        commands::{handle_np, handle_ns},
+        commands::{handle_npar, handle_nseq},
     },
     core::{
         config::AlurConfig,
@@ -96,14 +96,17 @@ fn command_registry_exposes_expected_public_surface() {
         .collect::<Vec<_>>();
     assert_eq!(
         names,
-        vec!["ni", "nr", "nlx", "nun", "nci", "np", "ns", "node"]
+        vec!["ni", "nr", "nex", "nrm", "nci", "npar", "nseq", "node"]
     );
 
     assert_eq!(invocation_from_name("nr"), Some(InvocationKind::Nr));
-    assert_eq!(invocation_from_name("nun"), Some(InvocationKind::Nun));
+    assert_eq!(invocation_from_name("nrm"), Some(InvocationKind::Nrm));
+    for removed_alias in ["nlx", "nun", "np", "ns"] {
+        assert_eq!(invocation_from_name(removed_alias), None);
+    }
     assert_eq!(help_topic_by_name("completion"), Some(HelpTopic::Alur));
     assert_eq!(help_topic_by_name("install"), Some(HelpTopic::Ni));
-    assert_eq!(help_topic_by_name("uninstall"), Some(HelpTopic::Nun));
+    assert_eq!(help_topic_by_name("uninstall"), Some(HelpTopic::Nrm));
     assert_eq!(
         command_spec_by_name("init").map(|spec| spec.name),
         None,
@@ -262,7 +265,7 @@ fn removed_aliases_are_absent_from_public_surface_files() {
     ] {
         let path = root.join(relative);
         let content = fs::read_to_string(&path).unwrap();
-        for alias in ["nru", "na"] {
+        for alias in ["nru", "na", "nlx", "nun", "np", "ns"] {
             assert!(
                 !contains_token(&content, alias),
                 "{relative} still references removed alias {alias}"
@@ -329,9 +332,9 @@ fn app_command_handlers_build_batch_executions() {
         false,
     );
 
-    let parallel = handle_np(vec!["echo one".to_string(), "echo two".to_string()], &ctx)
+    let parallel = handle_npar(vec!["echo one".to_string(), "echo two".to_string()], &ctx)
         .unwrap()
-        .expect("np should build a batch execution");
+        .expect("npar should build a batch execution");
     assert!(matches!(
         parallel.strategy,
         ExecutionStrategy::InternalBatch {
@@ -341,9 +344,9 @@ fn app_command_handlers_build_batch_executions() {
     ));
     assert_eq!(parallel.args, vec!["echo one", "echo two"]);
 
-    let sequential = handle_ns(vec!["echo one".to_string(), "echo two".to_string()], &ctx)
+    let sequential = handle_nseq(vec!["echo one".to_string(), "echo two".to_string()], &ctx)
         .unwrap()
-        .expect("ns should build a batch execution");
+        .expect("nseq should build a batch execution");
     assert!(matches!(
         sequential.strategy,
         ExecutionStrategy::InternalBatch {

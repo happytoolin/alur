@@ -61,31 +61,31 @@ const COMMAND_SPECS: &[CommandSpec] = &[
         handler: commands::handle_nr,
     },
     CommandSpec {
-        name: "nlx",
-        invocation: InvocationKind::Nlx,
-        help_topic: HelpTopic::Nlx,
+        name: "nex",
+        invocation: InvocationKind::Nex,
+        help_topic: HelpTopic::Nex,
         about: "execute package binaries",
         long_about: "Runs local or declared package binaries directly by default, then falls back to package-manager exec when needed.",
         examples: "Examples:\n\
              \n\
-             nlx --fast eslint .\n\
-             nlx vite@latest\n\
-             nlx eslint .\n\
-             nlx degit user/repo app",
-        handler: commands::handle_nlx,
+             nex --fast eslint .\n\
+             nex vite@latest\n\
+             nex eslint .\n\
+             nex degit user/repo app",
+        handler: commands::handle_nex,
     },
     CommandSpec {
-        name: "nun",
-        invocation: InvocationKind::Nun,
-        help_topic: HelpTopic::Nun,
+        name: "nrm",
+        invocation: InvocationKind::Nrm,
+        help_topic: HelpTopic::Nrm,
         about: "uninstall dependencies",
         long_about: "Removes dependencies using the package manager detected from packageManager or lockfile.",
         examples: "Examples:\n\
              \n\
-             nun lodash\n\
-             nun react react-dom\n\
-             nun -g typescript",
-        handler: commands::handle_nun,
+             nrm lodash\n\
+             nrm react react-dom\n\
+             nrm -g typescript",
+        handler: commands::handle_nrm,
     },
     CommandSpec {
         name: "nci",
@@ -100,28 +100,28 @@ const COMMAND_SPECS: &[CommandSpec] = &[
         handler: commands::handle_nci,
     },
     CommandSpec {
-        name: "np",
-        invocation: InvocationKind::Np,
-        help_topic: HelpTopic::Np,
+        name: "npar",
+        invocation: InvocationKind::Npar,
+        help_topic: HelpTopic::Npar,
         about: "run shell commands in parallel",
         long_about: "Runs each argument as a separate shell command concurrently. Returns first non-zero code.",
         examples: "Examples:\n\
              \n\
-             np \"npm:test\" \"npm:lint\"\n\
-             np \"echo one\" \"echo two\"",
-        handler: commands::handle_np,
+             npar \"npm:test\" \"npm:lint\"\n\
+             npar \"echo one\" \"echo two\"",
+        handler: commands::handle_npar,
     },
     CommandSpec {
-        name: "ns",
-        invocation: InvocationKind::Ns,
-        help_topic: HelpTopic::Ns,
+        name: "nseq",
+        invocation: InvocationKind::Nseq,
+        help_topic: HelpTopic::Nseq,
         about: "run shell commands sequentially",
         long_about: "Runs each argument in order and stops at first failure.",
         examples: "Examples:\n\
              \n\
-             ns \"npm run build\" \"npm run test\"\n\
-             ns \"echo pre\" \"echo post\"",
-        handler: commands::handle_ns,
+             nseq \"npm run build\" \"npm run test\"\n\
+             nseq \"echo pre\" \"echo post\"",
+        handler: commands::handle_nseq,
     },
     CommandSpec {
         name: "node",
@@ -177,11 +177,11 @@ pub fn help_topic_by_name(name: &str) -> Option<HelpTopic> {
         "init" => Some(HelpTopic::Init),
         "install" => Some(HelpTopic::Ni),
         "run" => Some(HelpTopic::Nr),
-        "exec" => Some(HelpTopic::Nlx),
-        "uninstall" => Some(HelpTopic::Nun),
+        "exec" => Some(HelpTopic::Nex),
+        "uninstall" => Some(HelpTopic::Nrm),
         "ci" => Some(HelpTopic::Nci),
-        "parallel" => Some(HelpTopic::Np),
-        "sequential" => Some(HelpTopic::Ns),
+        "parallel" => Some(HelpTopic::Npar),
+        "sequential" => Some(HelpTopic::Nseq),
         _ => command_spec_by_name(name).map(|spec| spec.help_topic),
     }
 }

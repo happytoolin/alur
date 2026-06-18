@@ -11,19 +11,18 @@ const REPO = "happytoolin/alur";
 const VERSION = "0.0.5";
 const TAG = VERSION.startsWith("v") ? VERSION : `v${VERSION}`;
 const DEFAULT_DOWNLOAD_ROOT = "https://happytoolin.com/alur/releases/download";
-const DEFAULT_FALLBACK_DOWNLOAD_ROOT =
-  `https://github.com/${REPO}/releases/download`;
+const DEFAULT_FALLBACK_DOWNLOAD_ROOT = `https://github.com/${REPO}/releases/download`;
 
 /** Command names that the JSR package can dispatch to the native alur binary. */
 export const INVOCATIONS = [
   "alur",
   "ni",
   "nr",
-  "nlx",
-  "nun",
+  "nex",
+  "nrm",
   "nci",
-  "np",
-  "ns",
+  "npar",
+  "nseq",
 ] as const;
 
 /** Supported command name accepted by {@link runInvocation}. */
@@ -127,8 +126,8 @@ function downloadRoot(): string {
 }
 
 function fallbackDownloadRoot(): string {
-  return Deno.env.get("ALUR_FALLBACK_DOWNLOAD_ROOT") ??
-    DEFAULT_FALLBACK_DOWNLOAD_ROOT;
+  return Deno.env.get("ALUR_FALLBACK_DOWNLOAD_ROOT")
+    ?? DEFAULT_FALLBACK_DOWNLOAD_ROOT;
 }
 
 function resolveTarget(): TargetInfo {
@@ -253,8 +252,7 @@ async function installFromArchive(
     if (archiveExt === ".tar.gz") {
       await runCommand("tar", ["-xzf", archivePath, "-C", extractDir]);
     } else {
-      const psScript =
-        `Expand-Archive -Path "${archivePath}" -DestinationPath "${extractDir}" -Force`;
+      const psScript = `Expand-Archive -Path "${archivePath}" -DestinationPath "${extractDir}" -Force`;
       try {
         await runCommand("powershell", ["-NoProfile", "-Command", psScript]);
       } catch (_error) {

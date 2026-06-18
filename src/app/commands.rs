@@ -14,25 +14,25 @@ pub fn handle_nr(args: Vec<String>, ctx: &ResolveContext) -> Result<Option<Resol
     Ok(Some(resolve::resolve_nr(args, ctx)?))
 }
 
-pub fn handle_nlx(args: Vec<String>, ctx: &ResolveContext) -> Result<Option<ResolvedExecution>> {
+pub fn handle_nex(args: Vec<String>, ctx: &ResolveContext) -> Result<Option<ResolvedExecution>> {
     if args.is_empty() {
         return Err(anyhow!(
-            "execution error: nlx requires a command to execute.\nTry: nlx create-vite@latest"
+            "execution error: nex requires a command to execute.\nTry: nex create-vite@latest"
         ));
     }
 
-    Ok(Some(resolve::resolve_nlx(args, ctx)?))
+    Ok(Some(resolve::resolve_nex(args, ctx)?))
 }
 
-pub fn handle_nun(args: Vec<String>, ctx: &ResolveContext) -> Result<Option<ResolvedExecution>> {
-    Ok(Some(resolve::resolve_nun(args, ctx)?))
+pub fn handle_nrm(args: Vec<String>, ctx: &ResolveContext) -> Result<Option<ResolvedExecution>> {
+    Ok(Some(resolve::resolve_nrm(args, ctx)?))
 }
 
 pub fn handle_nci(args: Vec<String>, ctx: &ResolveContext) -> Result<Option<ResolvedExecution>> {
     Ok(Some(resolve::resolve_nci(args, ctx)?))
 }
 
-pub fn handle_np(args: Vec<String>, ctx: &ResolveContext) -> Result<Option<ResolvedExecution>> {
+pub fn handle_npar(args: Vec<String>, ctx: &ResolveContext) -> Result<Option<ResolvedExecution>> {
     Ok(Some(batch::make_execution(
         BatchMode::Parallel,
         args,
@@ -40,7 +40,7 @@ pub fn handle_np(args: Vec<String>, ctx: &ResolveContext) -> Result<Option<Resol
     )))
 }
 
-pub fn handle_ns(args: Vec<String>, ctx: &ResolveContext) -> Result<Option<ResolvedExecution>> {
+pub fn handle_nseq(args: Vec<String>, ctx: &ResolveContext) -> Result<Option<ResolvedExecution>> {
     Ok(Some(batch::make_execution(
         BatchMode::Sequential,
         args,

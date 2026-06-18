@@ -183,13 +183,13 @@ fn ni_global_long_flag_uses_configured_global_package_manager() {
 }
 
 #[test]
-fn nun_maps_npm_uninstall() {
+fn nrm_maps_npm_uninstall() {
     with_skip_pm_check(|| {
         let dir = tempfile::tempdir().unwrap();
         write_package_json(dir.path(), r#"{"packageManager":"npm@10.0.0"}"#);
 
         let ctx = ResolveContext::new(dir.path().to_path_buf(), AlurConfig::default());
-        let resolved = resolve::resolve_nun(vec!["lodash".into()], &ctx).unwrap();
+        let resolved = resolve::resolve_nrm(vec!["lodash".into()], &ctx).unwrap();
 
         assert_eq!(resolved.program, "npm");
         assert_eq!(resolved.args, vec!["uninstall", "lodash"]);
@@ -197,7 +197,7 @@ fn nun_maps_npm_uninstall() {
 }
 
 #[test]
-fn nun_global_uninstall_uses_configured_global_package_manager() {
+fn nrm_global_uninstall_uses_configured_global_package_manager() {
     with_skip_pm_check(|| {
         let dir = tempfile::tempdir().unwrap();
         write_package_json(dir.path(), r#"{"packageManager":"pnpm@9.0.0"}"#);
@@ -207,7 +207,7 @@ fn nun_global_uninstall_uses_configured_global_package_manager() {
             ..AlurConfig::default()
         };
         let ctx = ResolveContext::new(dir.path().to_path_buf(), cfg);
-        let resolved = resolve::resolve_nun(vec!["-g".into(), "typescript".into()], &ctx).unwrap();
+        let resolved = resolve::resolve_nrm(vec!["-g".into(), "typescript".into()], &ctx).unwrap();
 
         assert_eq!(resolved.program, "yarn");
         assert_eq!(resolved.args, vec!["global", "remove", "typescript"]);
@@ -215,7 +215,7 @@ fn nun_global_uninstall_uses_configured_global_package_manager() {
 }
 
 #[test]
-fn nun_global_long_flag_uses_configured_global_package_manager() {
+fn nrm_global_long_flag_uses_configured_global_package_manager() {
     with_skip_pm_check(|| {
         let dir = tempfile::tempdir().unwrap();
         write_package_json(dir.path(), r#"{"packageManager":"pnpm@9.0.0"}"#);
@@ -226,7 +226,7 @@ fn nun_global_long_flag_uses_configured_global_package_manager() {
         };
         let ctx = ResolveContext::new(dir.path().to_path_buf(), cfg);
         let resolved =
-            resolve::resolve_nun(vec!["--global".into(), "typescript".into()], &ctx).unwrap();
+            resolve::resolve_nrm(vec!["--global".into(), "typescript".into()], &ctx).unwrap();
 
         assert_eq!(resolved.program, "yarn");
         assert_eq!(resolved.args, vec!["global", "remove", "typescript"]);
@@ -240,22 +240,22 @@ fn nun_requires_dependency_target() {
         write_package_json(dir.path(), r#"{"packageManager":"npm@10.0.0"}"#);
 
         let ctx = ResolveContext::new(dir.path().to_path_buf(), AlurConfig::default());
-        let err = resolve::resolve_nun(Vec::new(), &ctx).unwrap_err();
+        let err = resolve::resolve_nrm(Vec::new(), &ctx).unwrap_err();
 
-        assert!(err.to_string().contains("nun requires a dependency"));
+        assert!(err.to_string().contains("nrm requires a dependency"));
     });
 }
 
 #[test]
-fn nun_global_long_flag_without_target_errors_after_stripping_flag() {
+fn nrm_global_long_flag_without_target_errors_after_stripping_flag() {
     with_skip_pm_check(|| {
         let dir = tempfile::tempdir().unwrap();
         write_package_json(dir.path(), r#"{"packageManager":"npm@10.0.0"}"#);
 
         let ctx = ResolveContext::new(dir.path().to_path_buf(), AlurConfig::default());
-        let err = resolve::resolve_nun(vec!["--global".into()], &ctx).unwrap_err();
+        let err = resolve::resolve_nrm(vec!["--global".into()], &ctx).unwrap_err();
 
-        assert!(err.to_string().contains("nun requires a dependency"));
+        assert!(err.to_string().contains("nrm requires a dependency"));
     });
 }
 
@@ -421,7 +421,7 @@ fn nr_fast_mode_does_not_require_detected_package_manager() {
 }
 
 #[test]
-fn nlx_fast_mode_does_not_require_detected_package_manager() {
+fn nex_fast_mode_does_not_require_detected_package_manager() {
     with_skip_pm_check(|| {
         with_path_override("", || {
             let dir = tempfile::tempdir().unwrap();
@@ -433,7 +433,7 @@ fn nlx_fast_mode_does_not_require_detected_package_manager() {
             make_executable(&bin);
 
             let ctx = ResolveContext::new(dir.path().to_path_buf(), AlurConfig::default());
-            let resolved = resolve::resolve_nlx(vec!["hello".into()], &ctx).unwrap();
+            let resolved = resolve::resolve_nex(vec!["hello".into()], &ctx).unwrap();
 
             assert!(matches!(
                 resolved.strategy,
@@ -813,13 +813,13 @@ fn nci_in_pnpm_workspace_without_lockfile_uses_plain_install() {
 }
 
 #[test]
-fn nlx_npm_uses_npx() {
+fn nex_npm_uses_npx() {
     with_skip_pm_check(|| {
         let dir = tempfile::tempdir().unwrap();
         write_package_json(dir.path(), r#"{"packageManager":"npm@10.0.0"}"#);
 
         let ctx = ResolveContext::new(dir.path().to_path_buf(), AlurConfig::default());
-        let resolved = resolve::resolve_nlx(vec!["vitest".into()], &ctx).unwrap();
+        let resolved = resolve::resolve_nex(vec!["vitest".into()], &ctx).unwrap();
 
         assert_eq!(resolved.program, "npx");
         assert_eq!(resolved.args, vec!["vitest"]);
@@ -827,7 +827,7 @@ fn nlx_npm_uses_npx() {
 }
 
 #[test]
-fn nlx_fast_mode_uses_local_bin_when_present() {
+fn nex_fast_mode_uses_local_bin_when_present() {
     with_skip_pm_check(|| {
         let dir = tempfile::tempdir().unwrap();
         write_package_json(dir.path(), r#"{"packageManager":"npm@10.0.0"}"#);
@@ -841,7 +841,7 @@ fn nlx_fast_mode_uses_local_bin_when_present() {
             ..AlurConfig::default()
         };
         let ctx = ResolveContext::new(dir.path().to_path_buf(), cfg);
-        let resolved = resolve::resolve_nlx(vec!["vitest".into(), "--help".into()], &ctx).unwrap();
+        let resolved = resolve::resolve_nex(vec!["vitest".into(), "--help".into()], &ctx).unwrap();
 
         match &resolved.strategy {
             ExecutionStrategy::Native(NativeExecution::RunLocalBin(exec)) => {
@@ -862,7 +862,7 @@ fn nlx_fast_mode_uses_local_bin_when_present() {
 }
 
 #[test]
-fn nlx_fast_mode_falls_back_to_package_manager_when_local_bin_is_missing() {
+fn nex_fast_mode_falls_back_to_package_manager_when_local_bin_is_missing() {
     with_skip_pm_check(|| {
         let dir = tempfile::tempdir().unwrap();
         write_package_json(dir.path(), r#"{"packageManager":"npm@10.0.0"}"#);
@@ -872,7 +872,7 @@ fn nlx_fast_mode_falls_back_to_package_manager_when_local_bin_is_missing() {
             ..AlurConfig::default()
         };
         let ctx = ResolveContext::new(dir.path().to_path_buf(), cfg);
-        let resolved = resolve::resolve_nlx(vec!["vitest".into()], &ctx).unwrap();
+        let resolved = resolve::resolve_nex(vec!["vitest".into()], &ctx).unwrap();
 
         assert!(matches!(resolved.strategy, ExecutionStrategy::External));
         assert_eq!(resolved.program, "npx");
@@ -886,7 +886,7 @@ fn nlx_fast_mode_falls_back_to_package_manager_when_local_bin_is_missing() {
 }
 
 #[test]
-fn nlx_fast_mode_deno_remote_exec_ignores_malformed_ancestor_manifests() {
+fn nex_fast_mode_deno_remote_exec_ignores_malformed_ancestor_manifests() {
     with_skip_pm_check(|| {
         let dir = tempfile::tempdir().unwrap();
         let root = dir.path().join("repo");
@@ -900,7 +900,7 @@ fn nlx_fast_mode_deno_remote_exec_ignores_malformed_ancestor_manifests() {
             ..AlurConfig::default()
         };
         let ctx = ResolveContext::new(project, cfg);
-        let resolved = resolve::resolve_nlx(vec!["create-vite".into()], &ctx).unwrap();
+        let resolved = resolve::resolve_nex(vec!["create-vite".into()], &ctx).unwrap();
 
         assert!(matches!(resolved.strategy, ExecutionStrategy::External));
         assert_eq!(resolved.program, "deno");
@@ -909,7 +909,7 @@ fn nlx_fast_mode_deno_remote_exec_ignores_malformed_ancestor_manifests() {
 }
 
 #[test]
-fn nlx_fast_mode_uses_declared_package_bin_when_present() {
+fn nex_fast_mode_uses_declared_package_bin_when_present() {
     with_skip_pm_check(|| {
         let dir = tempfile::tempdir().unwrap();
         fs::create_dir_all(dir.path().join("bin")).unwrap();
@@ -924,7 +924,7 @@ fn nlx_fast_mode_uses_declared_package_bin_when_present() {
             ..AlurConfig::default()
         };
         let ctx = ResolveContext::new(dir.path().to_path_buf(), cfg);
-        let resolved = resolve::resolve_nlx(vec!["hello".into(), "--flag".into()], &ctx).unwrap();
+        let resolved = resolve::resolve_nex(vec!["hello".into(), "--flag".into()], &ctx).unwrap();
 
         match &resolved.strategy {
             ExecutionStrategy::Native(NativeExecution::RunLocalBin(exec)) => {
@@ -943,7 +943,7 @@ fn nlx_fast_mode_uses_declared_package_bin_when_present() {
 }
 
 #[test]
-fn nlx_fast_mode_uses_pnpm_hoisted_local_bin_when_present() {
+fn nex_fast_mode_uses_pnpm_hoisted_local_bin_when_present() {
     with_skip_pm_check(|| {
         let dir = tempfile::tempdir().unwrap();
         write_package_json(dir.path(), r#"{"packageManager":"pnpm@9.0.0"}"#);
@@ -972,7 +972,7 @@ fn nlx_fast_mode_uses_pnpm_hoisted_local_bin_when_present() {
             ..AlurConfig::default()
         };
         let ctx = ResolveContext::new(dir.path().to_path_buf(), cfg);
-        let resolved = resolve::resolve_nlx(vec!["vitest".into()], &ctx).unwrap();
+        let resolved = resolve::resolve_nex(vec!["vitest".into()], &ctx).unwrap();
 
         match &resolved.strategy {
             ExecutionStrategy::Native(NativeExecution::RunLocalBin(exec)) => {
@@ -999,7 +999,7 @@ fn nlx_fast_mode_uses_pnpm_hoisted_local_bin_when_present() {
 }
 
 #[test]
-fn nlx_fast_mode_falls_back_for_yarn_berry_pnp_declared_bin() {
+fn nex_fast_mode_falls_back_for_yarn_berry_pnp_declared_bin() {
     with_skip_pm_check(|| {
         let dir = tempfile::tempdir().unwrap();
         fs::create_dir_all(dir.path().join("bin")).unwrap();
@@ -1015,7 +1015,7 @@ fn nlx_fast_mode_falls_back_for_yarn_berry_pnp_declared_bin() {
             ..AlurConfig::default()
         };
         let ctx = ResolveContext::new(dir.path().to_path_buf(), cfg);
-        let resolved = resolve::resolve_nlx(vec!["hello".into()], &ctx).unwrap();
+        let resolved = resolve::resolve_nex(vec!["hello".into()], &ctx).unwrap();
 
         assert!(matches!(resolved.strategy, ExecutionStrategy::External));
         assert_eq!(resolved.program, "yarn");
@@ -1024,13 +1024,13 @@ fn nlx_fast_mode_falls_back_for_yarn_berry_pnp_declared_bin() {
 }
 
 #[test]
-fn nlx_pnpm_uses_dlx() {
+fn nex_pnpm_uses_dlx() {
     with_skip_pm_check(|| {
         let dir = tempfile::tempdir().unwrap();
         write_package_json(dir.path(), r#"{"packageManager":"pnpm@9.0.0"}"#);
 
         let ctx = ResolveContext::new(dir.path().to_path_buf(), AlurConfig::default());
-        let resolved = resolve::resolve_nlx(vec!["vitest".into()], &ctx).unwrap();
+        let resolved = resolve::resolve_nex(vec!["vitest".into()], &ctx).unwrap();
 
         assert_eq!(resolved.program, "pnpm");
         assert_eq!(resolved.args, vec!["dlx", "vitest"]);
@@ -1038,13 +1038,13 @@ fn nlx_pnpm_uses_dlx() {
 }
 
 #[test]
-fn nlx_yarn_berry_uses_dlx() {
+fn nex_yarn_berry_uses_dlx() {
     with_skip_pm_check(|| {
         let dir = tempfile::tempdir().unwrap();
         write_package_json(dir.path(), r#"{"packageManager":"yarn@4.0.0"}"#);
 
         let ctx = ResolveContext::new(dir.path().to_path_buf(), AlurConfig::default());
-        let resolved = resolve::resolve_nlx(vec!["vitest".into()], &ctx).unwrap();
+        let resolved = resolve::resolve_nex(vec!["vitest".into()], &ctx).unwrap();
 
         assert_eq!(resolved.program, "yarn");
         assert_eq!(resolved.args, vec!["dlx", "vitest"]);
@@ -1052,13 +1052,13 @@ fn nlx_yarn_berry_uses_dlx() {
 }
 
 #[test]
-fn nlx_bun_uses_x() {
+fn nex_bun_uses_x() {
     with_skip_pm_check(|| {
         let dir = tempfile::tempdir().unwrap();
         write_package_json(dir.path(), r#"{"packageManager":"bun@1.1.0"}"#);
 
         let ctx = ResolveContext::new(dir.path().to_path_buf(), AlurConfig::default());
-        let resolved = resolve::resolve_nlx(vec!["vitest".into()], &ctx).unwrap();
+        let resolved = resolve::resolve_nex(vec!["vitest".into()], &ctx).unwrap();
 
         assert_eq!(resolved.program, "bun");
         assert_eq!(resolved.args, vec!["x", "vitest"]);
@@ -1066,13 +1066,13 @@ fn nlx_bun_uses_x() {
 }
 
 #[test]
-fn nlx_deno_wraps_target_with_npm_prefix() {
+fn nex_deno_wraps_target_with_npm_prefix() {
     with_skip_pm_check(|| {
         let dir = tempfile::tempdir().unwrap();
         write_package_json(dir.path(), r#"{"packageManager":"deno@1.46.0"}"#);
 
         let ctx = ResolveContext::new(dir.path().to_path_buf(), AlurConfig::default());
-        let resolved = resolve::resolve_nlx(vec!["vitest".into(), "--help".into()], &ctx).unwrap();
+        let resolved = resolve::resolve_nex(vec!["vitest".into(), "--help".into()], &ctx).unwrap();
 
         assert_eq!(resolved.program, "deno");
         assert_eq!(resolved.args, vec!["run", "npm:vitest", "--help"]);

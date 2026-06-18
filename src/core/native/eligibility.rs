@@ -86,7 +86,7 @@ pub(super) fn plan_nr_from_state(
     )))
 }
 
-pub(super) fn plan_nlx_from_local_bin_state(
+pub(super) fn plan_nex_from_local_bin_state(
     pm: Option<PackageManager>,
     args: &[String],
     state: &LocalBinProjectState,

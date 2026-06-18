@@ -50,14 +50,14 @@ pub(crate) fn attempt_nr_from_state(
     }))
 }
 
-pub(crate) fn attempt_nlx_from_local_bin_state(
+pub(crate) fn attempt_nex_from_local_bin_state(
     pm: Option<PackageManager>,
     args: &[String],
     ctx: &ResolveContext,
     state: &LocalBinProjectState,
 ) -> Result<NativeAttempt> {
-    let decision = crate::core::profile::measure("native.plan_nlx", || {
-        eligibility::plan_nlx_from_local_bin_state(pm, args, state)
+    let decision = crate::core::profile::measure("native.plan_nex", || {
+        eligibility::plan_nex_from_local_bin_state(pm, args, state)
     })?;
     Ok(crate::core::profile::measure("native.materialize", || {
         into_attempt(decision, ctx.cwd())

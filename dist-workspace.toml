@@ -18,6 +18,6 @@ install-path = "CARGO_HOME"
 install-updater = false
 tap = "happytoolin/homebrew-happytap"
 formula = "alur"
-bin-aliases = { alur = ["ni", "nr", "nlx", "nun", "nci", "np", "ns"] }
+bin-aliases = { alur = ["ni", "nr", "nex", "nrm", "nci", "npar", "nseq"] }
 publish-jobs = ["npm", "homebrew"]
 allow-dirty = ["ci"]
