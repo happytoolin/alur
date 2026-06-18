@@ -1,6 +1,6 @@
 {
   "name": "@happytoolin/alur",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "Fast package-manager routing with short commands and an opt-in Node shim",
   "license": "GPL-3.0-only",
   "exports": {
