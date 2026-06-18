@@ -127,7 +127,7 @@ fn fast_and_pm_cli_flags_override_environment_setting() {
 }
 
 #[test]
-fn default_fast_mode_resolves_nr_and_nlx_natively() {
+fn default_fast_mode_resolves_nr_and_nex_natively() {
     support::with_env_lock(|| {
         let work = tempfile::tempdir().unwrap();
         let project = work.path().join("npm");
@@ -164,7 +164,7 @@ fn default_fast_mode_resolves_nr_and_nlx_natively() {
                 "alur fast:run-script dev"
             );
 
-            let nlx = run_alur(
+            let nex = run_alur(
                 vec![
                     "exec",
                     "-C",
@@ -175,9 +175,9 @@ fn default_fast_mode_resolves_nr_and_nlx_natively() {
                 ],
                 &[("ALUR_SKIP_PM_CHECK", "1")],
             );
-            assert!(nlx.status.success(), "{nlx:?}");
+            assert!(nex.status.success(), "{nex:?}");
             assert_eq!(
-                String::from_utf8_lossy(&nlx.stdout).trim(),
+                String::from_utf8_lossy(&nex.stdout).trim(),
                 "alur fast:run-local-bin hello world"
             );
         });
@@ -247,31 +247,31 @@ fn internal_profile_loop_resolves_commands_without_running_them() {
         assert!(output.status.success(), "{output:?}");
         assert!(String::from_utf8_lossy(&output.stdout).trim().is_empty());
 
-        let np = run_alur(
+        let npar = run_alur(
             vec![
                 "internal",
                 "profile-loop",
                 "--iterations",
                 "2",
-                "np",
+                "npar",
                 "echo hi",
             ],
             &[("ALUR_SKIP_PM_CHECK", "1")],
         );
-        assert!(np.status.success(), "{np:?}");
+        assert!(npar.status.success(), "{npar:?}");
 
-        let ns = run_alur(
+        let nseq = run_alur(
             vec![
                 "internal",
                 "profile-loop",
                 "--iterations",
                 "2",
-                "ns",
+                "nseq",
                 "echo hi",
             ],
             &[("ALUR_SKIP_PM_CHECK", "1")],
         );
-        assert!(ns.status.success(), "{ns:?}");
+        assert!(nseq.status.success(), "{nseq:?}");
     });
 }
 

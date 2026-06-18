@@ -47,7 +47,7 @@ fn compare_pm_mode_with_installed_antfu_when_available() {
 
         create_alias(&our_bin, &our_alias_dir, "ni");
         create_alias(&our_bin, &our_alias_dir, "nr");
-        create_alias(&our_bin, &our_alias_dir, "nlx");
+        create_alias(&our_bin, &our_alias_dir, "nex");
         create_alias(&our_bin, &our_alias_dir, "nci");
 
         let mut executed_fixtures = BTreeSet::new();
@@ -181,12 +181,12 @@ fn build_fixtures(root: &Path, cmds: &AntfuBins) -> Vec<Fixture> {
         },
         Case {
             antfu_bin: cmds.nlx.clone(),
-            our_bin: "nlx".into(),
+            our_bin: "nex".into(),
             args: vec!["vitest".into()],
         },
         Case {
             antfu_bin: cmds.nlx.clone(),
-            our_bin: "nlx".into(),
+            our_bin: "nex".into(),
             args: vec!["vitest".into(), "--help".into()],
         },
     ];
@@ -294,6 +294,7 @@ fn build_fixtures(root: &Path, cmds: &AntfuBins) -> Vec<Fixture> {
 struct AntfuBins {
     ni: PathBuf,
     nr: PathBuf,
+    // Antfu's reference command is still named nlx; our replacement alias is nex.
     nlx: PathBuf,
     nci: PathBuf,
 }

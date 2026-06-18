@@ -117,11 +117,11 @@ fn resolve_run_like(args: &mut Vec<String>, ctx: &ResolveContext) -> Result<Reso
 /// # Errors
 ///
 /// Fails when local-bin scanning, package-manager detection, or availability checks fail.
-pub fn resolve_nlx(args: Vec<String>, ctx: &ResolveContext) -> Result<ResolvedExecution> {
+pub fn resolve_nex(args: Vec<String>, ctx: &ResolveContext) -> Result<ResolvedExecution> {
     if ctx.config.fast_mode {
         let state = ctx.local_bin_project_state()?;
         let detected_hint = state.detection().agent;
-        match native::attempt_nlx_from_local_bin_state(detected_hint, &args, ctx, &state)? {
+        match native::attempt_nex_from_local_bin_state(detected_hint, &args, ctx, &state)? {
             NativeAttempt::Eligible(exec) => return Ok(*exec),
             NativeAttempt::Ineligible(reason) => {
                 let detected = detect_for_action(ctx, false)?;
@@ -148,7 +148,7 @@ pub fn resolve_nlx(args: Vec<String>, ctx: &ResolveContext) -> Result<ResolvedEx
 /// # Errors
 ///
 /// Fails when detection fails, the command has no target dependency, or the selected package manager is unavailable.
-pub fn resolve_nun(args: Vec<String>, ctx: &ResolveContext) -> Result<ResolvedExecution> {
+pub fn resolve_nrm(args: Vec<String>, ctx: &ResolveContext) -> Result<ResolvedExecution> {
     let use_global = args.iter().any(|arg| is_global_flag(arg));
     let detected = detect_for_action(ctx, use_global)?;
     let args = if use_global {
@@ -159,7 +159,7 @@ pub fn resolve_nun(args: Vec<String>, ctx: &ResolveContext) -> Result<ResolvedEx
 
     if args.is_empty() {
         return Err(anyhow!(
-            "execution error: nun requires a dependency to uninstall.\nTry: nun lodash"
+            "execution error: nrm requires a dependency to uninstall.\nTry: nrm lodash"
         ));
     }
 
@@ -233,9 +233,9 @@ pub(crate) fn resolve_node_routed(
     match intent {
         Intent::Install => resolve_ni(args, ctx),
         Intent::Add => resolve_detected_intent(intent, args, ctx),
-        Intent::Execute => resolve_nlx(args, ctx),
+        Intent::Execute => resolve_nex(args, ctx),
         Intent::Run => resolve_nr(args, ctx),
-        Intent::Uninstall => resolve_nun(args, ctx),
+        Intent::Uninstall => resolve_nrm(args, ctx),
         Intent::CleanInstall => resolve_nci(args, ctx),
     }
 }

@@ -53,7 +53,7 @@ fn native_nr_runs_hooks_from_nearest_package_and_forwards_args() {
 }
 
 #[test]
-fn native_nlx_runs_local_bin_directly() {
+fn native_nex_runs_local_bin_directly() {
     support::with_env_lock(|| {
         let work = tempfile::tempdir().unwrap();
         let project = work.path().join("project");
@@ -295,7 +295,7 @@ fn node_run_uses_native_fast_path_with_lifecycle_env() {
 }
 
 #[test]
-fn native_nlx_sets_exec_compat_env() {
+fn native_nex_sets_exec_compat_env() {
     support::with_env_lock(|| {
         let work = tempfile::tempdir().unwrap();
         let project = work.path().join("project");
