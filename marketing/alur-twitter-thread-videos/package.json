@@ -1,0 +1,32 @@
+{
+  "name": "alur-twitter-thread-videos",
+  "version": "1.0.0",
+  "description": "Draft launch videos for the alur Twitter thread",
+  "repository": {},
+  "license": "UNLICENSED",
+  "private": true,
+  "dependencies": {
+    "@remotion/cli": "4.0.481",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "remotion": "4.0.481"
+  },
+  "devDependencies": {
+    "@remotion/eslint-config-flat": "4.0.481",
+    "@types/react": "19.2.7",
+    "@types/web": "0.0.166",
+    "eslint": "9.19.0",
+    "prettier": "3.8.1",
+    "typescript": "5.9.3"
+  },
+  "scripts": {
+    "dev": "remotion studio",
+    "build": "remotion bundle",
+    "render:all": "remotion render alur-launch-node-commands out/v7/01-node-commands.mp4 && remotion render alur-launch-detects-pm out/v7/02-detects-pm.mp4 && remotion render alur-launch-fast-delegates out/v7/03-fast-delegates.mp4 && remotion render alur-launch-normal-node out/v7/04-normal-node.mp4",
+    "upgrade": "remotion upgrade",
+    "lint": "eslint src && tsc"
+  },
+  "sideEffects": [
+    "*.css"
+  ]
+}

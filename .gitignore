@@ -167,3 +167,4 @@ npm/platforms/*/bin/alur.exe
 npm/platforms/*/LICENSE
 deno.lock
 .desloppify/
+.tracedecay/
