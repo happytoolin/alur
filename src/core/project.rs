@@ -51,6 +51,7 @@ pub(crate) struct ProjectDiscovery {
     pub bin_dirs: Vec<PathBuf>,
     pub detection: DetectionResult,
     pub has_yarn_pnp_loader: bool,
+    pub yarn_pnp_loader: Option<PathBuf>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -66,7 +67,7 @@ impl ProjectDiscovery {
         let mut bin_dirs = Vec::new();
         let mut has_lock = false;
         let mut resolved_detection = None;
-        let mut has_yarn_pnp_loader = false;
+        let mut yarn_pnp_loader = None;
 
         for dir in cwd.ancestors() {
             let dir = dir.to_path_buf();
@@ -75,10 +76,16 @@ impl ProjectDiscovery {
                 .then(|| detect_lockfile_in_dir(&dir))
                 .flatten();
             has_lock |= lockfile_pm.is_some();
-            has_yarn_pnp_loader |= yarn_pnp_loader_exists(&dir);
+            if yarn_pnp_loader.is_none() {
+                yarn_pnp_loader = find_yarn_pnp_loader_in_dir(&dir);
+            }
 
-            let needs_manifest = matches!(mode, ScanMode::Full)
-                && (nearest_package.is_none() || (should_detect && resolved_detection.is_none()));
+            let needs_manifest = match mode {
+                ScanMode::Full => {
+                    nearest_package.is_none() || (should_detect && resolved_detection.is_none())
+                }
+                ScanMode::LocalBinsOnly => should_detect && resolved_detection.is_none(),
+            };
             let manifest = if needs_manifest {
                 read_package_json(&dir)?
             } else {
@@ -104,7 +111,11 @@ impl ProjectDiscovery {
                         .or_else(|| detection_from_lockfile(lockfile_pm, has_lock))
                         .or_else(|| manifest.as_ref().and_then(detect_dev_engines_field))
                         .or_else(|| detection_from_install_metadata(&dir, has_lock)),
-                    ScanMode::LocalBinsOnly => detection_from_lockfile(lockfile_pm, has_lock)
+                    ScanMode::LocalBinsOnly => manifest
+                        .as_ref()
+                        .and_then(detect_package_manager_field)
+                        .or_else(|| detection_from_lockfile(lockfile_pm, has_lock))
+                        .or_else(|| manifest.as_ref().and_then(detect_dev_engines_field))
                         .or_else(|| detection_from_install_metadata(&dir, has_lock)),
                 };
             }
@@ -131,7 +142,8 @@ impl ProjectDiscovery {
             nearest_package,
             bin_dirs,
             detection,
-            has_yarn_pnp_loader,
+            has_yarn_pnp_loader: yarn_pnp_loader.is_some(),
+            yarn_pnp_loader,
         })
     }
 }
@@ -203,6 +215,12 @@ pub(crate) fn resolve_declared_package_bin(
     Ok(None)
 }
 
+pub(crate) fn read_nearest_package_json_path(cwd: &Path) -> Option<PathBuf> {
+    cwd.ancestors()
+        .map(package_json_path)
+        .find(|path| path.is_file())
+}
+
 pub(crate) fn fallback_detection(config: &AlurConfig, has_lock: bool) -> DetectionResult {
     if let Some(agent) = config.default_package_manager {
         return DetectionResult {
@@ -252,6 +270,76 @@ pub(crate) fn detect_lockfile_in_dir(dir: &Path) -> Option<PackageManager> {
     LOCKFILES
         .iter()
         .find_map(|(lockfile, pm)| dir.join(lockfile).exists().then_some(*pm))
+}
+
+pub(crate) fn project_signal_warnings(cwd: &Path) -> Result<Vec<String>> {
+    let mut warnings = Vec::new();
+
+    for dir in cwd.ancestors() {
+        let lockfiles = lockfiles_in_dir(dir);
+        if lockfiles.len() > 1 {
+            warnings.push(format!(
+                "{} has multiple package-manager lockfiles: {}",
+                dir.display(),
+                lockfiles
+                    .iter()
+                    .map(|(name, _)| *name)
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ));
+        }
+
+        if find_yarn_pnp_loader_in_dir(dir).is_some() {
+            warnings.push(format!(
+                "{} uses Yarn Plug'n'Play; fast script execution may fall back to yarn",
+                dir.display()
+            ));
+        }
+
+        if let Some(manifest) = read_package_json(dir)? {
+            let package_manager = detect_package_manager_field(&manifest);
+            let dev_engines = detect_dev_engines_field(&manifest);
+            if let (Some(package_manager), Some(dev_engines)) =
+                (package_manager.as_ref(), dev_engines.as_ref())
+                && let (Some(package_pm), Some(dev_pm)) = (package_manager.agent, dev_engines.agent)
+                && !same_package_manager_family(package_pm, dev_pm)
+            {
+                warnings.push(format!(
+                    "{} packageManager declares {} but devEngines.packageManager declares {}",
+                    package_json_path(dir).display(),
+                    package_pm.display_name(),
+                    dev_pm.display_name()
+                ));
+            }
+
+            if let Some(package_manager) = package_manager
+                && let Some(package_pm) = package_manager.agent
+                && let [(lockfile, lock_pm)] = lockfiles.as_slice()
+                && !same_package_manager_family(package_pm, *lock_pm)
+            {
+                warnings.push(format!(
+                    "{} declares {} but {} suggests {}",
+                    package_json_path(dir).display(),
+                    package_pm.display_name(),
+                    lockfile,
+                    lock_pm.display_name()
+                ));
+            }
+        }
+    }
+
+    Ok(warnings)
+}
+
+fn lockfiles_in_dir(dir: &Path) -> Vec<(&'static str, PackageManager)> {
+    LOCKFILES
+        .iter()
+        .filter_map(|(name, pm)| dir.join(name).exists().then_some((*name, *pm)))
+        .collect()
+}
+
+fn same_package_manager_family(left: PackageManager, right: PackageManager) -> bool {
+    left.bin() == right.bin()
 }
 
 pub(crate) fn detect_install_metadata_in_dir(dir: &Path) -> Option<PackageManager> {
@@ -424,8 +512,11 @@ fn detection_from_install_metadata(dir: &Path, has_lock: bool) -> Option<Detecti
     })
 }
 
-fn yarn_pnp_loader_exists(dir: &Path) -> bool {
-    dir.join(".pnp.cjs").exists() || dir.join(".pnp.js").exists()
+fn find_yarn_pnp_loader_in_dir(dir: &Path) -> Option<PathBuf> {
+    [".pnp.cjs", ".pnp.js"]
+        .into_iter()
+        .map(|name| dir.join(name))
+        .find(|path| path.is_file())
 }
 
 #[cfg(test)]

@@ -78,7 +78,7 @@ fn fixture_projects_cover_pm_and_fast_resolution_modes() {
                 pm_nr: "yarn run dev",
                 fast_nr: "yarn run dev",
                 pm_nex: "yarn dlx hello --flag",
-                fast_nex: "yarn dlx hello --flag",
+                fast_nex: "alur fast:run-local-bin hello --flag",
                 local_bin: false,
             },
             ModeCase {

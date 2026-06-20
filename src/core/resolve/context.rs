@@ -82,7 +82,7 @@ pub(crate) struct LocalBinProjectState {
     ancestors: Vec<ScannedAncestor>,
     bin_dirs: Vec<PathBuf>,
     detection: DetectionResult,
-    has_yarn_pnp_loader: bool,
+    yarn_pnp_loader: Option<PathBuf>,
 }
 
 impl ProjectState {
@@ -126,7 +126,7 @@ impl LocalBinProjectState {
             ancestors: discovery.ancestors,
             bin_dirs: discovery.bin_dirs,
             detection: discovery.detection,
-            has_yarn_pnp_loader: discovery.has_yarn_pnp_loader,
+            yarn_pnp_loader: discovery.yarn_pnp_loader,
         })
     }
 
@@ -136,8 +136,8 @@ impl LocalBinProjectState {
     }
 
     #[must_use]
-    pub(crate) fn has_yarn_pnp_loader(&self) -> bool {
-        self.has_yarn_pnp_loader
+    pub(crate) fn yarn_pnp_loader(&self) -> Option<&Path> {
+        self.yarn_pnp_loader.as_deref()
     }
 
     #[must_use]

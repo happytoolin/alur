@@ -7,4 +7,5 @@ pub mod doctor;
 pub mod error_report;
 pub mod help;
 pub mod init;
+pub mod pm;
 pub mod version;

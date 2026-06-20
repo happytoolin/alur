@@ -18,7 +18,9 @@ use crate::{
         types::{
             ExecutionStrategy, NativeDenoTaskExecution, NativeDenoTaskStage, NativeDenoTaskStep,
             NativeExecution, NativeLocalBinExecution, NativeLocalBinLauncher,
-            NativeScriptExecution, ResolvedExecution,
+            NativeScriptExecution, NativeWorkspaceLocalBinExecution,
+            NativeWorkspaceLocalBinPackage, NativeWorkspaceScriptExecution,
+            NativeWorkspaceScriptPackage, ResolvedExecution,
         },
         util::exit_code_from_status,
     },
@@ -27,6 +29,93 @@ use crate::{
 
 use super::env::{apply_local_bin_environment, native_script_env};
 use super::{is_node_program, looks_like_env_assignment};
+
+const YARN_PNP_BIN_RUNNER: &str = r#"
+const fs = require('node:fs');
+const path = require('node:path');
+const { pathToFileURL } = require('node:url');
+const Module = require('node:module');
+
+function fail(message) {
+  console.error(message);
+  process.exit(127);
+}
+
+const wanted = process.env.ALUR_PNP_BIN;
+if (!wanted) fail('ALUR_PNP_BIN is required');
+
+const issuer = process.cwd() + path.sep;
+const api = Module.findPnpApi && Module.findPnpApi(issuer);
+if (!api) fail(`Yarn Plug'n'Play API was not found for ${process.cwd()}`);
+
+function packageInfo(locator) {
+  try {
+    return locator && api.getPackageInformation(locator);
+  } catch {
+    return undefined;
+  }
+}
+
+function dependencyLocator(name, reference) {
+  if (reference == null) return undefined;
+  return typeof api.getLocator === 'function'
+    ? api.getLocator(name, reference)
+    : { name, reference };
+}
+
+function binPath(info, manifest, packageName) {
+  const bin = manifest && manifest.bin;
+  if (typeof bin === 'string') {
+    const unscoped = packageName && packageName.includes('/') ? packageName.split('/').pop() : packageName;
+    return packageName === wanted || unscoped === wanted ? path.join(info.packageLocation, bin) : undefined;
+  }
+  if (!bin || typeof bin !== 'object') return undefined;
+  return typeof bin[wanted] === 'string' ? path.join(info.packageLocation, bin[wanted]) : undefined;
+}
+
+const rootLocator = api.findPackageLocator(issuer) || api.topLevel;
+const queue = [rootLocator];
+const rootInfo = packageInfo(rootLocator);
+if (rootInfo && rootInfo.packageDependencies) {
+  for (const [name, reference] of rootInfo.packageDependencies) {
+    const locator = dependencyLocator(name, reference);
+    if (locator) queue.push(locator);
+  }
+}
+
+let script;
+for (const locator of queue) {
+  const info = packageInfo(locator);
+  if (!info || !info.packageLocation) continue;
+  const manifestPath = path.join(info.packageLocation, 'package.json');
+  let manifest;
+  try {
+    manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+  } catch {
+    continue;
+  }
+  script = binPath(info, manifest, manifest.name || locator.name);
+  if (script) break;
+}
+
+if (!script) fail(`Yarn Plug'n'Play binary '${wanted}' was not found`);
+
+process.argv = [process.argv[0], script, ...process.argv.slice(1)];
+(async () => {
+  try {
+    require(script);
+  } catch (error) {
+    if (error && error.code === 'ERR_REQUIRE_ESM') {
+      await import(pathToFileURL(script).href);
+    } else {
+      throw error;
+    }
+  }
+})().catch((error) => {
+  console.error(error && error.stack ? error.stack : error);
+  process.exit(1);
+});
+"#;
 
 pub(super) fn run_script(exec: &NativeScriptExecution, invocation_cwd: &Path) -> Result<ExitCode> {
     if exec.steps.is_empty() {
@@ -71,6 +160,34 @@ pub(super) fn run_local_bin(exec: &NativeLocalBinExecution, cwd: &Path) -> Resul
         .with_context(|| format!("failed to execute native local bin {}", exec.bin_name))?;
 
     Ok(exit_code_from_status(status.code()))
+}
+
+pub(super) fn run_workspace_scripts(
+    exec: &NativeWorkspaceScriptExecution,
+    invocation_cwd: &Path,
+) -> Result<ExitCode> {
+    let chunks = workspace_script_chunks(exec);
+    for chunk in chunks {
+        let code =
+            run_workspace_script_chunk(&chunk, invocation_cwd, exec.concurrency, exec.stream)?;
+        if code != ExitCode::SUCCESS {
+            return Ok(code);
+        }
+    }
+    Ok(ExitCode::SUCCESS)
+}
+
+pub(super) fn run_workspace_local_bins(
+    exec: &NativeWorkspaceLocalBinExecution,
+) -> Result<ExitCode> {
+    let chunks = workspace_bin_chunks(exec);
+    for chunk in chunks {
+        let code = run_workspace_bin_chunk(&chunk, exec.concurrency)?;
+        if code != ExitCode::SUCCESS {
+            return Ok(code);
+        }
+    }
+    Ok(ExitCode::SUCCESS)
 }
 
 pub(super) fn run_deno_task(
@@ -134,6 +251,20 @@ pub(super) fn format_command(exec: &ResolvedExecution) -> String {
             ];
             rendered.extend(native.forwarded_args.clone());
             join_rendered(&rendered)
+        }
+        ExecutionStrategy::Native(NativeExecution::RunWorkspaceScripts(native)) => {
+            join_rendered(&[
+                "alur".to_string(),
+                "fast:run-workspace-script".to_string(),
+                native.script_name.clone(),
+            ])
+        }
+        ExecutionStrategy::Native(NativeExecution::RunWorkspaceLocalBins(native)) => {
+            join_rendered(&[
+                "alur".to_string(),
+                "fast:run-workspace-bin".to_string(),
+                native.bin_name.clone(),
+            ])
         }
         ExecutionStrategy::External | ExecutionStrategy::InternalBatch { .. } => String::new(),
     }
@@ -250,6 +381,84 @@ fn execute_deno_shell_command(
     ))))
 }
 
+fn workspace_script_chunks(
+    exec: &NativeWorkspaceScriptExecution,
+) -> Vec<Vec<NativeWorkspaceScriptPackage>> {
+    if exec.parallel {
+        vec![exec.chunks.iter().flatten().cloned().collect()]
+    } else {
+        exec.chunks.clone()
+    }
+}
+
+fn workspace_bin_chunks(
+    exec: &NativeWorkspaceLocalBinExecution,
+) -> Vec<Vec<NativeWorkspaceLocalBinPackage>> {
+    if exec.parallel {
+        vec![exec.chunks.iter().flatten().cloned().collect()]
+    } else {
+        exec.chunks.clone()
+    }
+}
+
+fn run_workspace_script_chunk(
+    packages: &[NativeWorkspaceScriptPackage],
+    invocation_cwd: &Path,
+    concurrency: usize,
+    stream: bool,
+) -> Result<ExitCode> {
+    run_bounded(packages, concurrency, |package| {
+        if stream {
+            eprintln!("{} {}", package.package_name, package.exec.script_name);
+        }
+        run_script(&package.exec, invocation_cwd)
+    })
+}
+
+fn run_workspace_bin_chunk(
+    packages: &[NativeWorkspaceLocalBinPackage],
+    concurrency: usize,
+) -> Result<ExitCode> {
+    run_bounded(packages, concurrency, |package| {
+        run_local_bin(&package.exec, &package.package_root)
+    })
+}
+
+fn run_bounded<T, F>(items: &[T], concurrency: usize, run_one: F) -> Result<ExitCode>
+where
+    T: Sync,
+    F: Fn(&T) -> Result<ExitCode> + Sync,
+{
+    let concurrency = concurrency.max(1);
+    let mut first_failure = ExitCode::SUCCESS;
+
+    for batch in items.chunks(concurrency) {
+        let results = std::thread::scope(|scope| {
+            let handles = batch
+                .iter()
+                .map(|item| scope.spawn(|| run_one(item)))
+                .collect::<Vec<_>>();
+
+            handles
+                .into_iter()
+                .map(|handle| {
+                    handle
+                        .join()
+                        .map_err(|_| anyhow::anyhow!("workspace worker panicked"))?
+                })
+                .collect::<Result<Vec<_>>>()
+        })?;
+
+        for code in results {
+            if code != ExitCode::SUCCESS && first_failure == ExitCode::SUCCESS {
+                first_failure = code;
+            }
+        }
+    }
+
+    Ok(first_failure)
+}
+
 fn spawn_local_bin_command(exec: &NativeLocalBinExecution) -> Result<Command> {
     let mut command = match &exec.launcher {
         NativeLocalBinLauncher::Binary(path) => Command::new(path),
@@ -274,6 +483,19 @@ fn spawn_local_bin_command(exec: &NativeLocalBinExecution) -> Result<Command> {
         } => {
             let mut command = Command::new(resolve_real_node_path()?);
             command.args(node_args).arg(script_path);
+            command
+        }
+        NativeLocalBinLauncher::YarnPnp {
+            pnp_loader,
+            bin_name,
+        } => {
+            let mut command = Command::new(resolve_real_node_path()?);
+            command
+                .arg("-r")
+                .arg(pnp_loader)
+                .arg("-e")
+                .arg(YARN_PNP_BIN_RUNNER)
+                .env("ALUR_PNP_BIN", bin_name);
             command
         }
     };
