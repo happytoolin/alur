@@ -1,8 +1,9 @@
 use std::{
     collections::HashMap,
     ffi::OsString,
+    io,
     path::Path,
-    process::{Command, ExitCode},
+    process::{Command, ExitCode, ExitStatus},
 };
 
 use anyhow::{Context, Result};
@@ -18,7 +19,7 @@ use crate::{
         types::{
             ExecutionStrategy, NativeDenoTaskExecution, NativeDenoTaskStage, NativeDenoTaskStep,
             NativeExecution, NativeLocalBinExecution, NativeLocalBinLauncher,
-            NativeScriptExecution, ResolvedExecution,
+            NativeScriptExecution, NativeScriptStep, ResolvedExecution,
         },
         util::exit_code_from_status,
     },
@@ -42,15 +43,7 @@ pub(super) fn run_script(exec: &NativeScriptExecution, invocation_cwd: &Path) ->
             &[]
         };
 
-        let status =
-            prepare_script_step_command(&step.command, forwarded_args, &exec.package_root)?
-                .envs(shared_env.iter().map(|(key, value)| (key, value)))
-                .env("npm_lifecycle_event", &step.event_name)
-                .env("npm_lifecycle_script", &step.command)
-                .status()
-                .with_context(|| {
-                    format!("failed to execute native script step '{}'", step.event_name)
-                })?;
+        let status = run_script_step(step, forwarded_args, &exec.package_root, &shared_env)?;
 
         if !status.success() {
             return Ok(exit_code_from_status(status.code()));
@@ -286,12 +279,61 @@ fn prepare_script_step_command(
     command_string: &str,
     forwarded_args: &[String],
     cwd: &Path,
-) -> Result<Command> {
+) -> Result<PreparedScriptStepCommand> {
     if let Some(command) = spawn_direct_script_command(command_string, forwarded_args)? {
-        return Ok(configure_command(command, cwd));
+        return Ok(PreparedScriptStepCommand {
+            command: configure_command(command, cwd),
+            direct: true,
+        });
     }
 
-    Ok(spawn_shell_command(command_string, forwarded_args, cwd))
+    Ok(PreparedScriptStepCommand {
+        command: spawn_shell_command(command_string, forwarded_args, cwd),
+        direct: false,
+    })
+}
+
+struct PreparedScriptStepCommand {
+    command: Command,
+    direct: bool,
+}
+
+fn run_script_step(
+    step: &NativeScriptStep,
+    forwarded_args: &[String],
+    cwd: &Path,
+    shared_env: &[(String, String)],
+) -> Result<ExitStatus> {
+    let mut prepared = prepare_script_step_command(&step.command, forwarded_args, cwd)?;
+    apply_script_step_env(&mut prepared.command, shared_env, step);
+
+    match prepared.command.status() {
+        Ok(status) => Ok(status),
+        Err(error) if prepared.direct => {
+            let direct_error = error.to_string();
+            let mut shell = spawn_shell_command(&step.command, forwarded_args, cwd);
+            apply_script_step_env(&mut shell, shared_env, step);
+            shell.status().with_context(|| {
+                format!(
+                    "failed to execute native script step '{}' after direct spawn failed: {}",
+                    step.event_name, direct_error
+                )
+            })
+        }
+        Err(error) => Err::<ExitStatus, io::Error>(error)
+            .with_context(|| format!("failed to execute native script step '{}'", step.event_name)),
+    }
+}
+
+fn apply_script_step_env(
+    command: &mut Command,
+    shared_env: &[(String, String)],
+    step: &NativeScriptStep,
+) {
+    command
+        .envs(shared_env.iter().map(|(key, value)| (key, value)))
+        .env("npm_lifecycle_event", &step.event_name)
+        .env("npm_lifecycle_script", &step.command);
 }
 
 fn spawn_direct_script_command(
