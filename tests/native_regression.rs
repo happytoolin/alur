@@ -452,7 +452,7 @@ fn setup_env_expansion_fixture_npm(root: &Path) {
     init_project(root, Manager::Npm, "envy");
     fs::write(
         root.join("package.json"),
-        r#"{"name":"envy","packageManager":"npm@11.6.2","scripts":{"dev":"printf '%s' \"$npm_package_name\" > env.txt"}}"#,
+        r#"{"name":"envy","packageManager":"npm@11.6.2","scripts":{"dev":"printf '%s' \"$npm_package_description\" > env.txt"}}"#,
     )
     .unwrap();
 }

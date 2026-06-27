@@ -82,6 +82,36 @@ fn doctor_reports_shell_setup_fields() {
     });
 }
 
+#[test]
+fn doctor_reports_project_signal_warnings() {
+    support::with_env_lock(|| {
+        let work = tempfile::tempdir().unwrap();
+        fs::write(
+            work.path().join("package.json"),
+            r#"{"packageManager":"pnpm@9.0.0","devEngines":{"packageManager":{"name":"npm","version":"10.0.0"}}}"#,
+        )
+        .unwrap();
+        fs::write(work.path().join("package-lock.json"), "lock").unwrap();
+        fs::write(work.path().join(".pnp.js"), "module.exports = {};\n").unwrap();
+
+        let output = support::run_alur(
+            vec!["doctor", "-C", work.path().to_str().unwrap()],
+            &[("ALUR_SKIP_PM_CHECK", "1")],
+        );
+        assert!(output.status.success());
+
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert!(stdout.contains("project_warnings:"));
+        assert!(
+            stdout.contains(
+                "packageManager declares pnpm but devEngines.packageManager declares npm"
+            )
+        );
+        assert!(stdout.contains("declares pnpm but package-lock.json suggests npm"));
+        assert!(stdout.contains("uses Yarn Plug'n'Play"));
+    });
+}
+
 #[cfg(unix)]
 #[test]
 fn bash_init_gives_node_shim_precedence_and_preserves_real_node() {

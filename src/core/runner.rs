@@ -38,6 +38,10 @@ pub fn run(exec: &ResolvedExecution) -> Result<ExitCode> {
             NativeExecution::RunScript(script) => native::run_script(script, &exec.cwd),
             NativeExecution::RunDenoTask(task) => native::run_deno_task(task, &exec.cwd),
             NativeExecution::RunLocalBin(bin) => native::run_local_bin(bin, &exec.cwd),
+            NativeExecution::RunWorkspaceScripts(scripts) => {
+                native::run_workspace_scripts(scripts, &exec.cwd)
+            }
+            NativeExecution::RunWorkspaceLocalBins(bins) => native::run_workspace_local_bins(bins),
         };
     }
 

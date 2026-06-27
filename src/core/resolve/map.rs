@@ -43,7 +43,7 @@ pub(super) fn run_command(pm: PackageManager, args: Vec<String>) -> (String, Vec
     }
 }
 
-pub(super) fn execute_command(pm: PackageManager, args: Vec<String>) -> (String, Vec<String>) {
+pub(crate) fn execute_command(pm: PackageManager, args: Vec<String>) -> (String, Vec<String>) {
     match pm {
         PackageManager::Npm | PackageManager::Yarn => ("npx".to_string(), args),
         PackageManager::YarnBerry => ("yarn".to_string(), prepend("dlx", args)),

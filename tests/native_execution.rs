@@ -4,7 +4,7 @@ use std::fs;
 
 mod support;
 
-use support::run_alur;
+use support::{command_exists, run_alur};
 
 #[test]
 fn native_nr_runs_hooks_from_nearest_package_and_forwards_args() {
@@ -87,6 +87,82 @@ fn native_nex_runs_local_bin_directly() {
 }
 
 #[test]
+fn native_nex_runs_yarn_pnp_bin_through_loader() {
+    if !command_exists("node") {
+        return;
+    }
+
+    support::with_env_lock(|| {
+        let work = tempfile::tempdir().unwrap();
+        let project = work.path().join("project");
+        let tool = project.join("virtual").join("tool");
+        let marker = project.join("pnp-args.json");
+        fs::create_dir_all(&tool).unwrap();
+        fs::write(project.join("yarn.lock"), "lock").unwrap();
+        fs::write(
+            project.join("package.json"),
+            r#"{"name":"root","packageManager":"yarn@4.0.0","dependencies":{"tool":"1.0.0"}}"#,
+        )
+        .unwrap();
+        fs::write(
+            project.join(".pnp.cjs"),
+            r#"
+const Module = require('node:module');
+const path = require('node:path');
+const root = __dirname;
+const rootLocator = { name: 'root', reference: 'workspace:.' };
+const infos = new Map([
+  ['root@workspace:.', {
+    packageLocation: root + path.sep,
+    packageDependencies: new Map([['tool', '1.0.0']])
+  }],
+  ['tool@1.0.0', {
+    packageLocation: path.join(root, 'virtual', 'tool') + path.sep,
+    packageDependencies: new Map()
+  }]
+]);
+Module.findPnpApi = () => ({
+  topLevel: rootLocator,
+  findPackageLocator: () => rootLocator,
+  getLocator: (name, reference) => ({ name, reference }),
+  getPackageInformation: (locator) => infos.get(`${locator.name}@${locator.reference}`)
+});
+"#,
+        )
+        .unwrap();
+        fs::write(
+            tool.join("package.json"),
+            r#"{"name":"tool","bin":{"tool":"cli.cjs"}}"#,
+        )
+        .unwrap();
+        fs::write(
+            tool.join("cli.cjs"),
+            "const fs = require('node:fs'); fs.writeFileSync(process.env.ALUR_PNP_MARKER, JSON.stringify(process.argv.slice(2)));\n",
+        )
+        .unwrap();
+
+        let output = run_alur(
+            vec![
+                "exec",
+                "-C",
+                project.to_str().unwrap(),
+                "--fast",
+                "tool",
+                "alpha",
+                "beta",
+            ],
+            &[
+                ("ALUR_SKIP_PM_CHECK", "1"),
+                ("ALUR_PNP_MARKER", marker.to_str().unwrap()),
+            ],
+        );
+
+        assert!(output.status.success(), "{output:?}");
+        assert_eq!(fs::read_to_string(marker).unwrap(), r#"["alpha","beta"]"#);
+    });
+}
+
+#[test]
 fn native_explain_reports_fallback_reason() {
     support::with_env_lock(|| {
         let work = tempfile::tempdir().unwrap();
@@ -95,7 +171,7 @@ fn native_explain_reports_fallback_reason() {
         fs::write(project.join("package-lock.json"), "lock").unwrap();
         fs::write(
             project.join("package.json"),
-            r#"{"name":"x","scripts":{"dev":"echo $npm_package_name"}}"#,
+            r#"{"name":"x","scripts":{"dev":"echo $npm_package_description"}}"#,
         )
         .unwrap();
 
@@ -160,7 +236,7 @@ fn native_nr_exposes_supported_shared_npm_env() {
         fs::write(project.join("package-lock.json"), "lock").unwrap();
         fs::write(
             project.join("package.json"),
-            r#"{"name":"x","scripts":{"dev":"printf '%s\n' \"$npm_package_json\" \"$npm_lifecycle_event\" \"$npm_lifecycle_script\" \"$npm_execpath\" \"$npm_node_execpath\" \"$npm_command\" \"$npm_config_user_agent\" \"$INIT_CWD\" > env.txt"}}"#,
+            r#"{"name":"x","version":"1.2.3","config":{"port":3000},"scripts":{"dev":"printf '%s\n' \"$npm_package_json\" \"$npm_package_name\" \"$npm_package_version\" \"$npm_package_config_port\" \"$npm_lifecycle_event\" \"$npm_lifecycle_script\" \"$npm_execpath\" \"$npm_node_execpath\" \"$npm_command\" \"$npm_config_user_agent\" \"$npm_config_registry\" \"$INIT_CWD\" > env.txt"}}"#,
         )
         .unwrap();
         fs::write(&fake_node, "#!/bin/sh\nexit 0\n").unwrap();
@@ -186,10 +262,14 @@ fn native_nr_exposes_supported_shared_npm_env() {
         let project = project.to_string_lossy().to_string();
 
         assert!(lines.contains(&package_json));
+        assert!(lines.contains(&"x".to_string()));
+        assert!(lines.contains(&"1.2.3".to_string()));
+        assert!(lines.contains(&"3000".to_string()));
         assert!(lines.contains(&"dev".to_string()));
         assert!(lines.contains(&fake_node));
         assert!(lines.contains(&"run-script".to_string()));
         assert!(lines.contains(&"alur-tests/1.0.0".to_string()));
+        assert!(lines.contains(&"https://registry.npmjs.org/".to_string()));
         assert!(lines.contains(&project));
         assert!(lines.iter().any(|line| !line.is_empty()));
     });

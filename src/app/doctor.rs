@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use crate::{
-    core::{resolve::ResolveContext, types::DetectionSource},
+    core::{project::project_signal_warnings, resolve::ResolveContext, types::DetectionSource},
     platform::{
         node::{managed_node_shim_path, resolve_real_node_path},
         paths_equal,
@@ -90,6 +90,18 @@ pub fn print_doctor(ctx: &ResolveContext) {
         Err(err) => {
             println!("detection_error: {err}");
         }
+    }
+
+    println!();
+    println!("project_warnings:");
+    match project_signal_warnings(cwd) {
+        Ok(warnings) if warnings.is_empty() => println!("  none"),
+        Ok(warnings) => {
+            for warning in warnings {
+                println!("  - {warning}");
+            }
+        }
+        Err(err) => println!("  error: {err}"),
     }
 
     println!();

@@ -176,10 +176,11 @@ Fast mode currently targets common local work:
 - local bins in `node_modules/.bin`
 - pnpm hoisted bins under `node_modules/.pnpm/node_modules/.bin`
 - package-local `bin` entries
+- Yarn Plug'n'Play local bins through the project `.pnp.cjs` / `.pnp.js` loader
 
 If `alur` cannot prove the fast path is correct, it falls back to package-manager mode.
 
-Common fallback cases include Yarn Plug'n'Play, Deno workspaces, remote package exec, and scripts that depend on package-manager-specific env expansion.
+Common fallback cases include Yarn Plug'n'Play scripts, Deno workspaces, remote package exec, and scripts that depend on package-manager-specific env expansion.
 
 Control it per command:
 
@@ -249,6 +250,8 @@ Global installs use `global_package_manager`, which defaults to `npm`.
 ```bash
 nr
 nr dev
+nr -r build
+nr --filter "@org/app..." test
 nr build
 nr test -- --watch
 nr --if-present lint
@@ -256,17 +259,23 @@ nr --if-present lint
 
 In fast mode, `nr` can skip the package manager and run the script directly. Use `--pm` when you need exact package-manager behavior.
 
+Workspace fast mode supports `-r` / `--recursive`, repeated `--filter` / `-F`, `--parallel`, `--workspace-concurrency`, `--resume-from`, `--stream`, `--workspace-root`, and `--include-workspace-root` for common npm/pnpm-style monorepos.
+
 ### Execute Binaries
 
 `nex` runs package binaries.
 
 ```bash
 nex vitest
+nex -r tsc --version
+nex --filter "@org/app" eslint .
 nex eslint .
 nex create-vite@latest
 ```
 
 When a local executable can be resolved confidently, `nex` runs it directly. Remote or ambiguous cases fall back to the detected package manager.
+
+Workspace `nex` fast mode runs an installed local bin in each selected package.
 
 ### Uninstall / Clean Install
 
@@ -378,7 +387,19 @@ Restart your shell after editing your config.
 
 If real Node cannot be found, set `ALUR_REAL_NODE=/absolute/path/to/node`.
 
-To disable the shim, remove the `alur init` line from your shell config and restart the shell.
+To disable the node shim, remove the `alur init` line from your shell config and restart the shell.
+
+## Package Manager Pins
+
+```bash
+alur pm which
+alur pm use pnpm@9.15.4
+alur pm shim
+```
+
+`alur pm which` prints the detected package-manager binary. `alur pm use` writes `packageManager` in the nearest `package.json`. `alur pm shim` creates managed `npm`, `npx`, `pnpm`, `pnpx`, `yarn`, `yarnpkg`, `bun`, `bunx`, and `deno` wrappers that route to the package manager detected for the current project.
+
+These tools do not download package managers or rewrite lockfiles yet.
 
 ## Package Manager Detection
 
@@ -455,6 +476,7 @@ alur help ni
 alur completion zsh
 alur init bash
 alur doctor
+alur pm which
 ```
 
 ## Troubleshooting
@@ -480,11 +502,13 @@ nr dev --explain
 node install vite --print-command
 ```
 
+`alur doctor` also reports project signal warnings, such as conflicting lockfiles, `packageManager` / `devEngines.packageManager` disagreement, package-manager declarations that do not match the lockfile, and Yarn Plug'n'Play script fallback cases.
+
 ### Skip Fast Mode For Exact PM Behavior
 
 Fast mode intentionally does not emulate every package-manager edge case.
 
-Use `--pm` for Yarn PnP projects, Deno workspaces, package-manager-specific env expansion, or debugging exact package-manager behavior:
+Use `--pm` for Yarn PnP scripts, Deno workspaces, package-manager-specific env expansion, remote package exec, or debugging exact package-manager behavior:
 
 ```bash
 nr --pm build

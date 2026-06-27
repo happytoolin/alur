@@ -65,7 +65,7 @@ fn fast_mode_matrix_covers_supported_and_fallback_package_managers() {
                 local_bins: false,
                 yarn_pnp: true,
                 expected_nr: "yarn run dev",
-                expected_nex: "yarn dlx hello --flag",
+                expected_nex: "alur fast:run-local-bin hello --flag",
             },
             PmCase {
                 label: "bun",
