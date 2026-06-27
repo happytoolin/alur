@@ -7,7 +7,10 @@ use std::{
 use anyhow::Result;
 
 use crate::{
-    core::types::{NativeLocalBinExecution, NativeScriptExecution, PackageManager},
+    core::{
+        pkg_json::read_package_json,
+        types::{NativeLocalBinExecution, NativeScriptExecution, PackageManager},
+    },
     platform::node::{REAL_NODE_ENV, resolve_real_node_path},
 };
 
@@ -41,9 +44,22 @@ pub(super) fn native_script_env(
 
     envs.push(("npm_command".to_string(), "run-script".to_string()));
 
+    append_package_env(&mut envs, exec)?;
+
     if let Ok(user_agent) = env::var("npm_config_user_agent") {
         envs.push(("npm_config_user_agent".to_string(), user_agent));
+    } else {
+        envs.push((
+            "npm_config_user_agent".to_string(),
+            synthetic_user_agent(PackageManager::Npm),
+        ));
     }
+
+    envs.push((
+        "npm_config_registry".to_string(),
+        env::var("npm_config_registry")
+            .unwrap_or_else(|_| "https://registry.npmjs.org/".to_string()),
+    ));
 
     let merged_path = merged_path_with_bins(&exec.bin_paths)?;
     envs.push(("PATH".to_string(), merged_path));
@@ -79,6 +95,12 @@ pub(super) fn apply_local_bin_environment(
             synthetic_user_agent(exec.package_manager),
         );
     }
+
+    command.env(
+        "npm_config_registry",
+        env::var("npm_config_registry")
+            .unwrap_or_else(|_| "https://registry.npmjs.org/".to_string()),
+    );
 }
 
 pub(super) fn merged_path_with_bins(bin_paths: &[PathBuf]) -> Result<String> {
@@ -117,6 +139,50 @@ fn package_manager_execpath(pm: PackageManager) -> String {
 
 fn synthetic_user_agent(pm: PackageManager) -> String {
     format!("{}/0.0.0 alur/fast", pm.bin())
+}
+
+fn append_package_env(
+    envs: &mut Vec<(String, String)>,
+    exec: &NativeScriptExecution,
+) -> Result<()> {
+    let Some(package_json) = read_package_json(&exec.package_root)? else {
+        return Ok(());
+    };
+
+    if let Some(name) = package_json.name {
+        envs.push(("npm_package_name".to_string(), name));
+    }
+    if let Some(version) = package_json.version {
+        envs.push(("npm_package_version".to_string(), version));
+    }
+    for (key, value) in package_json.config {
+        if let Some(value) = npm_env_value(&value) {
+            envs.push((format!("npm_package_config_{}", npm_env_key(&key)), value));
+        }
+    }
+
+    Ok(())
+}
+
+fn npm_env_key(key: &str) -> String {
+    key.chars()
+        .map(|ch| {
+            if ch.is_ascii_alphanumeric() {
+                ch.to_ascii_lowercase()
+            } else {
+                '_'
+            }
+        })
+        .collect()
+}
+
+fn npm_env_value(value: &serde_json::Value) -> Option<String> {
+    match value {
+        serde_json::Value::String(value) => Some(value.clone()),
+        serde_json::Value::Number(value) => Some(value.to_string()),
+        serde_json::Value::Bool(value) => Some(value.to_string()),
+        _ => None,
+    }
 }
 
 #[cfg(test)]

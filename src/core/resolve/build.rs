@@ -10,7 +10,7 @@ use crate::core::{
 use super::{
     context::ResolveContext,
     detect::{agent_resolution_from_detection, detect_for_action, ensure_detected_available},
-    flags::{exclude_flag, normalize_ni_args},
+    flags::{exclude_flag, normalize_ni_args, split_workspace_args},
     map::{
         add_command, execute_command, frozen_command, global_install_command,
         global_uninstall_command, install_command, run_command, uninstall_command,
@@ -66,30 +66,24 @@ pub fn resolve_nr(mut args: Vec<String>, ctx: &ResolveContext) -> Result<Resolve
 }
 
 fn resolve_run_like(args: &mut Vec<String>, ctx: &ResolveContext) -> Result<ResolvedExecution> {
-    if args.is_empty() {
-        args.push("start".to_string());
-    }
-
     let has_if_present = args.iter().any(|a| a == "--if-present");
     if has_if_present {
         *args = exclude_flag(std::mem::take(args), "--if-present");
     }
 
-    let mut normalized_args = args.clone();
-    if normalized_args.get(1).is_some_and(|arg| arg == "--") {
-        normalized_args.remove(1);
-    }
+    let workspace_args = split_workspace_args(args.clone())?;
+    let normalized_args = normalize_run_args(args.clone());
+    let native_args = normalize_run_args(workspace_args.args.clone());
 
     if ctx.config.fast_mode {
         let state = ctx.project_state()?;
         let detected_hint = state.detection().agent;
-        match native::attempt_nr_from_state(
-            detected_hint,
-            &normalized_args,
-            ctx,
-            &state,
-            has_if_present,
-        )? {
+        let attempt = if workspace_args.requested {
+            native::attempt_workspace_nr(detected_hint, &native_args, ctx, &workspace_args.opts)?
+        } else {
+            native::attempt_nr_from_state(detected_hint, &native_args, ctx, &state, has_if_present)?
+        };
+        match attempt {
             NativeAttempt::Eligible(exec) => return Ok(*exec),
             NativeAttempt::Ineligible(reason) => {
                 let mut resolved =
@@ -118,10 +112,21 @@ fn resolve_run_like(args: &mut Vec<String>, ctx: &ResolveContext) -> Result<Reso
 ///
 /// Fails when local-bin scanning, package-manager detection, or availability checks fail.
 pub fn resolve_nex(args: Vec<String>, ctx: &ResolveContext) -> Result<ResolvedExecution> {
+    let workspace_args = split_workspace_args(args.clone())?;
     if ctx.config.fast_mode {
         let state = ctx.local_bin_project_state()?;
         let detected_hint = state.detection().agent;
-        match native::attempt_nex_from_local_bin_state(detected_hint, &args, ctx, &state)? {
+        let attempt = if workspace_args.requested {
+            native::attempt_workspace_nex(
+                detected_hint,
+                &workspace_args.args,
+                ctx,
+                &workspace_args.opts,
+            )?
+        } else {
+            native::attempt_nex_from_local_bin_state(detected_hint, &args, ctx, &state)?
+        };
+        match attempt {
             NativeAttempt::Eligible(exec) => return Ok(*exec),
             NativeAttempt::Ineligible(reason) => {
                 let detected = detect_for_action(ctx, false)?;
@@ -143,6 +148,18 @@ pub fn resolve_nex(args: Vec<String>, ctx: &ResolveContext) -> Result<ResolvedEx
         args,
         ctx.cwd(),
     ))
+}
+
+fn normalize_run_args(mut args: Vec<String>) -> Vec<String> {
+    if args.is_empty() {
+        args.push("start".to_string());
+    }
+
+    if args.get(1).is_some_and(|arg| arg == "--") {
+        args.remove(1);
+    }
+
+    args
 }
 
 /// # Errors

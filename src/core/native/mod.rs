@@ -13,6 +13,7 @@ use anyhow::Result;
 use crate::core::{
     resolve::{LocalBinProjectState, ProjectState, ResolveContext},
     types::{NativeDenoTaskExecution, PackageManager, ResolvedExecution},
+    workspace::WorkspaceSelectionOptions,
 };
 
 use plan::{NativeDecision, NativePlan};
@@ -64,6 +65,34 @@ pub(crate) fn attempt_nex_from_local_bin_state(
     }))
 }
 
+pub(crate) fn attempt_workspace_nr(
+    pm: Option<PackageManager>,
+    args: &[String],
+    ctx: &ResolveContext,
+    opts: &WorkspaceSelectionOptions,
+) -> Result<NativeAttempt> {
+    let decision = crate::core::profile::measure("native.plan_workspace_nr", || {
+        eligibility::plan_workspace_nr(pm, args, ctx, opts)
+    })?;
+    Ok(crate::core::profile::measure("native.materialize", || {
+        into_attempt(decision, ctx.cwd())
+    }))
+}
+
+pub(crate) fn attempt_workspace_nex(
+    pm: Option<PackageManager>,
+    args: &[String],
+    ctx: &ResolveContext,
+    opts: &WorkspaceSelectionOptions,
+) -> Result<NativeAttempt> {
+    let decision = crate::core::profile::measure("native.plan_workspace_nex", || {
+        eligibility::plan_workspace_nex(pm, args, ctx, opts)
+    })?;
+    Ok(crate::core::profile::measure("native.materialize", || {
+        into_attempt(decision, ctx.cwd())
+    }))
+}
+
 pub(crate) fn run_script(
     exec: &crate::core::types::NativeScriptExecution,
     invocation_cwd: &Path,
@@ -85,6 +114,19 @@ pub(crate) fn run_local_bin(
     exec::run_local_bin(exec, cwd)
 }
 
+pub(crate) fn run_workspace_scripts(
+    exec: &crate::core::types::NativeWorkspaceScriptExecution,
+    invocation_cwd: &Path,
+) -> Result<std::process::ExitCode> {
+    exec::run_workspace_scripts(exec, invocation_cwd)
+}
+
+pub(crate) fn run_workspace_local_bins(
+    exec: &crate::core::types::NativeWorkspaceLocalBinExecution,
+) -> Result<std::process::ExitCode> {
+    exec::run_workspace_local_bins(exec)
+}
+
 #[must_use]
 pub(crate) fn format_command(exec: &ResolvedExecution) -> String {
     exec::format_command(exec)
@@ -102,6 +144,16 @@ fn into_attempt(decision: NativeDecision, cwd: &Path) -> NativeAttempt {
             NativePlan::LocalBin(exec) => {
                 ResolvedExecution::native_local_bin(exec.bin_name.clone(), cwd.to_path_buf(), exec)
             }
+            NativePlan::WorkspaceScripts(exec) => ResolvedExecution::native_workspace_scripts(
+                exec.script_name.clone(),
+                cwd.to_path_buf(),
+                exec,
+            ),
+            NativePlan::WorkspaceLocalBins(exec) => ResolvedExecution::native_workspace_local_bins(
+                exec.bin_name.clone(),
+                cwd.to_path_buf(),
+                exec,
+            ),
         })),
         NativeDecision::Ineligible(reason) => NativeAttempt::Ineligible(reason.to_string()),
     }

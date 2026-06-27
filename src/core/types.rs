@@ -90,6 +90,8 @@ pub enum NativeExecution {
     RunScript(NativeScriptExecution),
     RunDenoTask(NativeDenoTaskExecution),
     RunLocalBin(NativeLocalBinExecution),
+    RunWorkspaceScripts(NativeWorkspaceScriptExecution),
+    RunWorkspaceLocalBins(NativeWorkspaceLocalBinExecution),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -107,6 +109,21 @@ pub struct NativeScriptStep {
     pub event_name: String,
     pub command: String,
     pub forward_args: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NativeWorkspaceScriptExecution {
+    pub script_name: String,
+    pub chunks: Vec<Vec<NativeWorkspaceScriptPackage>>,
+    pub parallel: bool,
+    pub stream: bool,
+    pub concurrency: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NativeWorkspaceScriptPackage {
+    pub package_name: String,
+    pub exec: NativeScriptExecution,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -140,6 +157,21 @@ pub struct NativeLocalBinExecution {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NativeWorkspaceLocalBinExecution {
+    pub bin_name: String,
+    pub chunks: Vec<Vec<NativeWorkspaceLocalBinPackage>>,
+    pub parallel: bool,
+    pub concurrency: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NativeWorkspaceLocalBinPackage {
+    pub package_name: String,
+    pub package_root: PathBuf,
+    pub exec: NativeLocalBinExecution,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum NativeLocalBinLauncher {
     Binary(PathBuf),
     Cmd(PathBuf),
@@ -147,6 +179,10 @@ pub enum NativeLocalBinLauncher {
     NodeScript {
         script_path: PathBuf,
         node_args: Vec<String>,
+    },
+    YarnPnp {
+        pnp_loader: PathBuf,
+        bin_name: String,
     },
 }
 
@@ -157,6 +193,7 @@ impl NativeLocalBinExecution {
             | NativeLocalBinLauncher::Cmd(path)
             | NativeLocalBinLauncher::PowerShell(path) => path,
             NativeLocalBinLauncher::NodeScript { script_path, .. } => script_path,
+            NativeLocalBinLauncher::YarnPnp { pnp_loader, .. } => pnp_loader,
         }
     }
 }
@@ -244,6 +281,41 @@ impl ResolvedExecution {
             passthrough: false,
             mode: ExecutionMode::Fast,
             strategy: ExecutionStrategy::Native(NativeExecution::RunLocalBin(exec)),
+            fast_requested: true,
+            fast_fallback_reason: None,
+        }
+    }
+
+    pub fn native_workspace_scripts(
+        script_name: impl Into<String>,
+        cwd: PathBuf,
+        exec: NativeWorkspaceScriptExecution,
+    ) -> Self {
+        let script_name = script_name.into();
+        Self {
+            program: script_name,
+            args: Vec::new(),
+            cwd,
+            passthrough: false,
+            mode: ExecutionMode::Fast,
+            strategy: ExecutionStrategy::Native(NativeExecution::RunWorkspaceScripts(exec)),
+            fast_requested: true,
+            fast_fallback_reason: None,
+        }
+    }
+
+    pub fn native_workspace_local_bins(
+        bin_name: impl Into<String>,
+        cwd: PathBuf,
+        exec: NativeWorkspaceLocalBinExecution,
+    ) -> Self {
+        Self {
+            program: bin_name.into(),
+            args: Vec::new(),
+            cwd,
+            passthrough: false,
+            mode: ExecutionMode::Fast,
+            strategy: ExecutionStrategy::Native(NativeExecution::RunWorkspaceLocalBins(exec)),
             fast_requested: true,
             fast_fallback_reason: None,
         }

@@ -1,4 +1,7 @@
-use crate::core::types::{NativeDenoTaskExecution, NativeLocalBinExecution, NativeScriptExecution};
+use crate::core::types::{
+    NativeDenoTaskExecution, NativeLocalBinExecution, NativeScriptExecution,
+    NativeWorkspaceLocalBinExecution, NativeWorkspaceScriptExecution,
+};
 use thiserror::Error;
 
 pub(super) enum NativeDecision {
@@ -10,6 +13,8 @@ pub(super) enum NativePlan {
     Script(NativeScriptExecution),
     DenoTask(NativeDenoTaskExecution),
     LocalBin(NativeLocalBinExecution),
+    WorkspaceScripts(NativeWorkspaceScriptExecution),
+    WorkspaceLocalBins(NativeWorkspaceLocalBinExecution),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
@@ -20,9 +25,7 @@ pub(super) enum FallbackReason {
     MissingNearestDenoProject,
     #[error("fast script execution requires a nearest package.json")]
     MissingNearestPackage,
-    #[error(
-        "yarn berry Plug'n'Play does not expose node_modules/.bin; falling back to yarn execution"
-    )]
+    #[error("yarn berry Plug'n'Play scripts require yarn execution")]
     YarnBerryPnp,
     #[error("script '{0}' was not found in the nearest package.json")]
     MissingScript(String),
@@ -37,6 +40,8 @@ pub(super) enum FallbackReason {
     MissingLocalBin,
     #[error("fast local bin execution requires a command")]
     MissingLocalBinCommand,
+    #[error("{0}")]
+    Workspace(String),
 }
 
 #[cfg(test)]
@@ -60,7 +65,7 @@ mod tests {
             ),
             (
                 FallbackReason::YarnBerryPnp,
-                "yarn berry Plug'n'Play does not expose node_modules/.bin; falling back to yarn execution",
+                "yarn berry Plug'n'Play scripts require yarn execution",
             ),
             (
                 FallbackReason::MissingScript("build".to_string()),
@@ -80,6 +85,12 @@ mod tests {
             (
                 FallbackReason::MissingLocalBinCommand,
                 "fast local bin execution requires a command",
+            ),
+            (
+                FallbackReason::Workspace(
+                    "workspace fast mode requires a workspace root".to_string(),
+                ),
+                "workspace fast mode requires a workspace root",
             ),
         ];
 

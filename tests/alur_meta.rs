@@ -130,6 +130,7 @@ fn command_registry_exposes_expected_public_surface() {
             "sequential",
             "help",
             "doctor",
+            "pm",
             "completion",
             "init",
         ]

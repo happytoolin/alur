@@ -511,7 +511,7 @@ fn node_run_falls_back_to_package_manager_when_fast_env_is_unsupported() {
         let dir = tempfile::tempdir().unwrap();
         write_package_json(
             dir.path(),
-            r#"{"packageManager":"npm@10.0.0","scripts":{"dev":"echo $npm_package_name"}}"#,
+            r#"{"packageManager":"npm@10.0.0","scripts":{"dev":"echo $npm_package_description"}}"#,
         );
 
         let ctx = ResolveContext::new(dir.path().to_path_buf(), AlurConfig::default());
@@ -653,9 +653,7 @@ fn nr_fast_mode_falls_back_for_yarn_berry_pnp() {
         assert_eq!(resolved.args, vec!["run", "dev"]);
         assert_eq!(
             resolved.fast_fallback_reason.as_deref(),
-            Some(
-                "yarn berry Plug'n'Play does not expose node_modules/.bin; falling back to yarn execution"
-            )
+            Some("yarn berry Plug'n'Play scripts require yarn execution")
         );
     });
 }
@@ -999,7 +997,7 @@ fn nex_fast_mode_uses_pnpm_hoisted_local_bin_when_present() {
 }
 
 #[test]
-fn nex_fast_mode_falls_back_for_yarn_berry_pnp_declared_bin() {
+fn nex_fast_mode_uses_yarn_berry_pnp_declared_bin() {
     with_skip_pm_check(|| {
         let dir = tempfile::tempdir().unwrap();
         fs::create_dir_all(dir.path().join("bin")).unwrap();
@@ -1017,9 +1015,34 @@ fn nex_fast_mode_falls_back_for_yarn_berry_pnp_declared_bin() {
         let ctx = ResolveContext::new(dir.path().to_path_buf(), cfg);
         let resolved = resolve::resolve_nex(vec!["hello".into()], &ctx).unwrap();
 
+        match &resolved.strategy {
+            ExecutionStrategy::Native(NativeExecution::RunLocalBin(exec)) => {
+                assert_eq!(exec.bin_name, "hello");
+                assert_eq!(exec.forwarded_args, Vec::<String>::new());
+                assert!(exec.resolved_path().ends_with("bin/hello.js"));
+            }
+            other => panic!("expected native local bin execution, got {other:?}"),
+        }
+    });
+}
+
+#[test]
+fn nex_fast_mode_falls_back_for_yarn_berry_pnp_package_spec() {
+    with_skip_pm_check(|| {
+        let dir = tempfile::tempdir().unwrap();
+        fs::write(dir.path().join(".pnp.cjs"), "module.exports = {};\n").unwrap();
+        write_package_json(dir.path(), r#"{"packageManager":"yarn@4.0.0"}"#);
+
+        let cfg = AlurConfig {
+            fast_mode: true,
+            ..AlurConfig::default()
+        };
+        let ctx = ResolveContext::new(dir.path().to_path_buf(), cfg);
+        let resolved = resolve::resolve_nex(vec!["create-vite@latest".into()], &ctx).unwrap();
+
         assert!(matches!(resolved.strategy, ExecutionStrategy::External));
         assert_eq!(resolved.program, "yarn");
-        assert_eq!(resolved.args, vec!["dlx", "hello"]);
+        assert_eq!(resolved.args, vec!["dlx", "create-vite@latest"]);
     });
 }
 

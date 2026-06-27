@@ -58,6 +58,10 @@ pub fn run_from_env() -> Result<ExitCode> {
             print_doctor(&resolve_ctx);
             Ok(ExitCode::SUCCESS)
         }
+        ParsedCommand::Pm { args } => {
+            let resolve_ctx = resolve_context(&parsed, false)?;
+            crate::app::pm::run(args, &resolve_ctx)
+        }
         ParsedCommand::InternalProfileLoop {
             invocation,
             args,

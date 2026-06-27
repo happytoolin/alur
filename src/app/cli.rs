@@ -48,6 +48,9 @@ pub enum ParsedCommand {
         shell: Option<String>,
         program: String,
     },
+    Pm {
+        args: Vec<String>,
+    },
     Init {
         shell: String,
     },
@@ -169,6 +172,8 @@ enum AlurSubcommand {
     Help(HelpArgs),
     #[command(about = "print environment and detection diagnostics")]
     Doctor,
+    #[command(about = "inspect or update the package-manager pin")]
+    Pm(ForwardedArgs),
     #[command(about = "print shell completion script")]
     Completion(CompletionArgs),
     #[command(about = "print shell init code")]
@@ -197,6 +202,8 @@ enum AlurPublicSubcommand {
     Help(HelpArgs),
     #[command(about = "print environment and detection diagnostics")]
     Doctor,
+    #[command(about = "inspect or update the package-manager pin")]
+    Pm(ForwardedArgs),
     #[command(about = "print shell completion script")]
     Completion(CompletionArgs),
     #[command(about = "print shell init code")]
@@ -356,6 +363,7 @@ fn parsed_alur_subcommand(subcommand: AlurSubcommand, program: String) -> Result
         AlurSubcommand::Sequential(args) => Ok(execute_from_args(InvocationKind::Nseq, args)),
         AlurSubcommand::Help(args) => Ok(ParsedCommand::PrintHelp(help_target(args.command)?)),
         AlurSubcommand::Doctor => Ok(ParsedCommand::Doctor),
+        AlurSubcommand::Pm(args) => Ok(ParsedCommand::Pm { args: args.args }),
         AlurSubcommand::Completion(args) => Ok(ParsedCommand::Completion {
             shell: args.shell,
             program,
@@ -434,6 +442,7 @@ fn help_target_from_command(command: &ParsedCommand) -> HelpTopic {
         ParsedCommand::Init { .. } => HelpTopic::Init,
         ParsedCommand::Execute { invocation, .. } => help_topic_for_invocation(*invocation),
         ParsedCommand::Doctor
+        | ParsedCommand::Pm { .. }
         | ParsedCommand::Completion { .. }
         | ParsedCommand::InternalRealNodePath
         | ParsedCommand::InternalProfileLoop { .. }

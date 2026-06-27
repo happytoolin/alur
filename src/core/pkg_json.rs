@@ -10,12 +10,21 @@ use serde::Deserialize;
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct PackageJson {
     pub name: Option<String>,
+    pub version: Option<String>,
     #[serde(rename = "packageManager")]
     pub package_manager: Option<String>,
     #[serde(rename = "devEngines")]
     pub dev_engines: Option<DevEngines>,
     #[serde(default)]
     pub bin: PackageBin,
+    #[serde(default)]
+    pub config: BTreeMap<String, serde_json::Value>,
+    #[serde(default)]
+    pub dependencies: BTreeMap<String, String>,
+    #[serde(rename = "devDependencies", default)]
+    pub dev_dependencies: BTreeMap<String, String>,
+    #[serde(rename = "peerDependencies", default)]
+    pub peer_dependencies: BTreeMap<String, String>,
     pub scripts: Option<BTreeMap<String, String>>,
 }
 
