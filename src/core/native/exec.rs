@@ -529,15 +529,26 @@ fn run_script_step(
     let mut prepared = prepare_script_step_command(&step.command, forwarded_args, cwd)?;
     apply_script_step_env(&mut prepared.command, shared_env, step);
 
-    match prepared.command.status() {
-        Ok(status) => Ok(status),
+    match prepared.command.spawn() {
+        Ok(mut child) => child.wait().with_context(|| {
+            format!(
+                "failed to wait for native script step '{}'",
+                step.event_name
+            )
+        }),
         Err(error) if prepared.direct => {
             let direct_error = error.to_string();
             let mut shell = spawn_shell_command(&step.command, forwarded_args, cwd);
             apply_script_step_env(&mut shell, shared_env, step);
-            shell.status().with_context(|| {
+            let mut child = shell.spawn().with_context(|| {
                 format!(
                     "failed to execute native script step '{}' after direct spawn failed: {}",
+                    step.event_name, direct_error
+                )
+            })?;
+            child.wait().with_context(|| {
+                format!(
+                    "failed to wait for native script step '{}' after direct spawn failed: {}",
                     step.event_name, direct_error
                 )
             })
