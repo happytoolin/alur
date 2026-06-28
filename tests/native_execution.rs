@@ -227,6 +227,142 @@ fn native_nr_preserves_shell_glob_expansion() {
 }
 
 #[test]
+fn native_nr_missing_direct_script_command_exits_without_alur_execution_error() {
+    support::with_env_lock(|| {
+        let work = tempfile::tempdir().unwrap();
+        let project = work.path().join("project");
+        fs::create_dir_all(&project).unwrap();
+        fs::write(project.join("package-lock.json"), "lock").unwrap();
+        fs::write(
+            project.join("package.json"),
+            r#"{"name":"x","scripts":{"format":"alur-definitely-missing-local-bin-17 --version"}}"#,
+        )
+        .unwrap();
+
+        let output = run_alur(
+            vec!["run", "-C", project.to_str().unwrap(), "--fast", "format"],
+            &[("ALUR_SKIP_PM_CHECK", "1")],
+        );
+
+        assert!(!output.status.success(), "{output:?}");
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(
+            !stderr.contains("alur: execution error"),
+            "missing local bin should be reported by the shell, got: {stderr}"
+        );
+        assert!(
+            !stderr.contains("failed to execute native script step"),
+            "missing local bin should not be wrapped as an internal execution error, got: {stderr}"
+        );
+    });
+}
+
+#[test]
+fn native_nr_non_executable_local_bin_exits_without_alur_execution_error() {
+    support::with_env_lock(|| {
+        let work = tempfile::tempdir().unwrap();
+        let project = work.path().join("project");
+        let bin_dir = project.join("node_modules").join(".bin");
+        fs::create_dir_all(&bin_dir).unwrap();
+        fs::write(project.join("package-lock.json"), "lock").unwrap();
+        fs::write(
+            project.join("package.json"),
+            r#"{"name":"x","scripts":{"format":"broken-tool --version"}}"#,
+        )
+        .unwrap();
+        fs::write(bin_dir.join("broken-tool"), "#!/bin/sh\nexit 0\n").unwrap();
+
+        let output = run_alur(
+            vec!["run", "-C", project.to_str().unwrap(), "--fast", "format"],
+            &[("ALUR_SKIP_PM_CHECK", "1")],
+        );
+
+        assert!(!output.status.success(), "{output:?}");
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(
+            !stderr.contains("alur: execution error"),
+            "non-executable local bin should be reported by the shell, got: {stderr}"
+        );
+        assert!(
+            !stderr.contains("failed to execute native script step"),
+            "non-executable local bin should not be wrapped as an internal execution error, got: {stderr}"
+        );
+    });
+}
+
+#[test]
+fn native_nr_local_bin_with_missing_interpreter_exits_without_alur_execution_error() {
+    support::with_env_lock(|| {
+        let work = tempfile::tempdir().unwrap();
+        let project = work.path().join("project");
+        let bin_dir = project.join("node_modules").join(".bin");
+        fs::create_dir_all(&bin_dir).unwrap();
+        fs::write(project.join("package-lock.json"), "lock").unwrap();
+        fs::write(
+            project.join("package.json"),
+            r#"{"name":"x","scripts":{"format":"broken-tool"}}"#,
+        )
+        .unwrap();
+
+        let bin = bin_dir.join("broken-tool");
+        fs::write(&bin, "#!/definitely/missing/alur-test-interpreter\n").unwrap();
+        make_executable(&bin);
+
+        let output = run_alur(
+            vec!["run", "-C", project.to_str().unwrap(), "--fast", "format"],
+            &[("ALUR_SKIP_PM_CHECK", "1")],
+        );
+
+        assert!(!output.status.success(), "{output:?}");
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(
+            !stderr.contains("alur: execution error"),
+            "local bin with a missing interpreter should be reported by the shell, got: {stderr}"
+        );
+        assert!(
+            !stderr.contains("failed to execute native script step"),
+            "local bin with a missing interpreter should not be wrapped as an internal execution error, got: {stderr}"
+        );
+    });
+}
+
+#[test]
+fn native_nr_extensionless_text_bin_without_shebang_uses_shell_fallback() {
+    support::with_env_lock(|| {
+        let work = tempfile::tempdir().unwrap();
+        let project = work.path().join("project");
+        let bin_dir = project.join("node_modules").join(".bin");
+        fs::create_dir_all(&bin_dir).unwrap();
+        fs::write(project.join("package-lock.json"), "lock").unwrap();
+        fs::write(
+            project.join("package.json"),
+            r#"{"name":"x","scripts":{"format":"broken-tool"}}"#,
+        )
+        .unwrap();
+
+        let bin = bin_dir.join("broken-tool");
+        fs::write(&bin, "printf '%s' ok > no-shebang-ran.txt\n").unwrap();
+        make_executable(&bin);
+
+        let output = run_alur(
+            vec!["run", "-C", project.to_str().unwrap(), "--fast", "format"],
+            &[("ALUR_SKIP_PM_CHECK", "1")],
+        );
+
+        assert!(output.status.success(), "{output:?}");
+        assert_eq!(
+            fs::read_to_string(project.join("no-shebang-ran.txt")).unwrap(),
+            "ok"
+        );
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(
+            !stderr.contains("alur: execution error"),
+            "shell-compatible no-shebang bin should not be wrapped as an internal execution error, got: {stderr}"
+        );
+    });
+}
+
+#[test]
 fn native_nr_exposes_supported_shared_npm_env() {
     support::with_env_lock(|| {
         let work = tempfile::tempdir().unwrap();
