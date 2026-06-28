@@ -227,7 +227,7 @@ fn native_nr_preserves_shell_glob_expansion() {
 }
 
 #[test]
-fn native_nr_missing_direct_script_command_exits_without_alur_execution_error() {
+fn native_nr_missing_direct_script_command_uses_shell_command_not_found_result() {
     support::with_env_lock(|| {
         let work = tempfile::tempdir().unwrap();
         let project = work.path().join("project");
@@ -235,7 +235,7 @@ fn native_nr_missing_direct_script_command_exits_without_alur_execution_error() 
         fs::write(project.join("package-lock.json"), "lock").unwrap();
         fs::write(
             project.join("package.json"),
-            r#"{"name":"x","scripts":{"format":"alur-definitely-missing-local-bin-17 --version"}}"#,
+            r#"{"name":"workflow-builder","scripts":{"format":"oxfmt"}}"#,
         )
         .unwrap();
 
@@ -244,8 +244,12 @@ fn native_nr_missing_direct_script_command_exits_without_alur_execution_error() 
             &[("ALUR_SKIP_PM_CHECK", "1")],
         );
 
-        assert!(!output.status.success(), "{output:?}");
+        assert_eq!(output.status.code(), Some(127), "{output:?}");
         let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(
+            stderr.contains("oxfmt") && stderr.contains("not found"),
+            "missing local bin should use the shell command-not-found message, got: {stderr}"
+        );
         assert!(
             !stderr.contains("alur: execution error"),
             "missing local bin should be reported by the shell, got: {stderr}"
