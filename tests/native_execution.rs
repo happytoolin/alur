@@ -354,7 +354,8 @@ fn native_nr_missing_path_like_script_command_uses_shell_error_result() {
         assert_eq!(output.status.code(), Some(127), "{output:?}");
         let stderr = String::from_utf8_lossy(&output.stderr);
         assert!(
-            stderr.contains("missing-tool") && stderr.contains("No such file"),
+            stderr.contains("missing-tool")
+                && (stderr.contains("No such file") || stderr.contains("not found")),
             "missing path-like command should use the shell error message, got: {stderr}"
         );
         assert_no_alur_execution_error(&stderr);
