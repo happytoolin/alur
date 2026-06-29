@@ -143,13 +143,13 @@ curl --proto '=https' --tlsv1.2 -LsSf https://github.com/happytoolin/alur/releas
 Pin a specific version:
 
 ```bash
-curl --proto '=https' --tlsv1.2 -LsSf https://github.com/happytoolin/alur/releases/download/v0.0.6/alur-installer.sh | sh
+curl --proto '=https' --tlsv1.2 -LsSf https://github.com/happytoolin/alur/releases/download/v0.0.7/alur-installer.sh | sh
 ```
 
 CI example:
 
 ```bash
-curl --proto '=https' --tlsv1.2 -LsSf https://github.com/happytoolin/alur/releases/download/v0.0.6/alur-installer.sh | sh
+curl --proto '=https' --tlsv1.2 -LsSf https://github.com/happytoolin/alur/releases/download/v0.0.7/alur-installer.sh | sh
 echo 'export PATH="$HOME/.cargo/bin:$PATH"' >> "$GITHUB_ENV"
 ```
 

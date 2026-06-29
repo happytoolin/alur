@@ -8,7 +8,7 @@
 import { dirname, join } from "jsr:@std/path@^1.1.4";
 
 const REPO = "happytoolin/alur";
-const VERSION = "0.0.6";
+const VERSION = "0.0.7";
 const TAG = VERSION.startsWith("v") ? VERSION : `v${VERSION}`;
 const DEFAULT_DOWNLOAD_ROOT = "https://happytoolin.com/alur/releases/download";
 const DEFAULT_FALLBACK_DOWNLOAD_ROOT = `https://github.com/${REPO}/releases/download`;
