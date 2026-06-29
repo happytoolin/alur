@@ -227,7 +227,7 @@ fn native_nr_preserves_shell_glob_expansion() {
 }
 
 #[test]
-fn native_nr_missing_direct_script_command_exits_without_alur_execution_error() {
+fn native_nr_missing_direct_script_command_uses_shell_command_not_found_result() {
     support::with_env_lock(|| {
         let work = tempfile::tempdir().unwrap();
         let project = work.path().join("project");
@@ -235,7 +235,7 @@ fn native_nr_missing_direct_script_command_exits_without_alur_execution_error() 
         fs::write(project.join("package-lock.json"), "lock").unwrap();
         fs::write(
             project.join("package.json"),
-            r#"{"name":"x","scripts":{"format":"alur-definitely-missing-local-bin-17 --version"}}"#,
+            r#"{"name":"workflow-builder","scripts":{"format":"oxfmt"}}"#,
         )
         .unwrap();
 
@@ -244,16 +244,144 @@ fn native_nr_missing_direct_script_command_exits_without_alur_execution_error() 
             &[("ALUR_SKIP_PM_CHECK", "1")],
         );
 
-        assert!(!output.status.success(), "{output:?}");
+        assert_shell_command_not_found(&output, "oxfmt");
+    });
+}
+
+#[test]
+fn native_nr_missing_direct_script_command_with_forwarded_args_uses_shell_result() {
+    support::with_env_lock(|| {
+        let work = tempfile::tempdir().unwrap();
+        let project = work.path().join("project");
+        fs::create_dir_all(&project).unwrap();
+        fs::write(project.join("package-lock.json"), "lock").unwrap();
+        fs::write(
+            project.join("package.json"),
+            r#"{"name":"workflow-builder","scripts":{"format":"oxfmt"}}"#,
+        )
+        .unwrap();
+
+        let output = run_alur(
+            vec![
+                "run",
+                "-C",
+                project.to_str().unwrap(),
+                "--fast",
+                "format",
+                "--",
+                "--check",
+                "src file.ts",
+            ],
+            &[("ALUR_SKIP_PM_CHECK", "1")],
+        );
+
+        assert_shell_command_not_found(&output, "oxfmt");
+    });
+}
+
+#[test]
+fn native_nr_missing_prehook_stops_before_main_script() {
+    support::with_env_lock(|| {
+        let work = tempfile::tempdir().unwrap();
+        let project = work.path().join("project");
+        fs::create_dir_all(&project).unwrap();
+        fs::write(project.join("package-lock.json"), "lock").unwrap();
+        fs::write(
+            project.join("package.json"),
+            r#"{"name":"x","scripts":{"preformat":"missing-pretool","format":"printf main > main-ran.txt","postformat":"printf post > post-ran.txt"}}"#,
+        )
+        .unwrap();
+
+        let output = run_alur(
+            vec!["run", "-C", project.to_str().unwrap(), "--fast", "format"],
+            &[("ALUR_SKIP_PM_CHECK", "1")],
+        );
+
+        assert_shell_command_not_found(&output, "missing-pretool");
+        assert!(!project.join("main-ran.txt").exists());
+        assert!(!project.join("post-ran.txt").exists());
+    });
+}
+
+#[test]
+fn native_nr_missing_posthook_reports_shell_failure_after_main_script() {
+    support::with_env_lock(|| {
+        let work = tempfile::tempdir().unwrap();
+        let project = work.path().join("project");
+        fs::create_dir_all(&project).unwrap();
+        fs::write(project.join("package-lock.json"), "lock").unwrap();
+        fs::write(
+            project.join("package.json"),
+            r#"{"name":"x","scripts":{"preformat":"printf pre > pre-ran.txt","format":"printf main > main-ran.txt","postformat":"missing-posttool"}}"#,
+        )
+        .unwrap();
+
+        let output = run_alur(
+            vec!["run", "-C", project.to_str().unwrap(), "--fast", "format"],
+            &[("ALUR_SKIP_PM_CHECK", "1")],
+        );
+
+        assert_shell_command_not_found(&output, "missing-posttool");
+        assert_eq!(
+            fs::read_to_string(project.join("pre-ran.txt")).unwrap(),
+            "pre"
+        );
+        assert_eq!(
+            fs::read_to_string(project.join("main-ran.txt")).unwrap(),
+            "main"
+        );
+    });
+}
+
+#[test]
+fn native_nr_missing_path_like_script_command_uses_shell_error_result() {
+    support::with_env_lock(|| {
+        let work = tempfile::tempdir().unwrap();
+        let project = work.path().join("project");
+        fs::create_dir_all(&project).unwrap();
+        fs::write(project.join("package-lock.json"), "lock").unwrap();
+        fs::write(
+            project.join("package.json"),
+            r#"{"name":"x","scripts":{"format":"./missing-tool --version"}}"#,
+        )
+        .unwrap();
+
+        let output = run_alur(
+            vec!["run", "-C", project.to_str().unwrap(), "--fast", "format"],
+            &[("ALUR_SKIP_PM_CHECK", "1")],
+        );
+
+        assert_eq!(output.status.code(), Some(127), "{output:?}");
         let stderr = String::from_utf8_lossy(&output.stderr);
         assert!(
-            !stderr.contains("alur: execution error"),
-            "missing local bin should be reported by the shell, got: {stderr}"
+            stderr.contains("missing-tool")
+                && (stderr.contains("No such file") || stderr.contains("not found")),
+            "missing path-like command should use the shell error message, got: {stderr}"
         );
-        assert!(
-            !stderr.contains("failed to execute native script step"),
-            "missing local bin should not be wrapped as an internal execution error, got: {stderr}"
+        assert_no_alur_execution_error(&stderr);
+    });
+}
+
+#[test]
+fn native_nr_missing_command_in_shell_compound_stops_followup_command() {
+    support::with_env_lock(|| {
+        let work = tempfile::tempdir().unwrap();
+        let project = work.path().join("project");
+        fs::create_dir_all(&project).unwrap();
+        fs::write(project.join("package-lock.json"), "lock").unwrap();
+        fs::write(
+            project.join("package.json"),
+            r#"{"name":"x","scripts":{"format":"oxfmt && printf nope > should-not-run.txt"}}"#,
+        )
+        .unwrap();
+
+        let output = run_alur(
+            vec!["run", "-C", project.to_str().unwrap(), "--fast", "format"],
+            &[("ALUR_SKIP_PM_CHECK", "1")],
         );
+
+        assert_shell_command_not_found(&output, "oxfmt");
+        assert!(!project.join("should-not-run.txt").exists());
     });
 }
 
@@ -591,4 +719,25 @@ fn make_executable(path: &std::path::Path) {
     let mut perms = fs::metadata(path).unwrap().permissions();
     perms.set_mode(0o755);
     fs::set_permissions(path, perms).unwrap();
+}
+
+fn assert_shell_command_not_found(output: &std::process::Output, command: &str) {
+    assert_eq!(output.status.code(), Some(127), "{output:?}");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains(command) && stderr.contains("not found"),
+        "missing command should use the shell command-not-found message, got: {stderr}"
+    );
+    assert_no_alur_execution_error(&stderr);
+}
+
+fn assert_no_alur_execution_error(stderr: &str) {
+    assert!(
+        !stderr.contains("alur: execution error"),
+        "script startup failure should be reported by the shell, got: {stderr}"
+    );
+    assert!(
+        !stderr.contains("failed to execute native script step"),
+        "script startup failure should not be wrapped as an internal execution error, got: {stderr}"
+    );
 }
